@@ -1,50 +1,162 @@
-# Scout Trainer
+# 🏐 Scout Trainer
 
-Os documentos internos usados no planejamento, nas decisões e nos roteiros de implementação estão agrupados em [`vibecoding/`](vibecoding/). Eles não definem o nome do repositório nem do programa.
+Aplicação desktop desenvolvida como um ambiente de treinamento para **scout e registro estatístico de partidas de voleibol**.
 
-Aplicativo para registrar partidas, treinar códigos e analisar scouts de voleibol. Os dados ficam no dispositivo do usuário e podem ser exportados em JSON, CSV ou TXT.
+O projeto nasceu de uma necessidade prática: eu queria treinar o trabalho de estatístico, principalmente a velocidade e a lógica de registro das ações durante uma partida, mas não tinha acesso a uma licença de softwares profissionais utilizados na área.
 
-## Usar no Windows
+Em vez de tentar reproduzir integralmente uma ferramenta comercial, desenvolvi um ambiente próprio voltado para **aprendizado e prática**.
 
-Baixe `Scout-Trainer-0.1.0-Portable.exe` na página de releases ou no link de compartilhamento do Google Drive. O programa é portátil: basta abrir o arquivo, sem instalação.
+## 🎯 O que é o projeto?
 
-O Windows pode exibir um aviso por o executável não possuir assinatura digital. Nesse caso, confirme a origem do arquivo antes de executá-lo.
+O **Scout Trainer** permite simular parte do fluxo de trabalho de um estatístico de voleibol.
 
-## Executar o projeto
+A ideia principal é que o usuário consiga praticar o registro de acontecimentos de uma partida por meio de códigos inseridos de forma contínua, aproximando o treino da dinâmica encontrada durante um jogo real.
 
-Requisitos: Node.js 22 ou superior e npm.
+O foco não está apenas em registrar estatísticas, mas em treinar:
 
-```bash
-npm install
-npm run dev
+* identificação rápida das ações;
+* associação entre ação e código;
+* velocidade de digitação;
+* consistência no registro;
+* organização das informações de uma partida;
+* familiaridade com a lógica utilizada no scout de voleibol.
+
+## 💡 Por que eu criei isso?
+
+Meu objetivo era encontrar uma maneira de praticar scout sem depender exclusivamente do acesso a softwares profissionais.
+
+Durante o desenvolvimento percebi que isso também era um problema interessante de programação.
+
+Não bastava criar uma tela com alguns botões. Eu precisava pensar em como representar uma partida, como interpretar uma sequência de códigos, como armazenar as informações e como permitir que diferentes configurações de treinamento fossem utilizadas.
+
+O Scout Trainer acabou se tornando, portanto, tanto uma ferramenta de estudo de estatística esportiva quanto um projeto de desenvolvimento de software.
+
+## ⚙️ O que desenvolvi
+
+Entre as principais ideias implementadas no projeto estão:
+
+### ⌨️ Entrada contínua de códigos
+
+O registro foi pensado para acontecer de maneira contínua, permitindo que o usuário pratique a inserção de informações sem interromper constantemente o fluxo da partida.
+
+Isso é importante porque, em uma situação real, o estatístico precisa acompanhar o jogo ao mesmo tempo em que registra o que está acontecendo.
+
+### 🧩 Configuração dos códigos
+
+A estrutura foi pensada para não depender de uma única lista fixa de comandos.
+
+Os códigos utilizados durante o treinamento podem ser organizados de acordo com o tipo de prática desejada, permitindo trabalhar diferentes níveis de complexidade e diferentes convenções de registro.
+
+### 🏐 Organização das informações da partida
+
+Os registros realizados durante o treino são estruturados para que não sejam apenas texto digitado na tela.
+
+A aplicação trata essas entradas como informações pertencentes a uma sessão ou partida, permitindo manter o histórico do que foi registrado.
+
+### 💾 Persistência local
+
+Os dados são armazenados localmente no computador.
+
+Isso significa que o programa não precisa enviar as informações para um servidor externo para funcionar.
+
+### 📦 Importação e exportação em JSON
+
+As informações podem ser exportadas em **JSON**, permitindo:
+
+* criar backups;
+* transferir dados entre computadores;
+* preservar sessões de treinamento;
+* reutilizar informações posteriormente;
+* facilitar futuras análises dos registros.
+
+### 🖥️ Aplicação desktop portátil
+
+A versão `0.1.0` foi empacotada como um executável portátil para **Windows 64 bits**.
+
+Não é necessário realizar instalação: basta baixar e executar o arquivo.
+
+## 🔄 Fluxo básico
+
+A lógica do programa pode ser resumida assim:
+
+```text
+Configuração do treino
+        ↓
+Definição dos códigos
+        ↓
+Entrada contínua durante a simulação
+        ↓
+Interpretação e organização dos registros
+        ↓
+Persistência local
+        ↓
+Exportação / backup em JSON
 ```
 
-## Verificar e compilar
+Uma preocupação importante durante o desenvolvimento foi separar essas responsabilidades para que novas formas de treinamento possam ser adicionadas posteriormente sem a necessidade de reconstruir toda a aplicação.
 
-```bash
-npm run typecheck
-npm run lint
-npm run test
-npm run build
+## 🧠 O que trabalhei tecnicamente neste projeto
+
+Além da aplicação em si, o projeto foi uma oportunidade para estudar e praticar conceitos como:
+
+* arquitetura modular;
+* separação de responsabilidades;
+* modelagem de eventos esportivos;
+* validação de entradas;
+* configuração dinâmica;
+* persistência local;
+* serialização de dados em JSON;
+* interface para aplicações desktop;
+* construção e empacotamento de aplicações;
+* distribuição de um executável para usuários finais.
+
+Uma parte especialmente interessante foi transformar uma atividade que acontece de maneira muito rápida e contínua durante uma partida em uma estrutura que pudesse ser interpretada pelo programa.
+
+## 📥 Download
+
+A versão portátil para Windows pode ser baixada aqui:
+
+**Scout Trainer 0.1.0 — Windows 64 bits**
+
+https://drive.google.com/file/d/1NuUWKRA4zpUoUAfYPYT0b3X6oD1_Ad6y/view?usp=drivesdk
+
+O executável possui aproximadamente **84 MB**.
+
+### Como utilizar
+
+1. Baixe `Scout-Trainer-0.1.0-Portable.exe`.
+2. Abra o arquivo.
+3. Não é necessário instalar o programa.
+4. Os dados serão armazenados localmente.
+5. Utilize a exportação JSON para criar backups ou transferir informações.
+
+> O Windows pode apresentar um aviso ao executar o programa porque o executável não possui certificado de assinatura digital.
+
+## 🔐 Verificação do arquivo
+
+SHA-256 da versão `0.1.0`:
+
+```text
+80FC5FF9302418E8F5EEB94EC46F488A136008A69780C4AA6AB16B7F063127C4
 ```
 
-Para criar o executável portátil do Windows:
+O arquivo `.sha256.txt` também está disponível junto ao executável no Google Drive.
 
-```bash
-npm run build:exe
-```
+## 🚧 Status
 
-O arquivo será criado em `distribuicao/`.
+**Versão atual: 0.1.0**
 
-## Publicar no GitHub Pages
+O projeto ainda está em desenvolvimento.
 
-1. Publique o conteúdo desta pasta em um repositório GitHub com a branch `main`.
-2. No repositório, abra **Settings → Pages**.
-3. Em **Build and deployment**, escolha **GitHub Actions**.
-4. Envie uma alteração para a branch `main` ou execute manualmente o fluxo **Publicar no GitHub Pages**.
+Algumas possibilidades para versões futuras incluem ampliar os modos de treinamento, melhorar o feedback sobre os registros realizados e aproximar progressivamente as simulações de diferentes situações encontradas durante partidas reais.
 
-## Armazenamento e backup
+## ⚠️ Sobre o projeto
 
-Partidas, sessões e perfis são armazenados localmente no navegador ou no aplicativo. Para transferir os dados para outro dispositivo, exporte o backup JSON e use **Restaurar backup JSON** no outro dispositivo.
+Este é um projeto independente e educacional.
 
-Chrome e Edge também permitem conectar uma pasta local na tela de resumo. Essa pasta pode estar sincronizada pelo Google Drive para computador.
+O objetivo é criar um ambiente para estudo e treinamento de scout de voleibol. O projeto não pretende substituir softwares profissionais nem representa uma versão oficial de ferramentas, federações ou organizações esportivas citadas como referência durante o estudo.
+
+## 👨‍💻 Autor
+
+Desenvolvido por **Lucas Regis**.
+
