@@ -1,0 +1,216 @@
+import type { Skill } from '../entities/Skill';
+import type { ScoutEventMetadata } from '../events/ScoutEvent';
+import {
+  TACTICAL_METADATA_SCHEMA_VERSION,
+  type BallTrajectory,
+  type CourtLocation,
+  type TacticalMetadata,
+} from './TacticalMetadata';
+
+function zone(zoneId: number | undefined): CourtLocation | undefined {
+  return zoneId === undefined ? undefined : { zoneId: String(zoneId) };
+}
+
+function compact<T extends object>(value: T): T | undefined {
+  return Object.values(value).some((item) => item !== undefined) ? value : undefined;
+}
+
+function capturedTrajectory(metadata: ScoutEventMetadata): BallTrajectory | undefined {
+  const draft = metadata.captureDraft;
+  return compact({
+    origin: draft?.origin ?? zone(metadata.originZone),
+    target: draft?.target ?? zone(metadata.targetZone),
+    direction: draft?.direction ?? metadata.direction,
+    captureMethod:
+      draft?.captureMethod ??
+      (draft?.origin || draft?.target || draft?.direction
+        ? ('selected' as const)
+        : metadata.originZone !== undefined ||
+            metadata.targetZone !== undefined ||
+            metadata.direction
+          ? ('typed' as const)
+          : undefined),
+  });
+}
+
+export function toTacticalMetadata(metadata: ScoutEventMetadata, skill?: Skill): TacticalMetadata {
+  if (metadata.tactical) return metadata.tactical;
+  const draft = metadata.captureDraft;
+  const trajectory = capturedTrajectory(metadata);
+  const tactical: TacticalMetadata = {
+    trajectory,
+    rotation: metadata.rotation,
+    setterPosition: draft?.setterPosition ?? metadata.setterPosition,
+    phase: draft?.phase ?? metadata.phase,
+  };
+  if (skill === 'serve')
+    return {
+      ...tactical,
+      serve: compact({ serveType: draft?.skillType ?? metadata.skillType, trajectory }),
+    };
+  if (skill === 'reception')
+    return {
+      ...tactical,
+      reception: compact({
+        contactLocation: draft?.origin ?? zone(metadata.originZone),
+        grade: draft?.receptionGrade ?? metadata.receptionGrade,
+      }),
+    };
+  if (skill === 'set')
+    return {
+      ...tactical,
+      set: compact({
+        setType: draft?.skillType ?? metadata.skillType,
+        setterCall: draft?.setterCall ?? metadata.setterCall,
+        targetLocation: draft?.target ?? zone(metadata.targetZone),
+      }),
+    };
+  if (skill === 'attack')
+    return {
+      ...tactical,
+      attack: compact({
+        attackType: draft?.skillType ?? metadata.skillType,
+        trajectory,
+        combination: draft?.combination ?? metadata.attackCombination,
+        tempo: draft?.tempo ?? metadata.attackTempo,
+        blockersCount: draft?.blockersCount ?? metadata.blockersCount,
+      }),
+    };
+  if (skill === 'block')
+    return {
+      ...tactical,
+      block: compact({
+        blockersCount: draft?.blockersCount ?? metadata.blockersCount,
+        touchLocation: draft?.target ?? zone(metadata.targetZone),
+      }),
+    };
+  return tactical;
+}
+
+export function normalizeTacticalMetadata(
+  metadata: ScoutEventMetadata | undefined,
+  skill?: Skill,
+): ScoutEventMetadata | undefined {
+  if (!metadata) return undefined;
+  if (
+    metadata.schemaVersion === TACTICAL_METADATA_SCHEMA_VERSION &&
+    metadata.tactical &&
+    !metadata.captureDraft
+  )
+    return metadata;
+  const canonical = { ...metadata } as {
+    -readonly [Key in keyof ScoutEventMetadata]: ScoutEventMetadata[Key];
+  };
+  delete canonical.captureDraft;
+  return {
+    ...canonical,
+    schemaVersion: TACTICAL_METADATA_SCHEMA_VERSION,
+    tactical: toTacticalMetadata(metadata, skill),
+  };
+}
+
+function trajectory(
+  metadata: ScoutEventMetadata | undefined,
+  skill?: Skill,
+): BallTrajectory | undefined {
+  if (!metadata) return undefined;
+  const tactical = toTacticalMetadata(metadata, skill);
+  if (skill === 'serve') return tactical.serve?.trajectory ?? tactical.trajectory;
+  if (skill === 'attack') return tactical.attack?.trajectory ?? tactical.trajectory;
+  return tactical.trajectory;
+}
+
+function zoneNumber(location: CourtLocation | undefined): number | undefined {
+  if (!location?.zoneId) return undefined;
+  const value = Number(location.zoneId);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+export const tacticalValue = {
+  skillType(metadata: ScoutEventMetadata | undefined, skill?: Skill): string | undefined {
+    if (!metadata) return undefined;
+    const tactical = toTacticalMetadata(metadata, skill);
+    return (
+      tactical.serve?.serveType ??
+      tactical.set?.setType ??
+      tactical.attack?.attackType ??
+      metadata.skillType
+    );
+  },
+  originZone(metadata: ScoutEventMetadata | undefined, skill?: Skill): number | undefined {
+    return zoneNumber(trajectory(metadata, skill)?.origin) ?? metadata?.originZone;
+  },
+  originZoneId(metadata: ScoutEventMetadata | undefined, skill?: Skill): string | undefined {
+    return trajectory(metadata, skill)?.origin?.zoneId ?? metadata?.originZone?.toString();
+  },
+  originLocation(
+    metadata: ScoutEventMetadata | undefined,
+    skill?: Skill,
+  ): CourtLocation | undefined {
+    return trajectory(metadata, skill)?.origin;
+  },
+  targetZone(metadata: ScoutEventMetadata | undefined, skill?: Skill): number | undefined {
+    const tactical = metadata ? toTacticalMetadata(metadata, skill) : undefined;
+    return (
+      zoneNumber(trajectory(metadata, skill)?.target) ??
+      zoneNumber(tactical?.set?.targetLocation) ??
+      metadata?.targetZone
+    );
+  },
+  targetZoneId(metadata: ScoutEventMetadata | undefined, skill?: Skill): string | undefined {
+    const tactical = metadata ? toTacticalMetadata(metadata, skill) : undefined;
+    return (
+      trajectory(metadata, skill)?.target?.zoneId ??
+      tactical?.set?.targetLocation?.zoneId ??
+      metadata?.targetZone?.toString()
+    );
+  },
+  targetLocation(
+    metadata: ScoutEventMetadata | undefined,
+    skill?: Skill,
+  ): CourtLocation | undefined {
+    const tactical = metadata ? toTacticalMetadata(metadata, skill) : undefined;
+    return trajectory(metadata, skill)?.target ?? tactical?.set?.targetLocation;
+  },
+  direction(metadata: ScoutEventMetadata | undefined, skill?: Skill): string | undefined {
+    return trajectory(metadata, skill)?.direction ?? metadata?.direction;
+  },
+  receptionGrade(metadata: ScoutEventMetadata | undefined) {
+    return metadata
+      ? (toTacticalMetadata(metadata, 'reception').reception?.grade ?? metadata.receptionGrade)
+      : undefined;
+  },
+  rotation(metadata: ScoutEventMetadata | undefined): number | undefined {
+    return metadata ? (toTacticalMetadata(metadata).rotation ?? metadata.rotation) : undefined;
+  },
+  setterPosition(metadata: ScoutEventMetadata | undefined): number | undefined {
+    return metadata
+      ? (toTacticalMetadata(metadata).setterPosition ?? metadata.setterPosition)
+      : undefined;
+  },
+  setterCall(metadata: ScoutEventMetadata | undefined): string | undefined {
+    return metadata
+      ? (toTacticalMetadata(metadata, 'set').set?.setterCall ?? metadata.setterCall)
+      : undefined;
+  },
+  attackCombination(metadata: ScoutEventMetadata | undefined): string | undefined {
+    return metadata
+      ? (toTacticalMetadata(metadata, 'attack').attack?.combination ?? metadata.attackCombination)
+      : undefined;
+  },
+  attackTempo(metadata: ScoutEventMetadata | undefined): string | undefined {
+    return metadata
+      ? (toTacticalMetadata(metadata, 'attack').attack?.tempo ?? metadata.attackTempo)
+      : undefined;
+  },
+  blockersCount(metadata: ScoutEventMetadata | undefined, skill?: Skill): number | undefined {
+    if (!metadata) return undefined;
+    const tactical = toTacticalMetadata(metadata, skill);
+    return (
+      tactical.attack?.blockersCount ?? tactical.block?.blockersCount ?? metadata.blockersCount
+    );
+  },
+  phase(metadata: ScoutEventMetadata | undefined) {
+    return metadata ? (toTacticalMetadata(metadata).phase ?? metadata.phase) : undefined;
+  },
+};

@@ -1,0 +1,31 @@
+{
+  "name": "Scout Trainer",
+  "short_name": "Scout Trainer",
+  "description": "Registro, treinamento e análise de scout de voleibol.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#06100d",
+  "theme_color": "#e3ff4f",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "./icons/scout-trainer-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/scout-trainer-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/scout-trainer.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

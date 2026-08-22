@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+SCOUT_TRAINER_IMPLEMENTATION_PLAN.md

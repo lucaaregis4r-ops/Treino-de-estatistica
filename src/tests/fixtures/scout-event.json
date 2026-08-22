@@ -1,0 +1,18 @@
+{
+  "id": "6d45be42-35c7-4889-a0ea-ecb004c13140",
+  "matchId": "8db0994c-d217-40b2-826d-94afe762aa10",
+  "rallyId": "44dfe8b9-f65f-42fe-a6e4-51abeae0991f",
+  "sequence": 1,
+  "teamId": "team_a",
+  "playerId": "team_a_08",
+  "skill": "attack",
+  "outcome": "point",
+  "evaluation": "excellent",
+  "setNumber": 1,
+  "scoreBefore": { "teamA": 0, "teamB": 0 },
+  "timestamp": 1786291200000,
+  "rawCode": "08A#",
+  "codeProfileId": "default_compact_v1",
+  "codeProfileVersion": "1.0.0",
+  "complexityProfileId": "basic"
+}

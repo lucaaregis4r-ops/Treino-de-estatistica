@@ -1,0 +1,71 @@
+{
+  "name": "scout-trainer",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Registro, treinamento e análise de scout de voleibol.",
+  "author": "Lucas Novo",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "desktop": "npm run build && electron .",
+    "build:exe": "npm run build && electron-builder --win portable",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "typecheck": "tsc -b --pretty false",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@eslint/js": "latest",
+    "@playwright/test": "^1.62.1",
+    "@testing-library/jest-dom": "latest",
+    "@testing-library/react": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "latest",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
+    "eslint": "latest",
+    "eslint-plugin-react-hooks": "latest",
+    "eslint-plugin-react-refresh": "latest",
+    "fake-indexeddb": "^6.2.5",
+    "globals": "latest",
+    "jsdom": "latest",
+    "prettier": "latest",
+    "typescript": "latest",
+    "typescript-eslint": "latest",
+    "vite": "latest",
+    "vitest": "latest"
+  },
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "br.com.scouttrainer.app",
+    "productName": "Scout Trainer",
+    "electronDist": "node_modules/electron/dist",
+    "artifactName": "Scout-Trainer-${version}-Portable.${ext}",
+    "directories": {
+      "output": "distribuicao"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "public/icons/scout-trainer-512.png"
+    }
+  },
+  "allowScripts": {
+    "electron@37.10.3": true,
+    "electron-winstaller@5.4.0": true
+  }
+}
