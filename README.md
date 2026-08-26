@@ -71,9 +71,21 @@ As informações podem ser exportadas em **JSON**, permitindo:
 
 ### 🖥️ Aplicação desktop portátil
 
-A versão `0.1.0` foi empacotada como um executável portátil para **Windows 64 bits**.
+A versão `0.2.0` foi empacotada como um executável portátil para **Windows 64 bits**.
 
 Não é necessário realizar instalação: basta baixar e executar o arquivo.
+
+### ✨ Novidades da versão 0.2.0
+
+* ajuda contextual durante a captura do scout;
+* escalações, rotações e substituições auditáveis;
+* confirmação de uma nova escalação entre sets;
+* cabeçalho fixo e navegação pelo manual sem reiniciar a partida;
+* análises por atleta, rotação e posição do levantador;
+* distribuição e direcionamento dos ataques em P1–P6;
+* exportações CSV, TXT, JSON e relatório PDF redesenhado.
+
+Consulte o [changelog completo](CHANGELOG.md).
 
 ## 🔄 Fluxo básico
 
@@ -116,15 +128,15 @@ Uma parte especialmente interessante foi transformar uma atividade que acontece 
 
 A versão portátil para Windows pode ser baixada aqui:
 
-**Scout Trainer 0.1.0 — Windows 64 bits**
+**Scout Trainer 0.2.0 — Windows 64 bits**
 
-https://drive.google.com/file/d/1NuUWKRA4zpUoUAfYPYT0b3X6oD1_Ad6y/view?usp=drivesdk
+https://github.com/lucaaregis4r-ops/Treino-de-estatistica/releases/download/v0.2.0/Scout-Trainer-0.2.0-Portable.exe
 
 O executável possui aproximadamente **84 MB**.
 
 ### Como utilizar
 
-1. Baixe `Scout-Trainer-0.1.0-Portable.exe`.
+1. Baixe `Scout-Trainer-0.2.0-Portable.exe`.
 2. Abra o arquivo.
 3. Não é necessário instalar o programa.
 4. Os dados serão armazenados localmente.
@@ -134,17 +146,17 @@ O executável possui aproximadamente **84 MB**.
 
 ## 🔐 Verificação do arquivo
 
-SHA-256 da versão `0.1.0`:
+SHA-256 da versão `0.2.0`:
 
 ```text
-80FC5FF9302418E8F5EEB94EC46F488A136008A69780C4AA6AB16B7F063127C4
+3B674982FCEC30EC2DD4174552F287D065C019CB5648F636BF0435A5F711A8EB
 ```
 
 O arquivo `.sha256.txt` também está disponível junto ao executável no Google Drive.
 
 ## 🚧 Status
 
-**Versão atual: 0.1.0**
+**Versão atual: 0.2.0**
 
 O projeto ainda está em desenvolvimento.
 
