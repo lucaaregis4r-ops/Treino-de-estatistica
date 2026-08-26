@@ -21,12 +21,8 @@ import {
   projectScoutTimeline,
   type ProjectedScoutEvent,
 } from '../domain/match/events/ScoutTimeline';
-import {
-  type MatchEvent,
-  type ScoutCorrectedEvent,
-  type ScoutRedoneEvent,
-  type ScoutUndoneEvent,
-} from '../domain/match/events/MatchEvent';
+import { type MatchEvent } from '../domain/match/events/MatchEvent';
+import { MatchEventFactory } from '../domain/match/events/MatchEventFactory';
 import type { MatchState } from '../domain/match/state/MatchState';
 import { JsonMatchExporter } from '../infrastructure/export/json/MatchJson';
 import { JsonMatchImporter } from '../infrastructure/export/json/MatchJson';
@@ -36,21 +32,20 @@ import { TxtMatchExporter } from '../infrastructure/export/txt/MatchTxt';
 import type { ProfileRegistry } from '../profiles/ProfileRegistry';
 import { ProfileResolver, type ResolvedProfileContext } from '../profiles/ProfileResolver';
 import type { ScoutEventMetadata } from '../domain/scout/events/ScoutEvent';
-import type { ScoutEvent } from '../domain/scout/events/ScoutEvent';
 import {
   ROTATION_POSITIONS,
   createDefaultLineup,
   type CourtRotationPosition,
   type SetLineup,
   type TacticalRole,
+  playerRoleForTacticalRole,
 } from '../domain/match/lineup/SetLineup';
-import { RallyOutcomeResolver } from '../domain/rally/rules/RallyOutcomeResolver';
+import type { PlayerRole } from '../domain/match/roles/PlayerRole';
 import {
   DEFAULT_INDOOR_SCORING_RULES,
-  setWinner,
   type SetScoringRules,
 } from '../domain/match/rules/SetScoringRules';
-import { replayMatch } from '../domain/match/reducers/MatchReducer';
+import { MatchReplayService, replayMatch } from '../domain/match/replay/MatchReplayService';
 import { StatisticsEngine } from '../domain/statistics/StatisticsEngine';
 import type { MetricResult } from '../domain/statistics/metrics/MetricResult';
 import { BASIC_METRIC_IDS } from '../domain/statistics/metrics/volleyball/volleyballMetrics';
@@ -61,18 +56,22 @@ import {
 } from './view-models/StatisticsDashboardViewModel';
 import { RallyContextResolver } from '../domain/rally/context/RallyContextResolver';
 import type { TacticalRallyProjection } from '../domain/rally/context/TacticalRallyProjection';
-import { SetScoresCsvExporter } from '../infrastructure/export/csv/SetScoresCsv';
 import { TACTICAL_METRIC_IDS } from '../domain/statistics/metrics/tactical/tacticalMetrics';
 import {
   buildTacticalAnalytics,
   type TacticalAnalyticsViewModel,
 } from './view-models/TacticalAnalyticsViewModel';
+import { MatchAnalyticsService } from './analytics/MatchAnalyticsService';
+import type { MatchReportModel } from './reporting/MatchReportModel';
+import { MatchPdfRenderer } from '../infrastructure/export/pdf/MatchPdfRenderer';
+import { StatisticsCsvExporter } from '../infrastructure/export/csv/StatisticsCsvExporter';
 
 export interface PlayerRegistrationInput {
   readonly number: number;
   readonly name?: string;
   readonly active?: boolean;
   readonly libero?: boolean;
+  readonly registeredRole?: PlayerRole;
 }
 
 export interface LineupPositionInput {
@@ -124,6 +123,7 @@ export interface MatchWorkspace {
   readonly tacticalAnalytics: TacticalAnalyticsViewModel;
   readonly currentLineups: readonly SetLineup[];
   readonly tacticalRally: TacticalRallyProjection;
+  readonly report: MatchReportModel;
 }
 
 type ServiceError = RepositoryError | ValidationError | ParseError | ProfileError | ImportError;
@@ -163,7 +163,9 @@ export class ScoutTrainerService {
   private readonly resolver: ProfileResolver;
   private readonly openMatch: OpenMatchUseCase;
   private readonly statisticsEngine = new StatisticsEngine(createDefaultMetricRegistry());
-  private readonly rallyOutcomeResolver = new RallyOutcomeResolver();
+  private readonly matchAnalytics = new MatchAnalyticsService(this.statisticsEngine);
+  private readonly matchEventFactory: MatchEventFactory;
+  private readonly matchReplayService = new MatchReplayService();
   private readonly rallyContextResolver = new RallyContextResolver();
   private backupRepository?: MatchBackupRepository;
 
@@ -177,6 +179,7 @@ export class ScoutTrainerService {
   ) {
     this.resolver = new ProfileResolver(profileRegistry);
     this.openMatch = new OpenMatchUseCase(matches, events);
+    this.matchEventFactory = new MatchEventFactory(dependencies);
   }
 
   enableBackupRestore(repository: MatchBackupRepository): this {
@@ -262,6 +265,7 @@ export class ScoutTrainerService {
         number: player.number,
         name: player.name?.trim() || `Jogador ${player.number}`,
         active: player.active !== false,
+        ...(player.registeredRole ? { registeredRole: player.registeredRole } : {}),
       })),
       ...teamBRegistrations.map((player) => ({
         id: this.dependencies.createId(),
@@ -269,6 +273,7 @@ export class ScoutTrainerService {
         number: player.number,
         name: player.name?.trim() || `Jogador ${player.number}`,
         active: player.active !== false,
+        ...(player.registeredRole ? { registeredRole: player.registeredRole } : {}),
       })),
     ];
     const liberoPlayerIds = [
@@ -354,63 +359,14 @@ export class ScoutTrainerService {
       usedPlayers.add(player.id);
       const slotId = this.dependencies.createId();
       positions[entry.position] = slotId;
-      slots[slotId] = { slotId, tacticalRole: entry.tacticalRole, playerId: player.id };
+      slots[slotId] = {
+        slotId,
+        tacticalRole: entry.tacticalRole,
+        playerId: player.id,
+        activeRole: playerRoleForTacticalRole(entry.tacticalRole),
+      };
     }
     return { teamId, setNumber, positions, slots };
-  }
-
-  private automaticResultEvents(
-    state: MatchState,
-    teams: readonly [Team, Team],
-    scout: ScoutEvent,
-    sourceHistoryEventId: string,
-    firstSequence: number,
-    targetScoutEventId = scout.id,
-  ): readonly MatchEvent[] {
-    const outcome = this.rallyOutcomeResolver.resolve(scout, teams);
-    if (!outcome) return [];
-    const previousServingTeamId =
-      state.servingTeamId ?? state.metadata.initialServingTeamId ?? teams[0].id;
-    const result: MatchEvent = {
-      type: 'rally_result',
-      id: this.dependencies.createId(),
-      matchId: state.metadata.id,
-      rallyId: scout.rallyId,
-      winnerTeamId: outcome.winnerTeamId,
-      previousServingTeamId,
-      reason: outcome.reason,
-      targetScoutEventId,
-      sourceHistoryEventId,
-      sequence: firstSequence,
-      timestamp: this.dependencies.now(),
-    };
-    const score = {
-      teamA: state.score.teamA + (outcome.winnerTeamId === teams[0].id ? 1 : 0),
-      teamB: state.score.teamB + (outcome.winnerTeamId === teams[1].id ? 1 : 0),
-    };
-    const winner = setWinner(
-      score,
-      state.currentSet,
-      state.metadata.scoringRules ?? DEFAULT_INDOOR_SCORING_RULES,
-      teams[0].id,
-      teams[1].id,
-    );
-    if (!winner) return [result];
-    return [
-      result,
-      {
-        type: 'set_finished',
-        id: this.dependencies.createId(),
-        matchId: state.metadata.id,
-        setNumber: state.currentSet,
-        winnerTeamId: winner,
-        finalScore: score,
-        targetScoutEventId,
-        sourceHistoryEventId,
-        sequence: firstSequence + 1,
-        timestamp: this.dependencies.now(),
-      },
-    ];
   }
 
   async loadMatch(matchId: string): Promise<Result<MatchWorkspace, ServiceError>> {
@@ -486,6 +442,23 @@ export class ScoutTrainerService {
       ]);
       return fallback ? [fallback] : [];
     });
+    const report = this.matchAnalytics.build({
+      events: effectiveScouts,
+      state: state.value,
+      roster: [...teamAPlayers.value, ...teamBPlayers.value],
+      teams: [loadedTeamA, loadedTeamB],
+      lineups: [
+        ...state.value.lineups,
+        ...currentLineups.filter(
+          (lineup) =>
+            !state.value.lineups.some(
+              (persisted) =>
+                persisted.teamId === lineup.teamId && persisted.setNumber === lineup.setNumber,
+            ),
+        ),
+      ],
+      tacticalRally,
+    });
 
     return success({
       state: state.value,
@@ -500,6 +473,7 @@ export class ScoutTrainerService {
       tacticalAnalytics,
       currentLineups,
       tacticalRally,
+      report,
     });
   }
 
@@ -575,6 +549,7 @@ export class ScoutTrainerService {
         previousSequence: scoutSequence - 1,
         roster: workspace.value.players,
         lineup: workspace.value.currentLineups.find((lineup) => lineup.teamId === teamId),
+        ...this.scoutTacticalContext(workspace.value.state, teamId),
         enforceRegisteredPlayers: true,
       },
       ...(metadata ? { metadata } : {}),
@@ -584,12 +559,10 @@ export class ScoutTrainerService {
     const eventsToPersist: MatchEvent[] = [...bootstrapEvents];
     if (startsRally) {
       eventsToPersist.push({
-        type: 'rally_started',
-        id: this.dependencies.createId(),
-        matchId,
-        rallyId,
-        sequence: sequence + 1,
-        timestamp: this.dependencies.now(),
+        ...this.matchEventFactory.rallyStarted(matchId, rallyId, sequence + 1, {
+          targetScoutEventId: registered.value.event.id,
+          sourceHistoryEventId: registered.value.event.id,
+        }),
       });
     }
     eventsToPersist.push({
@@ -597,13 +570,13 @@ export class ScoutTrainerService {
       event: registered.value.event,
     });
     eventsToPersist.push(
-      ...this.automaticResultEvents(
-        baseState,
-        workspace.value.teams,
-        registered.value.event,
-        registered.value.event.id,
-        scoutSequence + 1,
-      ),
+      ...this.matchEventFactory.derivedFromScout({
+        state: baseState,
+        teams: workspace.value.teams,
+        scout: registered.value.event,
+        sourceHistoryEventId: registered.value.event.id,
+        firstSequence: scoutSequence + 1,
+      }),
     );
     const persisted = await this.events.appendMany(eventsToPersist);
     if (!persisted.ok) return failure(persisted.error);
@@ -613,54 +586,24 @@ export class ScoutTrainerService {
   async awardPoint(matchId: string, teamId: string): Promise<Result<MatchWorkspace, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
-    let sequence = workspace.value.state.lastSequence;
-    const rallyId = workspace.value.state.currentRally.rallyId ?? this.dependencies.createId();
-    const events: MatchEvent[] = [];
-    if (!workspace.value.state.currentRally.rallyId) {
-      events.push({
-        type: 'rally_started',
-        id: this.dependencies.createId(),
-        matchId,
-        rallyId,
-        sequence: sequence + 1,
-        timestamp: this.dependencies.now(),
-      });
+    if (!workspace.value.teams.some((team) => team.id === teamId)) {
+      return failure(new ValidationError('Point correction team was not found.', []));
     }
-    const [teamA] = workspace.value.teams;
-    const score = {
-      teamA: workspace.value.state.score.teamA + (teamId === teamA.id ? 1 : 0),
-      teamB: workspace.value.state.score.teamB + (teamId === teamA.id ? 0 : 1),
-    };
-    events.push({
-      type: 'rally_result',
-      id: this.dependencies.createId(),
-      matchId,
+    const startsRally = workspace.value.state.currentRally.status !== 'active';
+    const rallyId = startsRally
+      ? this.dependencies.createId()
+      : workspace.value.state.currentRally.rallyId;
+    if (!rallyId) {
+      return failure(new ValidationError('Rally could not be identified.', []));
+    }
+    const events = this.matchEventFactory.pointCorrection({
+      state: workspace.value.state,
+      teams: workspace.value.teams,
+      teamId,
       rallyId,
-      winnerTeamId: teamId,
-      previousServingTeamId: workspace.value.state.servingTeamId ?? workspace.value.teams[0].id,
-      reason: 'manual_correction',
-      sequence: ++sequence,
-      timestamp: this.dependencies.now(),
+      firstSequence: workspace.value.state.lastSequence + 1,
+      startsRally,
     });
-    const winner = setWinner(
-      score,
-      workspace.value.state.currentSet,
-      workspace.value.state.metadata.scoringRules ?? DEFAULT_INDOOR_SCORING_RULES,
-      workspace.value.teams[0].id,
-      workspace.value.teams[1].id,
-    );
-    if (winner) {
-      events.push({
-        type: 'set_finished',
-        id: this.dependencies.createId(),
-        matchId,
-        setNumber: workspace.value.state.currentSet,
-        winnerTeamId: winner,
-        finalScore: score,
-        sequence: sequence + 1,
-        timestamp: this.dependencies.now(),
-      });
-    }
     const persisted = await this.events.appendMany(events);
     return persisted.ok ? this.loadMatch(matchId) : failure(persisted.error);
   }
@@ -781,6 +724,10 @@ export class ScoutTrainerService {
       playerOutId: slot.playerId,
       playerInId,
       rotationPositionAtSubstitution: position,
+      score: { ...workspace.value.state.score },
+      playerOutRole: slot.activeRole ?? playerRoleForTacticalRole(slot.tacticalRole),
+      playerInRole:
+        playerIn.registeredRole ?? slot.activeRole ?? playerRoleForTacticalRole(slot.tacticalRole),
       sequence: workspace.value.state.lastSequence + 1,
       timestamp: this.dependencies.now(),
     };
@@ -819,36 +766,37 @@ export class ScoutTrainerService {
         lineup: workspace.value.currentLineups.find(
           (lineup) => lineup.teamId === target.event.teamId,
         ),
+        ...(target.event.setterPlayerId ? { setterPlayerId: target.event.setterPlayerId } : {}),
+        ...(target.event.setterPosition ? { setterPosition: target.event.setterPosition } : {}),
+        ...(target.event.formationState ? { formationState: target.event.formationState } : {}),
         enforceRegisteredPlayers: true,
       },
     });
     if (!registered.ok) return failure(registered.error);
 
-    const correction: ScoutCorrectedEvent = {
-      type: 'scout_corrected',
-      id: this.dependencies.createId(),
+    const correction = this.matchEventFactory.scoutCorrection({
       matchId,
       targetEventId: sourceEventId,
       previousRawCode: target.event.rawCode,
       newRawCode,
       replacementEvent: registered.value.event,
       sequence: workspace.value.state.lastSequence + 1,
-      timestamp: this.dependencies.now(),
-    };
-    const baseState = replayMatch(workspace.value.state.metadata, [
-      ...workspace.value.events,
-      correction,
-    ]);
+    });
+    const baseState = this.matchReplayService.stateBeforeScout(
+      workspace.value.state.metadata,
+      [...workspace.value.events, correction],
+      sourceEventId,
+    );
     const events: MatchEvent[] = [
       correction,
-      ...this.automaticResultEvents(
-        baseState,
-        workspace.value.teams,
-        registered.value.event,
-        correction.id,
-        correction.sequence + 1,
-        sourceEventId,
-      ),
+      ...this.matchEventFactory.derivedFromScout({
+        state: baseState,
+        teams: workspace.value.teams,
+        scout: registered.value.event,
+        sourceHistoryEventId: correction.id,
+        firstSequence: correction.sequence + 1,
+        targetScoutEventId: sourceEventId,
+      }),
     ];
     const persisted = await this.events.appendMany(events);
     return persisted.ok ? this.loadMatch(matchId) : failure(persisted.error);
@@ -861,14 +809,11 @@ export class ScoutTrainerService {
     if (!targetHistoryEventId) {
       return failure(new ValidationError('There is no scout action to undo.', []));
     }
-    const event: ScoutUndoneEvent = {
-      type: 'scout_undone',
-      id: this.dependencies.createId(),
+    const event = this.matchEventFactory.undo(
       matchId,
       targetHistoryEventId,
-      sequence: workspace.value.state.lastSequence + 1,
-      timestamp: this.dependencies.now(),
-    };
+      workspace.value.state.lastSequence + 1,
+    );
     const persisted = await this.events.append(event);
     return persisted.ok ? this.loadMatch(matchId) : failure(persisted.error);
   }
@@ -880,14 +825,11 @@ export class ScoutTrainerService {
     if (!targetUndoEventId) {
       return failure(new ValidationError('There is no scout action to redo.', []));
     }
-    const event: ScoutRedoneEvent = {
-      type: 'scout_redone',
-      id: this.dependencies.createId(),
+    const event = this.matchEventFactory.redo(
       matchId,
       targetUndoEventId,
-      sequence: workspace.value.state.lastSequence + 1,
-      timestamp: this.dependencies.now(),
-    };
+      workspace.value.state.lastSequence + 1,
+    );
     const persisted = await this.events.append(event);
     return persisted.ok ? this.loadMatch(matchId) : failure(persisted.error);
   }
@@ -928,6 +870,12 @@ export class ScoutTrainerService {
     );
   }
 
+  async exportPdf(matchId: string): Promise<Result<string, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    return success(new MatchPdfRenderer().render(workspace.value.report));
+  }
+
   async exportBundle(matchId: string): Promise<Result<MatchExportBundle, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
@@ -958,12 +906,10 @@ export class ScoutTrainerService {
       folderName: `${matchup}_${timestamp}`,
       files: Object.freeze({
         'partida.json': json,
-        'scouts.csv': new CsvMatchExporter().export(effectiveEvents),
-        'codigos.txt': new TxtMatchExporter().export(effectiveEvents),
-        'placar-sets.csv': new SetScoresCsvExporter().export(
-          workspace.value.state.sets,
-          workspace.value.teams,
-        ),
+        'eventos.csv': new CsvMatchExporter().export(effectiveEvents),
+        'scout.txt': new TxtMatchExporter().export(effectiveEvents),
+        'estatisticas.csv': new StatisticsCsvExporter().export(workspace.value.report),
+        'relatorio.pdf': new MatchPdfRenderer().render(workspace.value.report),
       }),
     });
   }
@@ -1005,5 +951,14 @@ export class ScoutTrainerService {
           }
         : {}),
     });
+  }
+
+  private scoutTacticalContext(state: MatchState, teamId: string) {
+    const tactical = state.tacticalStateByTeamId[teamId];
+    return {
+      ...(tactical?.activeSetterPlayerId ? { setterPlayerId: tactical.activeSetterPlayerId } : {}),
+      ...(tactical?.activeSetterPosition ? { setterPosition: tactical.activeSetterPosition } : {}),
+      ...(tactical?.formationState ? { formationState: tactical.formationState } : {}),
+    };
   }
 }

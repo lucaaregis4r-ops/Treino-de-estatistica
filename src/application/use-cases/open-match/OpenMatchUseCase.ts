@@ -2,7 +2,7 @@ import type { EventRepository } from '../../ports/repositories/EventRepository';
 import type { MatchRepository } from '../../ports/repositories/MatchRepository';
 import { RepositoryError } from '../../../core/errors/RepositoryError';
 import { failure, type Result, success } from '../../../core/result/Result';
-import { replayMatch } from '../../../domain/match/reducers/MatchReducer';
+import { replayMatch } from '../../../domain/match/replay/MatchReplayService';
 import type { MatchState } from '../../../domain/match/state/MatchState';
 
 export class OpenMatchUseCase {

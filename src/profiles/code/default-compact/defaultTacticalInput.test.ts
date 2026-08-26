@@ -33,6 +33,6 @@ describe('default indoor tactical model', () => {
         { origin: { zoneId: '3' }, target: { zoneId: '6' } },
         defaultTacticalInput.zoneSystem,
       ).direction,
-    ).toBe('centro');
+    ).toBe('paragonal');
   });
 });

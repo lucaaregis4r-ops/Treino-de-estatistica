@@ -5,7 +5,7 @@ import {
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import type { MatchWorkspace } from '../../../application/ScoutTrainerService';
+import type { MatchWorkspace, StartNextSetInput } from '../../../application/ScoutTrainerService';
 import {
   ContinuousInputController,
   type ContinuousInputUpdate,
@@ -19,6 +19,15 @@ import { DirectionResolver } from '../../../domain/scout/tactical/DirectionResol
 import { TacticalInputInterpreter } from '../../../domain/scout/input/TacticalInputInterpreter';
 import { TacticalCourt, type CourtSelectionMode } from './TacticalCourt';
 import { matchesShortcut } from './keyboardShortcut';
+import { ScoreHeader } from './ScoreHeader';
+import { MatchContextBar } from './MatchContextBar';
+import { CourtLineup } from './CourtLineup';
+import { ScoutInput } from './ScoutInput';
+import { EventTimeline } from './EventTimeline';
+import { TacticalQuickEditor } from './TacticalQuickEditor';
+import { ScoutCaptureHelp } from './ScoutCaptureHelp';
+import { NextSetLineupEditor } from './NextSetLineupEditor';
+import { ATTACK_COMBINATION_OPTIONS } from './attackCombinationOptions';
 
 interface ScoutScreenProps {
   readonly workspace: MatchWorkspace;
@@ -38,68 +47,13 @@ interface ScoutScreenProps {
   readonly onUndo: () => Promise<void>;
   readonly onRedo: () => Promise<void>;
   readonly onPoint: (teamId: string) => Promise<void>;
-  readonly onNextSet: () => Promise<void>;
+  readonly onSubstitute: (teamId: string, slotId: string, playerInId: string) => Promise<void>;
+  readonly onNextSet: (input: StartNextSetInput) => Promise<void>;
   readonly onExport: () => Promise<void>;
 }
 
-const skillLabels: Readonly<Record<string, string>> = {
-  serve: 'Saque',
-  reception: 'Recepção',
-  set: 'Levantamento',
-  attack: 'Ataque',
-  block: 'Bloqueio',
-  dig: 'Defesa',
-  free_ball: 'Free ball',
-};
-
-const outcomeLabels: Readonly<Record<string, string>> = {
-  ace: 'ace',
-  point: 'ponto',
-  positive: 'positivo',
-  neutral: 'neutro',
-  negative: 'negativo',
-  perfect: 'perfeito',
-  playable: 'jogável',
-  overpass: 'bola passada',
-  blocked: 'bloqueado',
-  error: 'erro',
-};
-
-const tacticalRoleLabels: Readonly<Record<string, string>> = {
-  setter: 'levantador',
-  opposite: 'oposto',
-  outside_1: 'ponteiro 1',
-  outside_2: 'ponteiro 2',
-  middle_1: 'central 1',
-  middle_2: 'central 2',
-  custom: 'personalizado',
-};
-
 const HISTORY_PAGE_SIZE = 200;
 const directionResolver = new DirectionResolver();
-
-const candidateLabels: Readonly<Record<InputCandidateState, string>> = {
-  empty: 'Pronto',
-  prefix: 'Digitando',
-  core_complete: 'Código completo',
-  enriching: 'Detalhes',
-  complete: 'Registrado',
-  invalid: 'Código inválido',
-};
-
-const completenessFieldLabels: Readonly<Record<string, string>> = {
-  skillType: 'tipo da ação',
-  originZone: 'zona de origem',
-  targetZone: 'zona de destino',
-  direction: 'direção',
-  setterPosition: 'posição do levantador',
-  setterCall: 'chamada do levantador',
-  attackCombination: 'combinação',
-  attackTempo: 'tempo de ataque',
-  blockersCount: 'bloqueadores',
-  phase: 'fase',
-  transition: 'transição',
-};
 
 export function ScoutScreen({
   workspace,
@@ -111,6 +65,7 @@ export function ScoutScreen({
   onUndo,
   onRedo,
   onPoint,
+  onSubstitute,
   onNextSet,
   onExport,
 }: ScoutScreenProps) {
@@ -139,6 +94,7 @@ export function ScoutScreen({
   const [quickCommand, setQuickCommand] = useState('');
   const [quickError, setQuickError] = useState('');
   const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE_SIZE);
+  const [captureHelpEnabled, setCaptureHelpEnabled] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const quickInputRef = useRef<HTMLInputElement>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -160,6 +116,22 @@ export function ScoutScreen({
     };
   }
   const inputController = controllerRef.current.controller;
+  const decodedCapture = inputController.decode(buffer);
+  const captureEvaluation = decodedCapture
+    ? Object.keys(workspace.profiles.codeProfile.evaluations).find((symbol) =>
+        decodedCapture.coreCode.endsWith(symbol),
+      )
+    : undefined;
+  const captureWithoutEvaluation =
+    decodedCapture && captureEvaluation
+      ? decodedCapture.coreCode.slice(0, -captureEvaluation.length)
+      : undefined;
+  const activeCaptureSkill =
+    (captureWithoutEvaluation
+      ? Object.entries(workspace.profiles.codeProfile.skills)
+          .sort(([left], [right]) => right.length - left.length)
+          .find(([code]) => captureWithoutEvaluation.endsWith(code))?.[1]
+      : undefined) ?? workspace.tacticalRally.expectedNextAction?.skill;
   const [teamA, teamB] = workspace.teams;
   const tactical = ['tactical', 'advanced'].includes(workspace.profiles.complexityProfile.level);
   const advanced = workspace.profiles.complexityProfile.level === 'advanced';
@@ -170,7 +142,7 @@ export function ScoutScreen({
     ...new Set([
       'diagonal',
       'paralela',
-      'centro',
+      'paragonal',
       ...Object.values(tacticalInput?.fields.direction.values ?? {}),
       ...(direction ? [direction] : []),
     ]),
@@ -178,7 +150,6 @@ export function ScoutScreen({
   const setCompleted = workspace.state.sets.find(
     (set) => set.setNumber === workspace.state.currentSet,
   )?.completed;
-  const servingTeam = workspace.teams.find((team) => team.id === workspace.state.servingTeamId);
   const servingLineup = workspace.currentLineups.find(
     (lineup) => lineup.teamId === workspace.state.servingTeamId,
   );
@@ -186,6 +157,11 @@ export function ScoutScreen({
   const server = workspace.players.find((player) => player.id === serverSlot?.playerId);
 
   useEffect(() => inputRef.current?.focus(), [workspace.events.length]);
+  useEffect(() => {
+    if (editingId || !inputRef.current) return;
+    inputRef.current.setSelectionRange(stream.length, stream.length);
+    inputRef.current.scrollLeft = inputRef.current.scrollWidth;
+  }, [editingId, stream]);
   useEffect(() => {
     if (
       !server ||
@@ -553,110 +529,71 @@ export function ScoutScreen({
       <h1 id="scout-title" className="sr-only">
         Scout de {workspace.state.metadata.name}
       </h1>
-      <header className="scout-header">
-        <button
-          className="icon-button"
-          type="button"
-          onClick={onBack}
-          aria-label="Voltar para início"
-        >
-          ←
-        </button>
-        <div className="score-team">
-          <strong>{teamA.name}</strong>
-          <button type="button" onClick={() => void onPoint(teamA.id)} disabled={busy}>
-            Corrigir +1
-          </button>
-        </div>
-        <div className="score-center">
-          <span>{workspace.state.score.teamA}</span>
-          <small>×</small>
-          <span>{workspace.state.score.teamB}</span>
-          <p>SET {workspace.state.currentSet}</p>
-        </div>
-        <div className="score-team align-right">
-          <strong>{teamB.name}</strong>
-          <button type="button" onClick={() => void onPoint(teamB.id)} disabled={busy}>
-            Corrigir +1
-          </button>
-        </div>
-        <button className="icon-button" type="button" onClick={onSummary} aria-label="Abrir resumo">
-          ≡
-        </button>
-      </header>
-      <div className="scout-grid">
-        <main className="scout-workspace">
-          <div className="context-row">
-            {teamCodes ? (
-              <span className="team-code-key">
-                <code>{teamCodes.home}</code> {teamA.name} · <code>a</code> {teamB.name}
-              </span>
-            ) : (
-              <div className="team-toggle" aria-label="Equipe do próximo evento">
-                {[teamA, teamB].map((team) => (
-                  <button
-                    key={team.id}
-                    type="button"
-                    aria-pressed={activeTeamId === team.id}
-                    onClick={() => setActiveTeamId(team.id)}
-                  >
-                    {team.name}
-                  </button>
-                ))}
-              </div>
-            )}
-            <span>
-              Rally {workspace.state.currentRally.status === 'active' ? 'ativo' : 'próximo'}
-            </span>
-            <span className="serving-inline">
-              Saque: <strong>{servingTeam?.name ?? 'não definido'}</strong>
-              {server ? ` · #${String(server.number).padStart(2, '0')} ${server.name ?? ''}` : ''}
-            </span>
-            <button
-              className="text-button"
-              type="button"
-              onClick={() => void onNextSet()}
-              disabled={busy || !setCompleted}
-            >
-              {setCompleted ? 'Confirmar próximo set' : 'Set em andamento'}
-            </button>
-          </div>
+      <ScoreHeader
+        workspace={workspace}
+        busy={busy}
+        onBack={onBack}
+        onSummary={onSummary}
+        onPoint={onPoint}
+      />
+      <MatchContextBar
+        workspace={workspace}
+        activeTeamId={activeTeamId}
+        {...(teamCodes ? { teamCodes } : {})}
+        onActiveTeamChange={setActiveTeamId}
+      />
+      {setCompleted && !workspace.state.matchCompleted && (
+        <NextSetLineupEditor
+          key={workspace.state.currentSet}
+          workspace={workspace}
+          busy={busy}
+          onConfirm={onNextSet}
+        />
+      )}
+      <main className="match-workspace">
+        <section className="dual-court" aria-label="Lineups da partida">
+          <CourtLineup
+            workspace={workspace}
+            teamId={teamA.id}
+            side="home"
+            busy={busy}
+            onSubstitute={onSubstitute}
+          />
+          <CourtLineup
+            workspace={workspace}
+            teamId={teamB.id}
+            side="away"
+            busy={busy}
+            onSubstitute={onSubstitute}
+          />
+        </section>
+        <section className="capture-workspace" aria-label="Captura do scout">
           {tactical && (
             <details className="tactical-panel" open={editingId !== undefined || quickEditorOpen}>
               <summary>{editingId ? 'Corrigir detalhes' : 'Detalhes'}</summary>
               {tacticalInput && (
-                <div className="quick-tactical-toolbar">
-                  <button type="button" onClick={openQuickEditor}>
-                    Editor rápido <kbd>{tacticalInput.shortcuts.quickEditor}</kbd>
-                  </button>
-                </div>
-              )}
-              {quickEditorOpen && (
-                <form className="quick-tactical-editor" onSubmit={applyQuickCommand}>
-                  <label htmlFor="quick-tactical-command">Comando tático</label>
-                  <input
-                    ref={quickInputRef}
-                    id="quick-tactical-command"
-                    value={quickCommand}
-                    onChange={(event) => setQuickCommand(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Escape') {
-                        event.preventDefault();
-                        setQuickEditorOpen(false);
-                        setQuickError('');
-                        inputRef.current?.focus();
-                      }
-                    }}
-                    placeholder="o4 t1 dd ypower c31 qfast b2"
-                    autoComplete="off"
-                  />
-                  <button type="submit">Aplicar e voltar</button>
-                  {quickError && <small role="alert">{quickError}</small>}
-                </form>
+                <TacticalQuickEditor
+                  open={quickEditorOpen}
+                  shortcut={tacticalInput.shortcuts.quickEditor}
+                  inputRef={quickInputRef}
+                  command={quickCommand}
+                  error={quickError}
+                  onOpen={openQuickEditor}
+                  onChange={setQuickCommand}
+                  onSubmit={applyQuickCommand}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      setQuickEditorOpen(false);
+                      setQuickError('');
+                      inputRef.current?.focus();
+                    }
+                  }}
+                />
               )}
               <div className="tactical-fields">
                 <label>
-                  Zona de origem
+                  {activeCaptureSkill === 'attack' ? 'Exceção de origem' : 'Zona de origem'}
                   {tacticalInput ? (
                     <select
                       value={originZone}
@@ -682,44 +619,51 @@ export function ScoutScreen({
                       }}
                     />
                   )}
-                </label>
-                <label>
-                  Zona de destino
-                  {tacticalInput ? (
-                    <select
-                      value={targetZone}
-                      onChange={(event) => {
-                        setTargetZone(event.target.value);
-                        const selectedTarget = courtLocation(event.target.value);
-                        const selectedOrigin = courtLocation(originZone);
-                        setDirection(
-                          selectedOrigin && selectedTarget
-                            ? (directionResolver.resolve(
-                                { origin: selectedOrigin, target: selectedTarget },
-                                tacticalInput.zoneSystem,
-                              ).direction ?? '')
-                            : '',
-                        );
-                        setDrawnTarget(undefined);
-                      }}
-                    >
-                      <option value="">Não informada</option>
-                      {tacticalInput.zoneSystem.zones.map((zone) => (
-                        <option key={zone.id} value={zone.id}>
-                          {zone.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      value={targetZone}
-                      onChange={(event) => {
-                        setTargetZone(event.target.value);
-                        setDrawnTarget(undefined);
-                      }}
-                    />
+                  {activeCaptureSkill === 'attack' && (
+                    <small>
+                      Inferida pela posição atual. Altere somente em uma jogada atípica.
+                    </small>
                   )}
                 </label>
+                {activeCaptureSkill !== 'attack' && (
+                  <label>
+                    Zona de destino
+                    {tacticalInput ? (
+                      <select
+                        value={targetZone}
+                        onChange={(event) => {
+                          setTargetZone(event.target.value);
+                          const selectedTarget = courtLocation(event.target.value);
+                          const selectedOrigin = courtLocation(originZone);
+                          setDirection(
+                            selectedOrigin && selectedTarget
+                              ? (directionResolver.resolve(
+                                  { origin: selectedOrigin, target: selectedTarget },
+                                  tacticalInput.zoneSystem,
+                                ).direction ?? '')
+                              : '',
+                          );
+                          setDrawnTarget(undefined);
+                        }}
+                      >
+                        <option value="">Não informada</option>
+                        {tacticalInput.zoneSystem.zones.map((zone) => (
+                          <option key={zone.id} value={zone.id}>
+                            {zone.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={targetZone}
+                        onChange={(event) => {
+                          setTargetZone(event.target.value);
+                          setDrawnTarget(undefined);
+                        }}
+                      />
+                    )}
+                  </label>
+                )}
                 <label>
                   Tipo da ação
                   <input value={skillType} onChange={(event) => setSkillType(event.target.value)} />
@@ -779,9 +723,23 @@ export function ScoutScreen({
                     <label>
                       Combinação
                       <input
+                        list="attack-combination-options"
                         value={attackCombination}
                         onChange={(event) => setAttackCombination(event.target.value)}
+                        placeholder="Opcional: INV, CRZ, PIPE..."
                       />
+                      <datalist id="attack-combination-options">
+                        {ATTACK_COMBINATION_OPTIONS.map((option) => (
+                          <option key={option.code} value={option.code}>
+                            {option.description}
+                          </option>
+                        ))}
+                      </datalist>
+                      <small className="combination-glossary">
+                        {ATTACK_COMBINATION_OPTIONS.map(
+                          (option) => `${option.code}: ${option.description}`,
+                        ).join(' · ')}
+                      </small>
                     </label>
                     <label>
                       Bloqueadores
@@ -792,6 +750,7 @@ export function ScoutScreen({
                         value={blockersCount}
                         onChange={(event) => setBlockersCount(event.target.value)}
                       />
+                      <small>Quantidade enfrentada; use avaliação / se o ataque foi abafado.</small>
                     </label>
                     <label>
                       Fase
@@ -808,7 +767,7 @@ export function ScoutScreen({
                   </>
                 )}
               </div>
-              {tacticalInput && (
+              {tacticalInput && activeCaptureSkill !== 'attack' && (
                 <TacticalCourt
                   profile={tacticalInput.zoneSystem}
                   mode={courtMode}
@@ -848,181 +807,47 @@ export function ScoutScreen({
               )}
             </details>
           )}
-          <form
-            className={editingId ? 'scout-input editing' : 'scout-input'}
+          <ScoutInput
+            inputRef={inputRef}
+            value={editingId ? buffer : stream}
+            editing={editingId !== undefined}
+            candidateState={candidateState}
+            placeholder={teamCodes ? '*08A#' : '08A#'}
             onSubmit={(event) => void submit(event)}
-          >
-            <label htmlFor="scout-code">
-              {editingId ? 'Corrigindo evento' : 'Digite o código'}
-            </label>
-            <div>
-              <span aria-hidden="true">›</span>
-              <input
-                ref={inputRef}
-                id="scout-code"
-                value={editingId ? buffer : stream}
-                onChange={(event) => {
-                  if (editingId) setBuffer(event.target.value);
-                  else updateContinuousStream(event.target.value);
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder={teamCodes ? '*08A#' : '08A#'}
-                autoComplete="off"
-                autoCapitalize="characters"
-                aria-describedby={editingId ? undefined : 'input-candidate-state'}
-              />
-              <kbd>Enter</kbd>
-            </div>
-            {!editingId && (
-              <small
-                id="input-candidate-state"
-                className={`input-candidate-state ${candidateState}`}
-              >
-                {candidateLabels[candidateState]}
-              </small>
-            )}
-          </form>
-          <div className="history-heading">
-            <h2>Histórico</h2>
-            <div className="history-actions">
-              <button type="button" onClick={() => void onUndo()} disabled={busy}>
-                Desfazer
-              </button>
-              <button type="button" onClick={() => void onRedo()} disabled={busy}>
-                Refazer
-              </button>
-            </div>
-          </div>
-          {workspace.timeline.length === 0 ? (
-            <p className="history-empty">O primeiro evento aparecerá aqui.</p>
-          ) : (
-            <>
-              {workspace.timeline.length > HISTORY_PAGE_SIZE && (
-                <p className="history-count">
-                  {Math.min(historyLimit, workspace.timeline.length)} de {workspace.timeline.length}
-                </p>
-              )}
-              <ol className="event-list">
-                {workspace.timeline
-                  .slice(-historyLimit)
-                  .reverse()
-                  .map((item) => (
-                    <li key={item.sourceEventId}>
-                      <span className="event-sequence">
-                        {String(item.event.sequence).padStart(2, '0')}
-                      </span>
-                      <code>{item.event.rawCode.trim()}</code>
-                      <span className="event-meaning">
-                        <strong>{skillLabels[item.event.skill]}</strong>
-                        {item.event.outcome
-                          ? (outcomeLabels[item.event.outcome] ?? item.event.outcome)
-                          : ''}
-                      </span>
-                      <span className="event-flags">
-                        {item.corrected && <span className="corrected-badge">corrigido</span>}
-                        {item.event.completeness?.status === 'partial' && (
-                          <span
-                            className="partial-badge"
-                            title={`Faltam: ${item.event.completeness.missingRecommendedFields
-                              .map((field) => completenessFieldLabels[field] ?? field)
-                              .join(', ')}`}
-                          >
-                            parcial · faltam{' '}
-                            {item.event.completeness.missingRecommendedFields
-                              .map((field) => completenessFieldLabels[field] ?? field)
-                              .join(', ')}
-                          </span>
-                        )}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          edit(
-                            item.sourceEventId,
-                            item.event.rawCode,
-                            item.event.skill,
-                            item.event.metadata,
-                          )
-                        }
-                      >
-                        {item.event.completeness?.status === 'partial' ? 'Completar' : 'Corrigir'}
-                      </button>
-                    </li>
-                  ))}
-              </ol>
-              {historyLimit < workspace.timeline.length && (
-                <button
-                  className="button secondary"
-                  type="button"
-                  onClick={() => setHistoryLimit((current) => current + HISTORY_PAGE_SIZE)}
-                >
-                  Carregar eventos anteriores
-                </button>
-              )}
-            </>
-          )}
-        </main>
-        <aside className="scout-sidebar">
-          <div className="profile-block">
-            <h3>
-              {workspace.profiles.competitionProfile?.name ??
-                workspace.profiles.complexityProfile.name}
-            </h3>
-            <small>{workspace.profiles.codeProfile.name}</small>
-          </div>
-          <div className="lineup-live" aria-label="Escalações em quadra">
-            <p className="eyebrow">Saque e rotação</p>
-            {workspace.teams.map((team) => {
-              const lineup = workspace.currentLineups.find(
-                (candidate) => candidate.teamId === team.id,
-              );
-              const setterSlot = lineup
-                ? Object.values(lineup.slots).find((slot) => slot.tacticalRole === 'setter')
-                : undefined;
-              const setterPosition =
-                lineup && setterSlot
-                  ? ([1, 2, 3, 4, 5, 6] as const).find(
-                      (position) => lineup.positions[position] === setterSlot.slotId,
-                    )
-                  : undefined;
-              return (
-                <section
-                  key={team.id}
-                  className={team.id === workspace.state.servingTeamId ? 'serving' : ''}
-                >
-                  <strong>
-                    {team.name} {setterPosition ? `· R${setterPosition}` : ''}
-                  </strong>
-                  <ol>
-                    {([1, 2, 3, 4, 5, 6] as const).map((position) => {
-                      const slot = lineup?.slots[lineup.positions[position]];
-                      const player = workspace.players.find(
-                        (candidate) => candidate.id === slot?.playerId,
-                      );
-                      return (
-                        <li key={position}>
-                          <span>P{position}</span>
-                          <b>#{player ? String(player.number).padStart(2, '0') : '—'}</b>
-                          <small>
-                            {slot ? (tacticalRoleLabels[slot.tacticalRole] ?? slot.tacticalRole) : 'vazio'}
-                          </small>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </section>
-              );
-            })}
-          </div>
-          <button
-            className="button secondary export-button"
-            type="button"
-            onClick={() => void onExport()}
-          >
+            onChange={(event) => {
+              if (editingId) setBuffer(event.target.value);
+              else updateContinuousStream(event.target.value);
+            }}
+            onKeyDown={handleKeyDown}
+          />
+          <ScoutCaptureHelp
+            enabled={captureHelpEnabled}
+            rawCode={buffer}
+            profile={workspace.profiles.codeProfile}
+            onToggle={() => setCaptureHelpEnabled((current) => !current)}
+          />
+        </section>
+        <EventTimeline
+          timeline={workspace.timeline}
+          historyLimit={historyLimit}
+          pageSize={HISTORY_PAGE_SIZE}
+          busy={busy}
+          onUndo={onUndo}
+          onRedo={onRedo}
+          onEdit={edit}
+          onLoadMore={() => setHistoryLimit((current) => current + HISTORY_PAGE_SIZE)}
+        />
+        <footer className="workspace-footer">
+          <span>
+            {workspace.profiles.competitionProfile?.name ??
+              workspace.profiles.complexityProfile.name}
+          </span>
+          <strong>{workspace.profiles.codeProfile.name}</strong>
+          <button className="button secondary" type="button" onClick={() => void onExport()}>
             Exportar JSON
           </button>
-        </aside>
-      </div>
+        </footer>
+      </main>
     </section>
   );
 }

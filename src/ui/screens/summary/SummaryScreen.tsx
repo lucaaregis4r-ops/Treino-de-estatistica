@@ -4,12 +4,13 @@ import type {
   TacticalMetricGroup,
   TacticalMetricViewModel,
 } from '../../../application/view-models/TacticalAnalyticsViewModel';
+import { MatchAnalyticsPanel } from './MatchAnalyticsPanel';
 
 interface SummaryScreenProps {
   readonly workspace: MatchWorkspace;
   readonly onBack: () => void;
   readonly onHome: () => void;
-  readonly onExport: (format: 'json' | 'csv' | 'txt') => Promise<void>;
+  readonly onExport: (format: 'json' | 'csv' | 'txt' | 'pdf') => Promise<void>;
   readonly directoryExportSupported: boolean;
   readonly connectedDirectory?: string;
   readonly busy: boolean;
@@ -160,12 +161,13 @@ export function SummaryScreen({
           </div>
         )}
       </section>
+      <MatchAnalyticsPanel report={workspace.report} />
       <section className="folder-export" aria-labelledby="folder-export-title">
         <div>
           <h2 id="folder-export-title">Exportar pacote para uma pasta</h2>
           <p>
-            Cada exportação cria uma pasta com equipes e data contendo a partida completa, scouts,
-            códigos e o placar de todos os sets.
+            Cada exportação cria uma pasta com equipes e data contendo a partida mestre, eventos,
+            scout, estatísticas auditáveis e o relatório PDF.
           </p>
         </div>
         {directoryExportSupported ? (
@@ -203,6 +205,9 @@ export function SummaryScreen({
         )}
       </section>
       <div className="summary-actions">
+        <button className="button primary" type="button" onClick={() => void onExport('pdf')}>
+          Exportar PDF
+        </button>
         <button className="button primary" type="button" onClick={() => void onExport('json')}>
           Exportar JSON
         </button>

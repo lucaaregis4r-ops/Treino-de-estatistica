@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchMetadata } from '../entities/MatchMetadata';
 import type { MatchEvent } from '../events/MatchEvent';
-import { reduceMatch, replayMatch } from './MatchReducer';
+import { reduceMatch } from './MatchReducer';
+import { replayMatch } from '../replay/MatchReplayService';
 import { createInitialMatchState } from '../state/MatchState';
 import type { ScoutEvent } from '../../scout/events/ScoutEvent';
 import type { SetLineup } from '../lineup/SetLineup';
@@ -231,6 +232,9 @@ describe('MatchReducer', () => {
         playerOutId: 'player_14',
         playerInId: 'player_7',
         rotationPositionAtSubstitution: 1,
+        score: { teamA: 0, teamB: 0 },
+        playerOutRole: 'opposite',
+        playerInRole: 'opposite',
         sequence: 2,
         timestamp: 2,
       },
@@ -240,6 +244,7 @@ describe('MatchReducer', () => {
       slotId: 'slot',
       tacticalRole: 'opposite',
       playerId: 'player_7',
+      activeRole: 'opposite',
     });
     expect(state.lineups[0]?.positions[1]).toBe('slot');
   });

@@ -6,6 +6,22 @@ import type {
 } from '../../../application/ScoutTrainerService';
 import type { CodeProfile } from '../../../profiles/types';
 import type { TacticalRole } from '../../../domain/match/lineup/SetLineup';
+import type { PlayerRole } from '../../../domain/match/roles/PlayerRole';
+
+const playerRoleAliases: Readonly<Record<string, PlayerRole>> = {
+  levantador: 'setter',
+  setter: 'setter',
+  oposto: 'opposite',
+  opposite: 'opposite',
+  ponteiro: 'outside',
+  outside: 'outside',
+  central: 'middle',
+  middle: 'middle',
+  libero: 'libero',
+  líbero: 'libero',
+  defensivo: 'defensive_specialist',
+  custom: 'custom',
+};
 
 function playerRegistrations(value: string): PlayerRegistrationInput[] {
   return value
@@ -13,10 +29,14 @@ function playerRegistrations(value: string): PlayerRegistrationInput[] {
     .map((entry) => entry.trim())
     .filter(Boolean)
     .map((entry) => {
-      const match = /^(\d{1,2})(?:\s+(.+))?$/.exec(entry);
+      const match = /^(\d{1,2})(?:\s+([^|]+?))?(?:\s*\|\s*(.+))?$/.exec(entry);
+      const registeredRole = match?.[3]
+        ? playerRoleAliases[match[3].trim().toLocaleLowerCase()]
+        : undefined;
       return {
         number: Number(match?.[1] ?? Number.NaN),
-        ...(match?.[2] ? { name: match[2] } : {}),
+        ...(match?.[2] ? { name: match[2].trim() } : {}),
+        ...(registeredRole ? { registeredRole } : {}),
       };
     });
 }
@@ -80,7 +100,9 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
       liberoNumber: number | undefined,
     ): PlayerRegistrationInput[] =>
       players.map((player) =>
-        player.number === liberoNumber ? { ...player, libero: true } : player,
+        player.number === liberoNumber
+          ? { ...player, libero: true, registeredRole: player.registeredRole ?? 'libero' }
+          : player,
       );
     await onCreate({
       teamAName,
@@ -150,8 +172,9 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
           </label>
         </div>
         <p id="players-help" className="form-help">
-          Separe por vírgula ou linha: <code>8 Ana Souza</code>. A função pertence ao slot do set,
-          não ao cadastro do atleta.
+          Separe por vírgula ou linha: <code>8 Ana Souza</code>. Para reservas, a função pode ser
+          informada após <code>|</code>: <code>14 Rafael | levantador</code>. A posição de rotação e
+          a função ativa continuam pertencendo à escalação do set.
         </p>
         <div className="lineup-setup-grid">
           {(

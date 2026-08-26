@@ -3,6 +3,7 @@ import type { RallyPhase } from '../../scout/events/ScoutEvent';
 import type { Skill } from '../../scout/entities/Skill';
 import type { ExpectedNextAction } from './ExpectedNextAction';
 import type { ReceptionAttackContext } from './ReceptionContextResolver';
+import type { FormationState } from '../../match/tactical/TacticalState';
 
 export interface TacticalContactContext {
   readonly sourceEventId: string;
@@ -13,6 +14,9 @@ export interface TacticalContactContext {
   readonly phase: RallyPhase;
   readonly servingTeamId?: string;
   readonly rotation?: CourtRotationPosition;
+  readonly setterPlayerId?: string;
+  readonly setterPosition?: CourtRotationPosition;
+  readonly formationState?: FormationState;
   readonly receptionForAttack?: ReceptionAttackContext;
   readonly expectedNextAction?: ExpectedNextAction;
 }

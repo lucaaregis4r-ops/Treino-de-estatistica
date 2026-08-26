@@ -1,6 +1,7 @@
 import type { ScoreSnapshot } from '../score/Score';
 import type { ScoutEvent } from '../../scout/events/ScoutEvent';
 import type { CourtRotationPosition, SetLineup } from '../lineup/SetLineup';
+import type { PlayerRole } from '../roles/PlayerRole';
 
 interface MatchSystemEvent {
   readonly id: string;
@@ -53,6 +54,8 @@ export interface ServingTeamChangedEvent extends MatchSystemEvent {
 export interface RallyStartedEvent extends MatchSystemEvent {
   readonly type: 'rally_started';
   readonly rallyId: string;
+  readonly targetScoutEventId?: string;
+  readonly sourceHistoryEventId?: string;
 }
 
 export interface RallyEndedEvent extends MatchSystemEvent {
@@ -85,6 +88,16 @@ export interface SetFinishedEvent extends MatchSystemEvent {
   readonly sourceHistoryEventId?: string;
 }
 
+export interface MatchCorrectionEvent extends MatchSystemEvent {
+  readonly type: 'match_correction';
+  readonly correction: {
+    readonly kind: 'award_point';
+    readonly teamId: string;
+    readonly rallyId: string;
+    readonly previousServingTeamId: string;
+  };
+}
+
 export interface SubstitutionEvent extends MatchSystemEvent {
   readonly type: 'substitution_made';
   readonly teamId: string;
@@ -93,6 +106,9 @@ export interface SubstitutionEvent extends MatchSystemEvent {
   readonly playerOutId: string;
   readonly playerInId: string;
   readonly rotationPositionAtSubstitution: CourtRotationPosition;
+  readonly score: ScoreSnapshot;
+  readonly playerOutRole: PlayerRole;
+  readonly playerInRole: PlayerRole;
 }
 
 export type MatchEvent =
@@ -108,6 +124,7 @@ export type MatchEvent =
   | SetLineupConfirmedEvent
   | RallyResultEvent
   | SetFinishedEvent
+  | MatchCorrectionEvent
   | SubstitutionEvent;
 
 export function matchEventId(event: MatchEvent): string {

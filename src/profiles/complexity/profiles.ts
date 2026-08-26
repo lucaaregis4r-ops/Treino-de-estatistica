@@ -93,7 +93,7 @@ export const advancedProfile = Object.freeze({
     rotation: 'derived',
     setterPosition: 'recommended',
     substitutions: 'optional',
-    attackCombination: 'recommended',
+    attackCombination: 'optional',
     attackTempo: 'recommended',
     blockersCount: 'recommended',
     phase: 'recommended',

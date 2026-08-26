@@ -71,6 +71,12 @@ export function App({
   const [freeLogSessions, setFreeLogSessions] = useState<readonly FreeLogSession[]>([]);
   const [freeLogSession, setFreeLogSession] = useState<FreeLogSession>();
   const [connectedDirectory, setConnectedDirectory] = useState<string>();
+  const [manualReturnScreen, setManualReturnScreen] = useState<Screen>('home');
+
+  function openManual() {
+    setManualReturnScreen(screen === 'scout' || screen === 'summary' ? screen : 'home');
+    setScreen('manual');
+  }
 
   async function refreshMatches() {
     const result = await service.listMatches();
@@ -148,20 +154,28 @@ export function App({
     } else setMessage(result.error.message);
   }
 
-  async function exportMatch(format: 'json' | 'csv' | 'txt' = 'json') {
+  async function exportMatch(format: 'json' | 'csv' | 'txt' | 'pdf' = 'json') {
     if (!workspace) return;
     const result = await (format === 'json'
       ? service.exportJson(workspace.state.metadata.id)
       : format === 'csv'
         ? service.exportCsv(workspace.state.metadata.id)
-        : service.exportTxt(workspace.state.metadata.id));
+        : format === 'txt'
+          ? service.exportTxt(workspace.state.metadata.id)
+          : service.exportPdf(workspace.state.metadata.id));
     if (!result.ok) {
       setMessage(result.error.message);
       return;
     }
     const mime =
-      format === 'json' ? 'application/json' : format === 'csv' ? 'text/csv' : 'text/plain';
-    const blob = new Blob([result.value], { type: `${mime};charset=utf-8` });
+      format === 'json'
+        ? 'application/json;charset=utf-8'
+        : format === 'csv'
+          ? 'text/csv;charset=utf-8'
+          : format === 'pdf'
+            ? 'application/pdf'
+            : 'text/plain;charset=utf-8';
+    const blob = new Blob([result.value], { type: mime });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -358,7 +372,7 @@ export function App({
           <button type="button" onClick={() => setScreen('profile-editor')}>
             Perfis
           </button>
-          <button type="button" onClick={() => setScreen('manual')}>
+          <button type="button" onClick={openManual}>
             Manual
           </button>
           {workspace && (
@@ -416,7 +430,10 @@ export function App({
           onUndo={() => runWorkspaceAction(() => service.undo(matchId))}
           onRedo={() => runWorkspaceAction(() => service.redo(matchId))}
           onPoint={(teamId) => runWorkspaceAction(() => service.awardPoint(matchId, teamId))}
-          onNextSet={() => runWorkspaceAction(() => service.startNextSet(matchId))}
+          onSubstitute={(teamId, slotId, playerInId) =>
+            runWorkspaceAction(() => service.substitute(matchId, teamId, slotId, playerInId))
+          }
+          onNextSet={(input) => runWorkspaceAction(() => service.startNextSet(matchId, input))}
           onExport={() => exportMatch('json')}
         />
       )}
@@ -450,7 +467,7 @@ export function App({
             setTrainingWorkspace(undefined);
             setTrainingFeedback(undefined);
           }}
-          onManual={() => setScreen('manual')}
+          onManual={openManual}
         />
       )}
       {screen === 'profile-editor' && (
@@ -462,7 +479,7 @@ export function App({
           onExport={exportCodeProfile}
         />
       )}
-      {screen === 'manual' && <ManualScreen onBack={() => setScreen('home')} />}
+      {screen === 'manual' && <ManualScreen onBack={() => setScreen(manualReturnScreen)} />}
       {screen === 'free-log' && (
         <FreeLogScreen
           sessions={freeLogSessions}

@@ -72,6 +72,10 @@ export function projectScoutTimeline(
 
 export function projectEffectiveMatchEvents(events: readonly MatchEvent[]): readonly MatchEvent[] {
   const timeline = projectScoutTimeline(events);
+  const activity = historyActivity(events);
+  const originalSequenceByScout = new Map(
+    timeline.map((projected) => [projected.sourceEventId, projected.originalSequence]),
+  );
   const effectiveHistoryByScout = new Map(
     timeline.map((projected) => [projected.sourceEventId, projected.historyEventId]),
   );
@@ -83,12 +87,20 @@ export function projectEffectiveMatchEvents(events: readonly MatchEvent[]): read
       event.type === 'scout_redone'
     )
       return false;
+    if (event.type === 'match_correction' || event.type === 'substitution_made')
+      return actionIsActive(event.id, activity);
+    if (event.type === 'rally_started' && event.sourceHistoryEventId) {
+      return event.targetScoutEventId
+        ? effectiveHistoryByScout.has(event.targetScoutEventId)
+        : actionIsActive(event.sourceHistoryEventId, activity);
+    }
     if (
       (event.type === 'rally_result' || event.type === 'set_finished') &&
-      event.targetScoutEventId &&
       event.sourceHistoryEventId
     ) {
-      return effectiveHistoryByScout.get(event.targetScoutEventId) === event.sourceHistoryEventId;
+      return event.targetScoutEventId
+        ? effectiveHistoryByScout.get(event.targetScoutEventId) === event.sourceHistoryEventId
+        : actionIsActive(event.sourceHistoryEventId, activity);
     }
     return true;
   });
@@ -100,10 +112,27 @@ export function projectEffectiveMatchEvents(events: readonly MatchEvent[]): read
       sequence: projected.originalSequence,
     },
   }));
+  const logicalPosition = (event: MatchEvent): readonly [number, number] => {
+    if (
+      (event.type === 'rally_started' ||
+        event.type === 'rally_result' ||
+        event.type === 'set_finished') &&
+      event.targetScoutEventId
+    ) {
+      const anchor = originalSequenceByScout.get(event.targetScoutEventId);
+      if (anchor !== undefined) {
+        const rank = event.type === 'rally_started' ? 0 : event.type === 'rally_result' ? 2 : 3;
+        return [anchor, rank];
+      }
+    }
+    return [matchEventSequence(event), event.type === 'scout_registered' ? 1 : 0];
+  };
   return Object.freeze(
-    [...systemEvents, ...effectiveScoutEvents].sort(
-      (left, right) => matchEventSequence(left) - matchEventSequence(right),
-    ),
+    [...systemEvents, ...effectiveScoutEvents].sort((left, right) => {
+      const leftPosition = logicalPosition(left);
+      const rightPosition = logicalPosition(right);
+      return leftPosition[0] - rightPosition[0] || leftPosition[1] - rightPosition[1];
+    }),
   );
 }
 
@@ -113,7 +142,10 @@ export function findUndoTarget(events: readonly MatchEvent[]): string | undefine
     .reverse()
     .find(
       (event) =>
-        (event.type === 'scout_registered' || event.type === 'scout_corrected') &&
+        (event.type === 'scout_registered' ||
+          event.type === 'scout_corrected' ||
+          event.type === 'match_correction' ||
+          event.type === 'substitution_made') &&
         actionIsActive(matchEventId(event), activity),
     );
   return target ? matchEventId(target) : undefined;

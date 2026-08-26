@@ -1,5 +1,7 @@
 import type { ScoreSnapshot } from '../../match/score/Score';
 import type { PlayerLineupContext, SetLineup } from '../../match/lineup/SetLineup';
+import type { CourtRotationPosition } from '../../match/lineup/SetLineup';
+import type { FormationState } from '../../match/tactical/TacticalState';
 
 export interface RosterPlayer {
   readonly id: string;
@@ -19,5 +21,8 @@ export interface ScoutValidationContext {
   readonly roster: readonly RosterPlayer[];
   readonly lineup?: SetLineup;
   readonly lineupContext?: PlayerLineupContext;
+  readonly setterPlayerId?: string;
+  readonly setterPosition?: CourtRotationPosition;
+  readonly formationState?: FormationState;
   readonly enforceRegisteredPlayers?: boolean;
 }

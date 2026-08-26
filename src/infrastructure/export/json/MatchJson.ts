@@ -44,6 +44,17 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+const PLAYER_ROLES = new Set([
+  'setter',
+  'opposite',
+  'outside',
+  'middle',
+  'libero',
+  'defensive_specialist',
+  'custom',
+]);
+const FORMATION_STATES = new Set(['normal', 'five_one_inversion', 'unknown', 'custom']);
+
 function validCompleteness(value: unknown): boolean {
   return (
     value === undefined ||
@@ -80,6 +91,14 @@ function validScoutEvent(
     isText(value.codeProfileId) &&
     isText(value.codeProfileVersion) &&
     isText(value.complexityProfileId) &&
+    (value.setterPlayerId === undefined ||
+      (isText(value.setterPlayerId) && playerIds.has(value.setterPlayerId))) &&
+    (value.setterPosition === undefined ||
+      (Number.isInteger(value.setterPosition) &&
+        (value.setterPosition as number) >= 1 &&
+        (value.setterPosition as number) <= 6)) &&
+    (value.formationState === undefined ||
+      (typeof value.formationState === 'string' && FORMATION_STATES.has(value.formationState))) &&
     validCompleteness(value.completeness)
   );
 }
@@ -97,6 +116,7 @@ const MATCH_EVENT_TYPES = new Set([
   'set_lineup_confirmed',
   'rally_result',
   'set_finished',
+  'match_correction',
   'substitution_made',
 ]);
 
@@ -136,6 +156,15 @@ function validateMatchExport(
         !isText(player.teamId) ||
         !teamIds.has(player.teamId) ||
         !Number.isSafeInteger(player.number),
+    )
+  )
+    return false;
+  if (
+    players.some(
+      (player) =>
+        isRecord(player) &&
+        player.registeredRole !== undefined &&
+        (typeof player.registeredRole !== 'string' || !PLAYER_ROLES.has(player.registeredRole)),
     )
   )
     return false;
@@ -217,6 +246,42 @@ function validateMatchExport(
       !validScoutEvent(item.replacementEvent, match.id, teamIds, playerIds)
     )
       return false;
+    if (item.type === 'match_correction') {
+      if (
+        !isRecord(item.correction) ||
+        item.correction.kind !== 'award_point' ||
+        !isText(item.correction.teamId) ||
+        !teamIds.has(item.correction.teamId) ||
+        !isText(item.correction.rallyId) ||
+        !isText(item.correction.previousServingTeamId) ||
+        !teamIds.has(item.correction.previousServingTeamId)
+      )
+        return false;
+    }
+    if (item.type === 'substitution_made') {
+      if (
+        !isText(item.teamId) ||
+        !teamIds.has(item.teamId) ||
+        !Number.isSafeInteger(item.setNumber) ||
+        !isText(item.slotId) ||
+        !isText(item.playerOutId) ||
+        !playerIds.has(item.playerOutId) ||
+        !isText(item.playerInId) ||
+        !playerIds.has(item.playerInId) ||
+        !Number.isInteger(item.rotationPositionAtSubstitution) ||
+        (item.rotationPositionAtSubstitution as number) < 1 ||
+        (item.rotationPositionAtSubstitution as number) > 6 ||
+        (item.score !== undefined &&
+          (!isRecord(item.score) ||
+            !isFiniteNumber(item.score.teamA) ||
+            !isFiniteNumber(item.score.teamB))) ||
+        (item.playerOutRole !== undefined &&
+          (typeof item.playerOutRole !== 'string' || !PLAYER_ROLES.has(item.playerOutRole))) ||
+        (item.playerInRole !== undefined &&
+          (typeof item.playerInRole !== 'string' || !PLAYER_ROLES.has(item.playerInRole)))
+      )
+        return false;
+    }
   }
   return true;
 }

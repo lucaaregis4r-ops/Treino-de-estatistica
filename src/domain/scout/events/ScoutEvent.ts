@@ -3,6 +3,8 @@ import type { Skill } from '../entities/Skill';
 import type { PlayerLineupContext } from '../../match/lineup/SetLineup';
 import type { CompletenessResult } from '../completeness/CompletenessResult';
 import type { TacticalCaptureDraft, TacticalMetadata } from '../tactical/TacticalMetadata';
+import type { CourtRotationPosition } from '../../match/lineup/SetLineup';
+import type { FormationState } from '../../match/tactical/TacticalState';
 
 export type RallyPhase = 'sideout' | 'breakpoint' | 'transition';
 export type ReceptionGrade = 'A' | 'B' | 'C' | 'ERROR';
@@ -42,6 +44,9 @@ export interface ScoutEvent {
   readonly teamId: string;
   readonly playerId?: string;
   readonly lineupContext?: PlayerLineupContext;
+  readonly setterPlayerId?: string;
+  readonly setterPosition?: CourtRotationPosition;
+  readonly formationState?: FormationState;
   readonly skill: Skill;
   readonly outcome?: string;
   readonly evaluation?: string;

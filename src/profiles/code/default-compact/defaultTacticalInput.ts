@@ -6,7 +6,7 @@ export const defaultTacticalInput = Object.freeze({
     target: Object.freeze({ prefix: 't' }),
     direction: Object.freeze({
       prefix: 'd',
-      values: Object.freeze({ d: 'diagonal', p: 'paralela', c: 'centro' }),
+      values: Object.freeze({ d: 'diagonal', p: 'paralela', g: 'paragonal', c: 'paragonal' }),
     }),
     skillType: Object.freeze({ prefix: 'y' }),
     setterCall: Object.freeze({ prefix: 'l' }),
@@ -73,7 +73,7 @@ export const defaultTacticalInput = Object.freeze({
         originZoneIds: Object.freeze(['1', '2']),
         targetZoneIds: Object.freeze(['4', '5']),
       }),
-      Object.freeze({ id: 'centro', targetZoneIds: Object.freeze(['3', '6']) }),
+      Object.freeze({ id: 'paragonal', targetZoneIds: Object.freeze(['3', '6']) }),
       Object.freeze({
         id: 'diagonal',
         originZoneIds: Object.freeze(['4', '5']),

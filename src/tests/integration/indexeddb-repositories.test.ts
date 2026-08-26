@@ -436,13 +436,24 @@ describe('IndexedDB repositories', () => {
     const scored = await reopenedService.awardPoint(matchId, teamAId);
     expect(scored.ok && scored.value.state.score.teamA).toBe(1);
     if (!scored.ok) return;
+    expect(scored.value.events.some((event) => event.type === 'match_correction')).toBe(true);
+    const sequences = scored.value.events.map((event) =>
+      event.type === 'scout_registered' ? event.event.sequence : event.sequence,
+    );
+    expect(new Set(sequences).size).toBe(sequences.length);
+
+    const correctionUndone = await reopenedService.undo(matchId);
+    expect(correctionUndone.ok && correctionUndone.value.state.score.teamA).toBe(0);
+    const correctionRedone = await reopenedService.redo(matchId);
+    expect(correctionRedone.ok && correctionRedone.value.state.score.teamA).toBe(1);
+    if (!correctionRedone.ok) return;
 
     const exported = await reopenedService.exportJson(matchId);
     expect(exported.ok).toBe(true);
     if (exported.ok) {
       const imported = new JsonMatchImporter().import(exported.value);
       expect(imported.ok).toBe(true);
-      if (imported.ok) expect(imported.value.events).toEqual(scored.value.events);
+      if (imported.ok) expect(imported.value.events).toEqual(correctionRedone.value.events);
     }
   });
 
@@ -638,6 +649,107 @@ describe('IndexedDB repositories', () => {
     expect(nextSet.ok && nextSet.value.currentLineups).toHaveLength(2);
   });
 
+  it('derives a 5x1 inversion from generic substitutions and captures the active setter', async () => {
+    const database = createDatabase();
+    const service = new ScoutTrainerService(
+      new IndexedDbMatchRepository(database),
+      new IndexedDbEventRepository(database),
+      new IndexedDbTeamRepository(database),
+      new IndexedDbPlayerRepository(database),
+      createDefaultProfileRegistry(),
+    );
+    const lineup = [
+      { position: 1 as const, tacticalRole: 'setter' as const, playerNumber: 1 },
+      { position: 2 as const, tacticalRole: 'outside_1' as const, playerNumber: 3 },
+      { position: 3 as const, tacticalRole: 'middle_1' as const, playerNumber: 4 },
+      { position: 4 as const, tacticalRole: 'opposite' as const, playerNumber: 2 },
+      { position: 5 as const, tacticalRole: 'outside_2' as const, playerNumber: 5 },
+      { position: 6 as const, tacticalRole: 'middle_2' as const, playerNumber: 6 },
+    ];
+    const created = await service.createMatch({
+      teamAName: 'A',
+      teamBName: 'B',
+      teamAPlayers: [
+        { number: 1, registeredRole: 'setter' },
+        { number: 2, registeredRole: 'opposite' },
+        3,
+        4,
+        5,
+        6,
+        { number: 7, registeredRole: 'opposite' },
+        { number: 8, registeredRole: 'setter' },
+      ],
+      teamBPlayers: [11, 12, 13, 14, 15, 16],
+      teamALineup: lineup,
+      complexityProfileId: 'basic',
+    });
+    if (!created.ok) throw created.error;
+    const teamAId = created.value.teams[0].id;
+    const current = created.value.currentLineups.find((item) => item.teamId === teamAId);
+    const setterSlot =
+      current && Object.values(current.slots).find((slot) => slot.tacticalRole === 'setter');
+    const oppositeSlot =
+      current && Object.values(current.slots).find((slot) => slot.tacticalRole === 'opposite');
+    const attacker = created.value.players.find(
+      (player) => player.teamId === teamAId && player.number === 7,
+    );
+    const secondSetter = created.value.players.find(
+      (player) => player.teamId === teamAId && player.number === 8,
+    );
+    if (!setterSlot || !oppositeSlot || !attacker || !secondSetter)
+      throw new Error('Missing inversion setup.');
+
+    const first = await service.substitute(
+      created.value.state.metadata.id,
+      teamAId,
+      setterSlot.slotId,
+      attacker.id,
+    );
+    if (!first.ok) throw first.error;
+    const inverted = await service.substitute(
+      created.value.state.metadata.id,
+      teamAId,
+      oppositeSlot.slotId,
+      secondSetter.id,
+    );
+    if (!inverted.ok) throw inverted.error;
+
+    expect(inverted.value.state.tacticalStateByTeamId[teamAId]).toMatchObject({
+      activeSetterPlayerId: secondSetter.id,
+      activeSetterPosition: 4,
+      formationState: 'five_one_inversion',
+    });
+    expect(inverted.value.state.derivedSubstitutionGroups).toHaveLength(1);
+    const substitutionEvents = inverted.value.events.filter(
+      (event) => event.type === 'substitution_made',
+    );
+    expect(substitutionEvents[0]).toMatchObject({
+      playerOutRole: 'setter',
+      playerInRole: 'opposite',
+      score: { teamA: 0, teamB: 0 },
+    });
+
+    const undone = await service.undo(created.value.state.metadata.id);
+    expect(undone.ok && undone.value.state.tacticalStateByTeamId[teamAId].formationState).toBe(
+      'unknown',
+    );
+    const redone = await service.redo(created.value.state.metadata.id);
+    expect(redone.ok && redone.value.state.tacticalStateByTeamId[teamAId].formationState).toBe(
+      'five_one_inversion',
+    );
+
+    const registered = await service.registerScout(
+      created.value.state.metadata.id,
+      teamAId,
+      '08E+',
+    );
+    expect(registered.ok && registered.value.timeline.at(-1)?.event).toMatchObject({
+      setterPlayerId: secondSetter.id,
+      setterPosition: 4,
+      formationState: 'five_one_inversion',
+    });
+  });
+
   it('enriches a partial tactical event through auditable correction and replay', async () => {
     const database = createDatabase();
     const service = new ScoutTrainerService(
@@ -691,11 +803,42 @@ describe('IndexedDB repositories', () => {
       'captureDraft',
     );
     expect(enriched.ok && enriched.value.timeline[0]?.corrected).toBe(true);
+    expect(enriched.ok && enriched.value.report.attack[0]).toMatchObject({
+      volume: 1,
+      points: 1,
+      efficiency: { value: 1, numerator: 1, denominator: 1 },
+    });
+    expect(enriched.ok && enriched.value.report.tactical.attackDirections[0]).toMatchObject({
+      originZone: '4',
+      targetZone: '1',
+      direction: 'diagonal',
+      setterPosition: 1,
+    });
+    if (!enriched.ok) throw enriched.error;
+    const reportedAttack = enriched.value.report.attack.find((row) => row.volume === 1);
+    if (!reportedAttack) throw new Error('Reported attack was not found.');
+    const pdf = await service.exportPdf(matchId);
+    const bundle = await service.exportBundle(matchId);
+    expect(pdf.ok && pdf.value).toContain('/Type /Pages /Count 6');
+    expect(bundle.ok && Object.keys(bundle.value.files).sort()).toEqual([
+      'estatisticas.csv',
+      'eventos.csv',
+      'partida.json',
+      'relatorio.pdf',
+      'scout.txt',
+    ]);
+    if (!pdf.ok) throw pdf.error;
+    if (!bundle.ok) throw bundle.error;
+    expect(bundle.value.files['relatorio.pdf']).toBe(pdf.value);
+    expect(bundle.value.files['estatisticas.csv']).toContain(
+      `attack,${reportedAttack.teamId},${reportedAttack.playerId},,efficiency,1,1,1`,
+    );
 
     const undone = await service.undo(matchId);
     expect(undone.ok && undone.value.timeline[0]?.event.completeness?.status).toBe('partial');
     const redone = await service.redo(matchId);
     expect(redone.ok && redone.value.timeline[0]?.event.completeness?.status).toBe('complete');
+    if (!redone.ok) throw redone.error;
 
     await database.close();
     const reopenedDatabase = new ScoutTrainerDatabase(database.name);
@@ -709,6 +852,7 @@ describe('IndexedDB repositories', () => {
     );
     const replayed = await reopenedService.loadMatch(matchId);
     expect(replayed.ok && replayed.value.timeline[0]?.event.completeness?.status).toBe('complete');
+    expect(replayed.ok && replayed.value.report).toEqual(redone.value.report);
   });
 
   it('produces identical contextual rally projections live and after replay', async () => {

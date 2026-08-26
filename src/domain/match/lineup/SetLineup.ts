@@ -1,4 +1,5 @@
 import type { Player } from '../entities/Player';
+import type { PlayerRole } from '../roles/PlayerRole';
 
 export type CourtRotationPosition = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -9,6 +10,8 @@ export interface LineupSlot {
   readonly slotId: string;
   readonly tacticalRole: TacticalRole;
   readonly playerId: string;
+  /** Função exercida pelo atleta que ocupa o slot neste momento. */
+  readonly activeRole?: PlayerRole;
 }
 
 export interface SetLineup {
@@ -33,6 +36,12 @@ export const DEFAULT_TACTICAL_ROLES = Object.freeze([
   'outside_2',
   'middle_2',
 ] as const satisfies readonly TacticalRole[]);
+
+export function playerRoleForTacticalRole(role: TacticalRole): PlayerRole {
+  if (role === 'setter' || role === 'opposite' || role === 'custom') return role;
+  if (role.startsWith('outside')) return 'outside';
+  return 'middle';
+}
 
 export function playerLineupContext(
   lineup: SetLineup | undefined,
@@ -63,7 +72,16 @@ export function createDefaultLineup(
   const slots = Object.fromEntries(
     active.map((player, index) => {
       const slotId = `${teamId}_set_${setNumber}_slot_${index + 1}`;
-      return [slotId, { slotId, tacticalRole: DEFAULT_TACTICAL_ROLES[index], playerId: player.id }];
+      const tacticalRole = DEFAULT_TACTICAL_ROLES[index];
+      return [
+        slotId,
+        {
+          slotId,
+          tacticalRole,
+          playerId: player.id,
+          activeRole: playerRoleForTacticalRole(tacticalRole),
+        },
+      ];
     }),
   );
   const slotIds = Object.keys(slots);

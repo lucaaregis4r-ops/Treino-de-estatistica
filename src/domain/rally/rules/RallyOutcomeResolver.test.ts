@@ -35,5 +35,13 @@ describe('RallyOutcomeResolver', () => {
     expect(
       resolver.resolve({ ...base, skill: 'reception', outcome: 'perfect' }, teams),
     ).toBeUndefined();
+    expect(resolver.resolve({ ...base, skill: 'reception', outcome: 'error' }, teams)).toEqual({
+      winnerTeamId: 'b',
+      reason: 'reception_error',
+    });
+    expect(resolver.resolve({ ...base, skill: 'block', outcome: 'error' }, teams)).toEqual({
+      winnerTeamId: 'b',
+      reason: 'block_error',
+    });
   });
 });

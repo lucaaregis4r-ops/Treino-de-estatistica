@@ -25,7 +25,7 @@ const SKILL_GUIDES = [
     name: 'Ataque',
     syntax: '10A# cX5 o4 t6 q1 b2',
     explanation:
-      'Informe combinação, zona inicial, zona final, tempo e bloqueadores. Como referência: central parte normalmente da 3, oposto da 2 e ponteiro da 4; registre a exceção mostrada na jogada.',
+      'A origem do ataque é inferida pela posição rotacional. Informe apenas exceções, como uma inversão, e classifique a direção em paralela, diagonal ou paragonal. Combinações: INV (inversão), CRZ (cruzamento), PIPE (fundo pelo centro), F2 ou F4 (ataque do fundo pela respectiva zona).',
   },
   {
     code: 'B',

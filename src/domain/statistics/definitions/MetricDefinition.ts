@@ -1,8 +1,10 @@
 import type { ScoutEvent } from '../../scout/events/ScoutEvent';
 import type { MetricResult } from '../metrics/MetricResult';
 import type { Skill } from '../../scout/entities/Skill';
-import type { RallyPhase } from '../../scout/events/ScoutEvent';
+import type { RallyPhase, ReceptionGrade } from '../../scout/events/ScoutEvent';
 import type { TacticalRallyProjection } from '../../rally/context/TacticalRallyProjection';
+import type { CourtRotationPosition } from '../../match/lineup/SetLineup';
+import type { FormationState } from '../../match/tactical/TacticalState';
 
 export interface StatisticsScope {
   readonly teamId?: string;
@@ -12,6 +14,15 @@ export interface StatisticsScope {
   readonly rotation?: number;
   readonly phase?: RallyPhase;
   readonly direction?: string;
+  readonly originZone?: string;
+  readonly targetZone?: string;
+  readonly attackType?: string;
+  readonly attackCombination?: string;
+  readonly receptionGrade?: ReceptionGrade;
+  readonly blockersCount?: number;
+  readonly setterPlayerId?: string;
+  readonly setterPosition?: CourtRotationPosition;
+  readonly formationState?: FormationState;
 }
 
 export interface PlayerSetParticipation {

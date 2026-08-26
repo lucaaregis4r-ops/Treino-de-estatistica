@@ -8,12 +8,19 @@ test('keeps a continuous scout line and exposes the code manual', async ({ page 
   await page.getByRole('button', { name: 'Nova partida', exact: true }).first().click();
   await page.getByRole('button', { name: 'Criar e iniciar scout' }).click();
   const input = page.getByLabel('Digite o código');
+  await expect(page.getByLabel('Placar da partida')).toBeVisible();
+  await expect(page.getByLabel('Contexto atual da partida')).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Quadra de Equipe A' })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Quadra de Equipe B' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Últimos eventos' })).toBeVisible();
+  await expect(input).toBeFocused();
   await input.fill('*01A#*02S+a03R#');
   await input.press('Enter');
   await expect(page.getByText('*01A#', { exact: true })).toBeVisible();
   await expect(page.getByText('*02S+', { exact: true })).toBeVisible();
   await expect(page.getByText('A03R#', { exact: true })).toBeVisible();
   await expect(input).toHaveValue(/^\*01A#\*02S\+a03R#(?:\*01S)?$/);
+  await expect(input).toBeFocused();
 });
 
 test('prefills the next server from score and rotation', async ({ page }) => {
@@ -30,6 +37,9 @@ test('prefills the next server from score and rotation', async ({ page }) => {
   await expect(input).toHaveValue('*01S#*01S=a08S');
   await expect(page.locator('.serving-inline')).toContainText('Equipe B');
   await expect(page.locator('.serving-inline')).toContainText('#08');
+  await expect(
+    page.getByRole('article', { name: 'Quadra de Equipe B' }).locator('[data-position="1"]'),
+  ).toContainText('#08');
 });
 
 test('creates, scouts, recovers, exports, and records a training attempt', async ({ page }) => {
@@ -43,7 +53,7 @@ test('creates, scouts, recovers, exports, and records a training attempt', async
   await scoutCode.press('Enter');
   await expect(page.locator('.event-list code')).toHaveText('*01A#');
   await expect(scoutCode).toHaveValue('*01A#*01S');
-  await expect(page.locator('.score-center span').first()).toHaveText('1');
+  await expect(page.locator('.score-header-team.home > span')).toHaveText('1');
   await expect(page.locator('.serving-inline')).toContainText('Equipe A');
   await expect(page.locator('.serving-inline')).toContainText('#01');
   await expect(page.locator('.partial-badge')).toContainText('parcial');
@@ -73,7 +83,14 @@ test('creates, scouts, recovers, exports, and records a training attempt', async
 
   await page.getByRole('button', { name: 'Resumo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Distribuições e eficiência' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Atletas, rotações e levantador' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Box score por atleta' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Estatísticas por rotação' })).toBeVisible();
   await page.getByLabel('Grupo').selectOption('attack');
+  const pdfDownloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exportar PDF' }).click();
+  const pdfDownload = await pdfDownloadPromise;
+  expect(pdfDownload.suggestedFilename()).toMatch(/\.pdf$/);
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Exportar JSON' }).click();
   const download = await downloadPromise;
@@ -253,12 +270,14 @@ test('exports a complete match package to a chosen folder and persists free reco
   );
   expect(exported.folder).toMatch(/^Equipe-A-x-Equipe-B_\d{4}-\d{2}-\d{2}_/);
   expect(Object.keys(exported.files).sort()).toEqual([
-    'codigos.txt',
+    'estatisticas.csv',
+    'eventos.csv',
     'partida.json',
-    'placar-sets.csv',
-    'scouts.csv',
+    'relatorio.pdf',
+    'scout.txt',
   ]);
-  expect(exported.files['placar-sets.csv']).toContain('set,team_a,points_a');
+  expect(exported.files['estatisticas.csv']).toContain('section,team_id,player_id,rotation');
+  expect(exported.files['relatorio.pdf']).toMatch(/^%PDF-1\.4/);
 
   await page.getByRole('button', { name: 'Livre', exact: true }).click();
   await page.getByLabel('Nome da sessão').fill('Treino sem parser');

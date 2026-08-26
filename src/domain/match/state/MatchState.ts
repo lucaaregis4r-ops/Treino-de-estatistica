@@ -3,6 +3,11 @@ import type { ScoreSnapshot } from '../score/Score';
 import type { SetState } from './SetState';
 import type { RallyState } from '../../rally/state/RallyState';
 import type { SetLineup } from '../lineup/SetLineup';
+import type {
+  DerivedSubstitutionGroup,
+  DerivedTacticalState,
+  SubstitutionWindow,
+} from '../tactical/TacticalState';
 
 export interface MatchState {
   readonly metadata: MatchMetadata;
@@ -12,6 +17,9 @@ export interface MatchState {
   readonly currentRally: RallyState;
   readonly sets: readonly SetState[];
   readonly lineups: readonly SetLineup[];
+  readonly tacticalStateByTeamId: Readonly<Record<string, DerivedTacticalState>>;
+  readonly substitutionWindows: Readonly<Record<string, SubstitutionWindow>>;
+  readonly derivedSubstitutionGroups: readonly DerivedSubstitutionGroup[];
   readonly matchCompleted: boolean;
   readonly processedEventIds: readonly string[];
   readonly lastSequence: number;
@@ -27,6 +35,9 @@ export function createInitialMatchState(metadata: MatchMetadata): MatchState {
     currentRally: Object.freeze({ status: 'idle', phase: 'idle', eventIds: Object.freeze([]) }),
     sets: Object.freeze([{ setNumber: 1, score, completed: false }]),
     lineups: Object.freeze([]),
+    tacticalStateByTeamId: Object.freeze({}),
+    substitutionWindows: Object.freeze({}),
+    derivedSubstitutionGroups: Object.freeze([]),
     matchCompleted: false,
     processedEventIds: Object.freeze([]),
     lastSequence: 0,

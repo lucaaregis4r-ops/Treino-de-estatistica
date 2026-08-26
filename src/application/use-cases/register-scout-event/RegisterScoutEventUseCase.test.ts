@@ -89,8 +89,74 @@ describe('RegisterScoutEventUseCase', () => {
     expect(result.value.validation.valid).toBe(true);
     expect(result.value.completeness).toEqual({
       status: 'partial',
-      missingRecommendedFields: ['originZone', 'targetZone', 'direction'],
+      missingRecommendedFields: ['direction'],
     });
     expect(result.value.event.completeness).toEqual(result.value.completeness);
+  });
+
+  it('derives the normal attack origin from the athlete rotation position', () => {
+    const result = new RegisterScoutEventUseCase().execute({
+      rawCode: '08A#',
+      profiles: tacticalProfiles(),
+      context: {
+        ...context,
+        lineup: {
+          teamId: 'team_a',
+          setNumber: 1,
+          positions: { 1: 's1', 2: 's2', 3: 's3', 4: 's4', 5: 's5', 6: 's6' },
+          slots: {
+            s1: { slotId: 's1', tacticalRole: 'setter', playerId: 'p1' },
+            s2: { slotId: 's2', tacticalRole: 'outside_1', playerId: 'team_a_08' },
+            s3: { slotId: 's3', tacticalRole: 'middle_1', playerId: 'p3' },
+            s4: { slotId: 's4', tacticalRole: 'opposite', playerId: 'p4' },
+            s5: { slotId: 's5', tacticalRole: 'outside_2', playerId: 'p5' },
+            s6: { slotId: 's6', tacticalRole: 'middle_2', playerId: 'p6' },
+          },
+        },
+      },
+      metadata: { direction: 'diagonal' },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.event.metadata?.tactical?.attack?.trajectory).toMatchObject({
+      origin: { zoneId: '2' },
+      direction: 'diagonal',
+    });
+    expect(result.value.completeness).toEqual({
+      status: 'complete',
+      missingRecommendedFields: [],
+    });
+  });
+
+  it('keeps an explicitly captured exceptional attack origin', () => {
+    const result = new RegisterScoutEventUseCase().execute({
+      rawCode: '08A#',
+      profiles: tacticalProfiles(),
+      context: {
+        ...context,
+        lineup: {
+          teamId: 'team_a',
+          setNumber: 1,
+          positions: { 1: 's1', 2: 's2', 3: 's3', 4: 's4', 5: 's5', 6: 's6' },
+          slots: {
+            s1: { slotId: 's1', tacticalRole: 'setter', playerId: 'p1' },
+            s2: { slotId: 's2', tacticalRole: 'outside_1', playerId: 'team_a_08' },
+            s3: { slotId: 's3', tacticalRole: 'middle_1', playerId: 'p3' },
+            s4: { slotId: 's4', tacticalRole: 'opposite', playerId: 'p4' },
+            s5: { slotId: 's5', tacticalRole: 'outside_2', playerId: 'p5' },
+            s6: { slotId: 's6', tacticalRole: 'middle_2', playerId: 'p6' },
+          },
+        },
+      },
+      metadata: { originZone: 4, direction: 'paralela', attackCombination: 'INV' },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.event.metadata?.tactical?.attack).toMatchObject({
+      combination: 'INV',
+      trajectory: { origin: { zoneId: '4' }, direction: 'paralela' },
+    });
   });
 });

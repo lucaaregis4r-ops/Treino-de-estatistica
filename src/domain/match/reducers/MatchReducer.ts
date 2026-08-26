@@ -1,19 +1,23 @@
 import { reduceRally } from '../../rally/reducers/RallyReducer';
-import type { MatchMetadata } from '../entities/MatchMetadata';
 import {
   matchEventId,
   matchEventMatchId,
   matchEventSequence,
   type MatchEvent,
 } from '../events/MatchEvent';
-import { projectEffectiveMatchEvents } from '../events/ScoutTimeline';
-import { createInitialMatchState, type MatchState } from '../state/MatchState';
+import type { MatchState } from '../state/MatchState';
 import type { SetState } from '../state/SetState';
 import { RotationEngine } from '../lineup/RotationEngine';
 import type { SetLineup } from '../lineup/SetLineup';
+import { playerRoleForTacticalRole } from '../lineup/SetLineup';
 import { DEFAULT_INDOOR_SCORING_RULES } from '../rules/SetScoringRules';
+import { ActiveSetterResolver } from '../tactical/ActiveSetterResolver';
+import { TacticalPatternDetector } from '../tactical/TacticalPatternDetector';
+import type { DerivedTacticalState, SubstitutionWindow } from '../tactical/TacticalState';
 
 const rotationEngine = new RotationEngine();
+const activeSetterResolver = new ActiveSetterResolver();
+const tacticalPatternDetector = new TacticalPatternDetector();
 
 function updateSet(
   sets: readonly SetState[],
@@ -36,6 +40,37 @@ function replaceLineup(lineups: readonly SetLineup[], lineup: SetLineup): readon
     ),
     lineup,
   ]);
+}
+
+function tacticalStateForLineup(
+  lineup: SetLineup,
+  previous?: DerivedTacticalState,
+): DerivedTacticalState {
+  const setter = activeSetterResolver.resolve(lineup);
+  return {
+    teamId: lineup.teamId,
+    ...(previous?.primarySetterPlayerId || setter?.playerId
+      ? { primarySetterPlayerId: previous?.primarySetterPlayerId ?? setter?.playerId }
+      : {}),
+    ...(setter
+      ? { activeSetterPlayerId: setter.playerId, activeSetterPosition: setter.position }
+      : {}),
+    formationState: setter ? (previous?.formationState ?? 'normal') : 'unknown',
+  };
+}
+
+function replaceTacticalState(
+  states: MatchState['tacticalStateByTeamId'],
+  state: DerivedTacticalState,
+): MatchState['tacticalStateByTeamId'] {
+  return Object.freeze({ ...states, [state.teamId]: Object.freeze(state) });
+}
+
+function sameScore(
+  left: { teamA: number; teamB: number },
+  right: { teamA: number; teamB: number },
+) {
+  return left.teamA === right.teamA && left.teamB === right.teamB;
 }
 
 export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState {
@@ -65,6 +100,7 @@ export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState
           score: { ...event.initialScore },
           completed: false,
         })),
+        substitutionWindows: Object.freeze({}),
       };
     }
     case 'score_changed':
@@ -79,28 +115,57 @@ export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState
       };
     case 'serving_team_changed':
       return { ...base, servingTeamId: event.servingTeamId };
-    case 'set_lineup_confirmed':
-      return { ...base, lineups: replaceLineup(previous.lineups, event.lineup) };
-    case 'rally_result': {
-      const winnerIsTeamA = event.winnerTeamId === previous.metadata.teamAId;
+    case 'set_lineup_confirmed': {
+      const tacticalState = tacticalStateForLineup(event.lineup);
+      return {
+        ...base,
+        lineups: replaceLineup(previous.lineups, event.lineup),
+        tacticalStateByTeamId: replaceTacticalState(previous.tacticalStateByTeamId, tacticalState),
+      };
+    }
+    case 'rally_started':
+      return { ...base, substitutionWindows: Object.freeze({}) };
+    case 'rally_result':
+    case 'match_correction': {
+      const winnerTeamId =
+        event.type === 'rally_result' ? event.winnerTeamId : event.correction.teamId;
+      const recordedPreviousServingTeamId =
+        event.type === 'rally_result'
+          ? event.previousServingTeamId
+          : event.correction.previousServingTeamId;
+      const previousServingTeamId =
+        previous.servingTeamId ??
+        previous.metadata.initialServingTeamId ??
+        recordedPreviousServingTeamId;
+      const winnerIsTeamA = winnerTeamId === previous.metadata.teamAId;
       const score = {
         teamA: previous.score.teamA + (winnerIsTeamA ? 1 : 0),
         teamB: previous.score.teamB + (winnerIsTeamA ? 0 : 1),
       };
-      const receivingTeamWon = event.winnerTeamId !== event.previousServingTeamId;
+      const receivingTeamWon = winnerTeamId !== previousServingTeamId;
       const currentLineup = previous.lineups.find(
-        (lineup) =>
-          lineup.setNumber === previous.currentSet && lineup.teamId === event.winnerTeamId,
+        (lineup) => lineup.setNumber === previous.currentSet && lineup.teamId === winnerTeamId,
       );
       const lineups =
         receivingTeamWon && currentLineup
           ? replaceLineup(previous.lineups, rotationEngine.rotate(currentLineup))
           : previous.lineups;
+      const rotatedLineup = lineups.find(
+        (lineup) => lineup.setNumber === previous.currentSet && lineup.teamId === winnerTeamId,
+      );
+      const tacticalStateByTeamId = rotatedLineup
+        ? replaceTacticalState(
+            previous.tacticalStateByTeamId,
+            tacticalStateForLineup(rotatedLineup, previous.tacticalStateByTeamId[winnerTeamId]),
+          )
+        : previous.tacticalStateByTeamId;
       return {
         ...base,
         score,
-        servingTeamId: event.winnerTeamId,
+        servingTeamId: winnerTeamId,
         lineups,
+        tacticalStateByTeamId,
+        substitutionWindows: Object.freeze({}),
         sets: updateSet(previous.sets, previous.currentSet, (set) => ({ ...set, score })),
       };
     }
@@ -110,15 +175,75 @@ export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState
       );
       const slot = lineup?.slots[event.slotId];
       if (!lineup || !slot || slot.playerId !== event.playerOutId) return base;
+      const playerOutRole =
+        event.playerOutRole ?? slot.activeRole ?? playerRoleForTacticalRole(slot.tacticalRole);
+      const playerInRole = event.playerInRole ?? slot.activeRole ?? playerOutRole;
+      const updatedLineup: SetLineup = {
+        ...lineup,
+        slots: {
+          ...lineup.slots,
+          [event.slotId]: { ...slot, playerId: event.playerInId, activeRole: playerInRole },
+        },
+      };
+      const previousTacticalState =
+        previous.tacticalStateByTeamId[event.teamId] ?? tacticalStateForLineup(lineup);
+      const score = event.score ?? previous.score;
+      const openWindow = previous.substitutionWindows[event.teamId];
+      const continuesWindow =
+        openWindow &&
+        openWindow.setNumber === event.setNumber &&
+        sameScore(openWindow.score, score);
+      const window: SubstitutionWindow = {
+        teamId: event.teamId,
+        setNumber: event.setNumber,
+        score: { ...score },
+        activeSetterBeforeWindow: continuesWindow
+          ? openWindow.activeSetterBeforeWindow
+          : previousTacticalState.activeSetterPlayerId,
+        formationBeforeWindow: continuesWindow
+          ? openWindow.formationBeforeWindow
+          : previousTacticalState.formationState,
+        entries: Object.freeze([
+          ...(continuesWindow ? openWindow.entries : []),
+          {
+            eventId: event.id,
+            playerOutId: event.playerOutId,
+            playerInId: event.playerInId,
+            playerOutRole,
+            playerInRole,
+          },
+        ]),
+      };
+      let tacticalState = tacticalStateForLineup(updatedLineup, previousTacticalState);
+      const pattern = tacticalPatternDetector.detect(window, tacticalState);
+      if (pattern) {
+        tacticalState = {
+          ...tacticalState,
+          formationState: pattern === 'five_one_inversion' ? 'five_one_inversion' : 'normal',
+        };
+      }
+      const derivedSubstitutionGroups = pattern
+        ? Object.freeze([
+            ...previous.derivedSubstitutionGroups,
+            Object.freeze({
+              id: `derived:${window.entries.map((entry) => entry.eventId).join(':')}`,
+              pattern,
+              teamId: event.teamId,
+              setNumber: event.setNumber,
+              score: { ...score },
+              eventIds: Object.freeze(window.entries.map((entry) => entry.eventId)),
+            }),
+          ])
+        : previous.derivedSubstitutionGroups;
       return {
         ...base,
-        lineups: replaceLineup(previous.lineups, {
-          ...lineup,
-          slots: {
-            ...lineup.slots,
-            [event.slotId]: { ...slot, playerId: event.playerInId },
-          },
+        lineups: replaceLineup(previous.lineups, updatedLineup),
+        tacticalStateByTeamId: replaceTacticalState(previous.tacticalStateByTeamId, tacticalState),
+        substitutionWindows: Object.freeze({
+          ...previous.substitutionWindows,
+          [event.teamId]: Object.freeze(window),
         }),
+        derivedSubstitutionGroups,
       };
     }
     case 'set_finished': {
@@ -135,24 +260,4 @@ export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState
     default:
       return base;
   }
-}
-
-export function replayMatch(metadata: MatchMetadata, events: readonly MatchEvent[]): MatchState {
-  const state = projectEffectiveMatchEvents(events).reduce(
-    reduceMatch,
-    createInitialMatchState(metadata),
-  );
-
-  return {
-    ...state,
-    processedEventIds: Object.freeze(
-      [...events]
-        .sort((left, right) => matchEventSequence(left) - matchEventSequence(right))
-        .map(matchEventId),
-    ),
-    lastSequence: events.reduce(
-      (last, event) => Math.max(last, matchEventSequence(event)),
-      state.lastSequence,
-    ),
-  };
 }

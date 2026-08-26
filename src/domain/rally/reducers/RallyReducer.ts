@@ -30,10 +30,17 @@ export function reduceRally(state: RallyState, event: MatchEvent): RallyState {
   }
 
   if (
-    (event.type === 'rally_ended' || event.type === 'rally_result') &&
-    state.rallyId === event.rallyId
+    (event.type === 'rally_ended' ||
+      event.type === 'rally_result' ||
+      event.type === 'match_correction') &&
+    state.rallyId === (event.type === 'match_correction' ? event.correction.rallyId : event.rallyId)
   ) {
-    const winningTeamId = event.type === 'rally_result' ? event.winnerTeamId : event.winningTeamId;
+    const winningTeamId =
+      event.type === 'rally_result'
+        ? event.winnerTeamId
+        : event.type === 'match_correction'
+          ? event.correction.teamId
+          : event.winningTeamId;
     return {
       ...state,
       status: 'ended',

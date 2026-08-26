@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ScoutEvent } from '../../scout/events/ScoutEvent';
 import type { MatchEvent } from './MatchEvent';
-import { findRedoTarget, findUndoTarget, projectScoutTimeline } from './ScoutTimeline';
+import {
+  findRedoTarget,
+  findUndoTarget,
+  projectEffectiveMatchEvents,
+  projectScoutTimeline,
+} from './ScoutTimeline';
 
 const original: ScoutEvent = {
   id: 'scout_1',
@@ -68,5 +73,43 @@ describe('ScoutTimeline', () => {
       '08A+',
     );
     expect([registered, corrected, undone, redone]).toHaveLength(4);
+  });
+
+  it('keeps a linked rally start through correction and removes it with the registration', () => {
+    const registered: MatchEvent = { type: 'scout_registered', event: original };
+    const started: MatchEvent = {
+      type: 'rally_started',
+      id: 'start_1',
+      matchId: 'match_1',
+      rallyId: 'rally_1',
+      targetScoutEventId: original.id,
+      sourceHistoryEventId: original.id,
+      sequence: 0,
+      timestamp: 0,
+    };
+    const corrected: MatchEvent = {
+      type: 'scout_corrected',
+      id: 'correction_1',
+      matchId: 'match_1',
+      sequence: 2,
+      timestamp: 2,
+      targetEventId: original.id,
+      previousRawCode: original.rawCode,
+      newRawCode: replacement.rawCode,
+      replacementEvent: replacement,
+    };
+    const undoRegistration: MatchEvent = {
+      type: 'scout_undone',
+      id: 'undo_registration',
+      matchId: 'match_1',
+      sequence: 3,
+      timestamp: 3,
+      targetHistoryEventId: original.id,
+    };
+
+    expect(projectEffectiveMatchEvents([started, registered, corrected])).toContainEqual(started);
+    expect(projectEffectiveMatchEvents([started, registered, undoRegistration])).not.toContainEqual(
+      started,
+    );
   });
 });

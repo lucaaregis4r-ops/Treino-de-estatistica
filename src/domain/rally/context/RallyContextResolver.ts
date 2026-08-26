@@ -118,9 +118,13 @@ export class RallyContextResolver {
           event: event.event,
           corrected: false,
         };
-        const rotation = setterPosition(
-          state.lineups.find((lineup) => lineup.teamId === projected.event.teamId),
-        );
+        const tactical = state.tacticalStateByTeamId[projected.event.teamId];
+        const rotation =
+          projected.event.setterPosition ??
+          tactical?.activeSetterPosition ??
+          setterPosition(state.lineups.find((lineup) => lineup.teamId === projected.event.teamId));
+        const setterPlayerId = projected.event.setterPlayerId ?? tactical?.activeSetterPlayerId;
+        const formationState = projected.event.formationState ?? tactical?.formationState;
         const receptionForAttack = this.receptionResolver.resolveForAttack(
           projected,
           rallyContacts,
@@ -143,6 +147,9 @@ export class RallyContextResolver {
           }),
           ...(state.servingTeamId ? { servingTeamId: state.servingTeamId } : {}),
           ...(rotation ? { rotation } : {}),
+          ...(setterPlayerId ? { setterPlayerId } : {}),
+          ...(rotation ? { setterPosition: rotation } : {}),
+          ...(formationState ? { formationState } : {}),
           ...(receptionForAttack ? { receptionForAttack } : {}),
           ...(expected ? { expectedNextAction: expected } : {}),
         });
@@ -162,10 +169,16 @@ export class RallyContextResolver {
       }
 
       state = reduceMatch(state, event);
-      if (event.type === 'rally_result' || event.type === 'rally_ended') {
+      if (
+        event.type === 'rally_result' ||
+        event.type === 'rally_ended' ||
+        event.type === 'match_correction'
+      ) {
         expected = undefined;
+        const rallyId =
+          event.type === 'match_correction' ? event.correction.rallyId : event.rallyId;
         const last = contacts.at(-1);
-        if (last?.rallyId === event.rallyId && last.expectedNextAction) {
+        if (last?.rallyId === rallyId && last.expectedNextAction) {
           const terminalContext = { ...last } as {
             -readonly [Key in keyof TacticalContactContext]: TacticalContactContext[Key];
           };
@@ -173,9 +186,13 @@ export class RallyContextResolver {
           contacts[contacts.length - 1] = Object.freeze(terminalContext);
         }
         const winnerTeamId =
-          event.type === 'rally_result' ? event.winnerTeamId : event.winningTeamId;
-        const summary = rallies.get(event.rallyId);
-        if (summary && winnerTeamId) rallies.set(event.rallyId, { ...summary, winnerTeamId });
+          event.type === 'rally_result'
+            ? event.winnerTeamId
+            : event.type === 'match_correction'
+              ? event.correction.teamId
+              : event.winningTeamId;
+        const summary = rallies.get(rallyId);
+        if (summary && winnerTeamId) rallies.set(rallyId, { ...summary, winnerTeamId });
       }
     }
 

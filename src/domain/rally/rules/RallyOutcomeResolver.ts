@@ -14,7 +14,7 @@ export class RallyOutcomeResolver {
     if (event.outcome === 'point' && ['attack', 'block'].includes(event.skill)) {
       return { winnerTeamId: event.teamId, reason: `${event.skill}_point` };
     }
-    if (event.outcome === 'error' && ['serve', 'attack'].includes(event.skill)) {
+    if (event.outcome === 'error') {
       return { winnerTeamId: opponent.id, reason: `${event.skill}_error` };
     }
     return undefined;

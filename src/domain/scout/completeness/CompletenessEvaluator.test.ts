@@ -27,7 +27,7 @@ describe('CompletenessEvaluator', () => {
   it('classifies a valid tactical core as partial without making it invalid', () => {
     expect(new CompletenessEvaluator().evaluate(candidate, tacticalProfile, context)).toEqual({
       status: 'partial',
-      missingRecommendedFields: ['originZone', 'targetZone', 'direction'],
+      missingRecommendedFields: ['direction'],
     });
   });
 

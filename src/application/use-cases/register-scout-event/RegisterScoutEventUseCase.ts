@@ -13,6 +13,7 @@ import type { ValidationResult } from '../../../domain/scout/validators/validati
 import type { ResolvedProfileContext } from '../../../profiles/ProfileResolver';
 import { CompletenessEvaluator } from '../../../domain/scout/completeness/CompletenessEvaluator';
 import type { CompletenessResult } from '../../../domain/scout/completeness/CompletenessResult';
+import { AttackOriginResolver } from '../../../domain/scout/tactical/AttackOriginResolver';
 
 export interface RegisterScoutEventInput {
   readonly rawCode: string;
@@ -37,6 +38,7 @@ export class RegisterScoutEventUseCase {
     private readonly validationEngine = new ValidationEngine(),
     private readonly completenessEvaluator = new CompletenessEvaluator(),
     private readonly eventFactory = new EventFactory(),
+    private readonly attackOriginResolver = new AttackOriginResolver(),
   ) {}
 
   execute(
@@ -60,8 +62,10 @@ export class RegisterScoutEventUseCase {
     );
     if (!mapped.ok) return failure(mapped.error);
 
+    const candidate = this.attackOriginResolver.resolve(mapped.value, input.context);
+
     const validation = this.validationEngine.validate(
-      mapped.value,
+      candidate,
       input.profiles.complexityProfile,
       input.context,
     );
@@ -70,13 +74,13 @@ export class RegisterScoutEventUseCase {
     }
 
     const completeness = this.completenessEvaluator.evaluate(
-      mapped.value,
+      candidate,
       input.profiles.complexityProfile,
       input.context,
     );
 
     const event = this.eventFactory.create(
-      mapped.value,
+      candidate,
       input.context,
       input.profiles,
       validation,

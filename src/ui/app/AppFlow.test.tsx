@@ -84,13 +84,41 @@ describe('usable MVP flow', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: /Operacional/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
-    const scoutInput = await screen.findByLabelText('Digite o código', undefined, {
-      timeout: 20_000,
-    });
+    const scoutInput = await screen.findByLabelText<HTMLInputElement>(
+      'Digite o código',
+      undefined,
+      {
+        timeout: 20_000,
+      },
+    );
+    expect(screen.getByLabelText('Placar da partida')).toBeInTheDocument();
+    expect(screen.getByLabelText('Contexto atual da partida')).toBeInTheDocument();
+    expect(screen.getByLabelText('Contexto atual da partida')).toHaveTextContent('Rotação: R1');
+    expect(screen.getByLabelText('Quadra de Equipe A')).toBeInTheDocument();
+    expect(screen.getByLabelText('Quadra de Equipe B')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Últimos eventos' })).toBeInTheDocument();
+    await waitFor(() => expect(scoutInput).toHaveFocus());
+    await waitFor(() => expect(scoutInput).toHaveValue('*01S'));
 
     fireEvent.change(scoutInput, { target: { value: '*01A#' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Habilitar ajuda' }));
+    expect(
+      screen.getByText('Ataque', { selector: '.capture-help-content strong' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Ponto')).toBeInTheDocument();
+    expect(
+      screen.getByText('Direção', { selector: '.capture-help-content strong' }),
+    ).toBeInTheDocument();
     fireEvent.submit(scoutInput.closest('form')!);
     expect(await screen.findByText('*01A#')).toBeInTheDocument();
+    await waitFor(() => expect(scoutInput).toHaveFocus());
+    await waitFor(() => expect(scoutInput.selectionStart).toBe(scoutInput.value.length));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+    expect(await screen.findByRole('heading', { name: 'Códigos' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByText('*01A#')).toBeInTheDocument();
+    expect(screen.getByLabelText('Placar da partida')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Corrigir' }));
     const correctionInput = screen.getByLabelText('Corrigindo evento');
@@ -109,8 +137,17 @@ describe('usable MVP flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir resumo' }));
     expect(await screen.findByRole('heading', { name: 'Equipe A x Equipe B' })).toBeInTheDocument();
     expect(screen.getByText('Eventos ativos')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Atletas, rotações e levantador' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Box score por atleta' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Estatísticas por rotação' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('table', { name: 'Direcionamento por atacante e levantador' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Exportar CSV' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Exportar TXT' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeInTheDocument();
 
     firstRender.unmount();
     render(
@@ -128,6 +165,111 @@ describe('usable MVP flow', () => {
     expect(screen.getByText('Data Volley')).toBeInTheDocument();
   }, 60_000);
 
+  it('updates the court workspace through a generic substitution', async () => {
+    const { service, trainingService, profileEditorService } = createService();
+    render(
+      <App
+        service={service}
+        trainingService={trainingService}
+        profileEditorService={profileEditorService}
+      />,
+    );
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    const rosterFields = screen.getAllByLabelText('Atletas (camisa e nome)');
+    fireEvent.change(rosterFields[0], {
+      target: {
+        value:
+          '1 Jogador 1, 2 Jogador 2, 3 Jogador 3, 4 Jogador 4, 5 Jogador 5, 6 Jogador 6, 7 Reserva | levantador',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
+    await screen.findByLabelText('Quadra de Equipe A', undefined, { timeout: 20_000 });
+
+    fireEvent.click(screen.getAllByText('Substituição')[0]);
+    const playerOut = screen.getByLabelText<HTMLSelectElement>('Equipe A: atleta que sai');
+    const playerIn = screen.getByLabelText<HTMLSelectElement>('Equipe A: atleta que entra');
+    const outgoingOption = [...playerOut.options].find((option) =>
+      option.textContent?.includes('#01'),
+    );
+    const incomingOption = [...playerIn.options].find((option) =>
+      option.textContent?.includes('#07'),
+    );
+    if (!outgoingOption || !incomingOption) throw new Error('Substitution options were not found.');
+    fireEvent.change(playerOut, { target: { value: outgoingOption.value } });
+    fireEvent.change(playerIn, { target: { value: incomingOption.value } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Substituir' })[0]);
+
+    const teamACourt = screen.getByLabelText('Quadra de Equipe A');
+    await waitFor(() =>
+      expect(teamACourt.querySelector('[data-position="1"]')).toHaveTextContent('#07'),
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText('Substituições recentes de Equipe A')).toHaveTextContent(
+        '#1 saiu · #7 entrou',
+      ),
+    );
+    expect(screen.getByLabelText('Digite o código')).toHaveFocus();
+  }, 60_000);
+
+  it('confirms a freely rearranged lineup between sets without creating substitutions', async () => {
+    const { service, trainingService, profileEditorService } = createService();
+    const created = await service.createMatch({
+      teamAName: 'Equipe A',
+      teamBName: 'Equipe B',
+      teamAPlayers: [1, 2, 3, 4, 5, 6, 7],
+      teamBPlayers: [8, 9, 10, 11, 12, 13],
+      complexityProfileId: 'basic',
+      scoringRules: {
+        regularSetTarget: 1,
+        decidingSetTarget: 1,
+        minimumLead: 1,
+        setsToWin: 2,
+      },
+    });
+    if (!created.ok) throw created.error;
+    render(
+      <App
+        service={service}
+        trainingService={trainingService}
+        profileEditorService={profileEditorService}
+      />,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Equipe A x Equipe B/ }));
+    const input = await screen.findByLabelText('Digite o código');
+    await waitFor(() => expect(input).toHaveValue('01S'));
+    fireEvent.change(input, { target: { value: '01S#' } });
+    fireEvent.submit(input.closest('form')!);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Confirmar escalação do set 2' }),
+    ).toBeInTheDocument();
+    const positionOne = screen.getByLabelText<HTMLSelectElement>(
+      'Equipe A: atleta em P1 no próximo set',
+    );
+    const bench = [...positionOne.options].find((option) => option.textContent?.includes('#07'));
+    if (!bench) throw new Error('Bench player was not available for the next set.');
+    fireEvent.change(positionOne, { target: { value: bench.value } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar escalação e iniciar set' }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: 'Confirmar escalação do set 2' }),
+      ).not.toBeInTheDocument(),
+    );
+    const reopened = await service.loadMatch(created.value.state.metadata.id);
+    if (!reopened.ok) throw reopened.error;
+    const teamALineup = reopened.value.currentLineups.find(
+      (lineup) => lineup.teamId === created.value.teams[0].id,
+    );
+    const positionOnePlayer = reopened.value.players.find(
+      (player) => player.id === teamALineup?.slots[teamALineup.positions[1]]?.playerId,
+    );
+    expect(positionOnePlayer?.number).toBe(7);
+    expect(
+      reopened.value.events.filter((event) => event.type === 'substitution_made'),
+    ).toHaveLength(0);
+  }, 60_000);
+
   it('frames a concatenated scout stream and closes its final event with Enter', async () => {
     const { service, trainingService, profileEditorService } = createService();
     render(
@@ -140,6 +282,7 @@ describe('usable MVP flow', () => {
     fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
+    await waitFor(() => expect(input).toHaveValue('*01S'));
 
     fireEvent.change(input, { target: { value: '*01A#*02S+a03R#' } });
     fireEvent.submit(input.closest('form')!);
@@ -199,13 +342,14 @@ describe('usable MVP flow', () => {
 
     fireEvent.change(input, { target: { value: '*01A#' } });
     fireEvent.submit(input.closest('form')!);
-    expect(await screen.findByText(/parcial · faltam zona de origem/)).toBeInTheDocument();
+    expect(await screen.findByText(/parcial · faltam direção/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Completar' }));
     fireEvent.change(screen.getByLabelText('Tipo da ação'), { target: { value: 'potência' } });
-    fireEvent.change(screen.getByLabelText('Zona de origem'), { target: { value: '4' } });
-    fireEvent.change(screen.getByLabelText('Zona de destino'), { target: { value: '1' } });
+    expect(screen.queryByLabelText('Zona de destino')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Exceção de origem/), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Direção'), { target: { value: 'diagonal' } });
     const correction = screen.getByLabelText('Corrigindo evento');
+    fireEvent.change(correction, { target: { value: '*01A#' } });
     fireEvent.submit(correction.closest('form')!);
 
     expect(await screen.findByText('corrigido')).toBeInTheDocument();
