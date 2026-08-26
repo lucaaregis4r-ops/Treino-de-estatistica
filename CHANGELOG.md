@@ -35,11 +35,6 @@ Todas as mudanças relevantes do Scout Trainer são registradas neste arquivo.
 - Ataque abafado pelo bloqueio é identificado explicitamente pela avaliação `/`.
 - A entrada contínua não perde o foco nem oculta o final de sequências longas.
 
-### Qualidade
-
-- 264 testes automatizados aprovados.
-- Fluxos críticos validados em navegador com Playwright.
-- TypeScript, ESLint e build de produção validados.
 
 ## [0.1.0] - 2026-08-20
 
