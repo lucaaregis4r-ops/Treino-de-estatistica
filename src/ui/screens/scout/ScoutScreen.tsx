@@ -185,25 +185,43 @@ export function ScoutScreen({
   const tactical = ['tactical', 'advanced'].includes(workspace.profiles.complexityProfile.level);
   const advanced = workspace.profiles.complexityProfile.level === 'advanced';
   const tacticalInput = workspace.profiles.codeProfile.tacticalInput;
-  // Execution 1: contextual mini court for typed attacks only. Serve/reception
-  // are intentionally excluded to avoid interrupting the serve prefill flow.
-  const miniCourtScope =
-    typedCoreSkill === 'attack';
-  const miniCourtOpen =
-    tactical &&
-    !!tacticalInput &&
-    captureDirection &&
-    !editingId &&
-    inputMode === 'typed' &&
-    miniCourtScope &&
-    !!decodedCapture &&
-    !miniSuppressed;
-  const miniCourtStep: MiniCourtStep = miniCourtOpen
-    ? drawnOrigin && drawnTarget
-      ? 'readyToConfirm'
-      : drawnOrigin
-        ? 'awaitingDestination'
-        : 'awaitingOrigin'
+const miniCourtMode: 'point' | 'trajectory' | undefined =
+    typedCoreSkill === 'reception'
+      ? 'point'
+      : typedCoreSkill === 'attack' ||
+          (typedCoreSkill === 'serve' && buffer !== servePrefillValueRef.current)
+        ? 'trajectory'
+        : undefined;
+
+const miniCourtOpen =
+tactical &&
+!!tacticalInput &&
+captureDirection &&
+!editingId &&
+inputMode === 'typed' &&
+!!miniCourtMode &&
+!!decodedCapture &&
+!miniSuppressed;
+// Determine which team is executing the action for court-side rules
+// The activeTeamId is the team currently in focus; servingTeamId is who serves
+const servingTeamId = workspace.state.servingTeamId;
+const executingTeamId = miniCourtOpen && typedCoreSkill === 'serve'
+  ? servingTeamId
+  : activeTeamId;
+const executingTeamSide: 'left' | 'right' =
+  executingTeamId === teamA.id ? 'left' : 'right';
+const opposingTeamSide: 'left' | 'right' =
+  executingTeamSide === 'left' ? 'right' : 'left';
+const miniCourtStep: MiniCourtStep = miniCourtOpen
+    ? miniCourtMode === 'point'
+      ? drawnOrigin
+        ? 'readyToConfirm'
+        : 'awaitingPoint'
+      : drawnOrigin && drawnTarget
+        ? 'readyToConfirm'
+        : drawnOrigin
+          ? 'awaitingDestination'
+          : 'awaitingOrigin'
     : 'hidden';
   const teamCodes = workspace.profiles.codeProfile.teamCodes;
   const tacticalInterpreter = useRef(new TacticalInputInterpreter()).current;
@@ -1027,6 +1045,7 @@ export function ScoutScreen({
             <MiniCourt
               profile={tacticalInput.zoneSystem}
               skill={typedCoreSkill ?? 'attack'}
+              captureMode={miniCourtMode ?? 'trajectory'}
               step={miniCourtStep}
               origin={drawnOrigin}
               target={drawnTarget}
@@ -1046,6 +1065,8 @@ export function ScoutScreen({
                 setDrawnOrigin(undefined);
                 setDrawnTarget(undefined);
               }}
+              executingTeamSide={executingTeamSide}
+              opposingTeamSide={opposingTeamSide}
             />
           )}
           {inputMode === 'typed' && (

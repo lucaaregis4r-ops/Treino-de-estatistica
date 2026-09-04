@@ -925,6 +925,50 @@ textarea {
 .mini-court-hint {
   color: var(--muted);
 }
+.mini-court-canvas .court-net {
+  top: 50%;
+  right: 0;
+  bottom: auto;
+  left: 0;
+  border-top: 3px solid #eef8f3;
+  border-left: 0;
+  box-shadow: 0 0 0 1px #10211c;
+}
+.mini-court-attack-line {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  border-top: 1px solid #ffffff6b;
+}
+.mini-court-attack-line.front { top: 33.333%; }
+.mini-court-attack-line.back { top: 66.666%; }
+.mini-court-side-label {
+  position: absolute;
+  z-index: 1;
+  right: 0.45rem;
+  color: #dcebe499;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.mini-court-side-label.front { top: 0.35rem; }
+.mini-court-side-label.back { bottom: 0.35rem; }
+.mini-court-zone-label {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
+  border: 1px solid #ffffff45;
+  border-radius: 50%;
+  color: #ffffffb8;
+  background: #0b181466;
+  font: 700 0.6rem ui-monospace, monospace;
+  transform: translate(-50%, -50%);
+}
 .mini-court-legend {
   display: flex;
   flex-wrap: wrap;
