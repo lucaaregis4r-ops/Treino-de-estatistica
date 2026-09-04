@@ -128,6 +128,11 @@ export function MiniCourt({
           </svg>
         )}
       </div>
+      <div className="mini-court-legend" aria-label="Referência das zonas da quadra">
+        <span>Rede</span>
+        <strong>Frente: 4 · 3 · 2</strong>
+        <strong>Fundo: 5 · 6 · 1</strong>
+      </div>
       <small className="mini-court-hint" aria-live="polite">
         {hint(step, skill)}
       </small>

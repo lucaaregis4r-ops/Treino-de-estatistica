@@ -925,9 +925,35 @@ textarea {
 .mini-court-hint {
   color: var(--muted);
 }
+.mini-court-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.mini-court-legend span {
+  color: var(--cyan);
+  font-weight: 800;
+  text-transform: uppercase;
+}
 .mini-court-actions {
   display: flex;
   gap: 0.5rem;
+}
+.mini-court-actions button,
+.spatial-view-toggle button {
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  color: var(--ink);
+  background: var(--panel-strong);
+  cursor: pointer;
+}
+.mini-court-actions button:disabled {
+  color: var(--muted);
+  background: var(--panel);
+  cursor: not-allowed;
 }
 .capture-direction-toggle {
   display: flex;
@@ -935,6 +961,12 @@ textarea {
   gap: 0.5rem;
   margin-top: 1rem;
   font-size: 0.85rem;
+}
+.capture-direction-toggle input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  accent-color: var(--accent);
 }
 .court-trajectory-label {
   position: absolute;
@@ -2928,6 +2960,17 @@ kbd {
 
 .spatial-court-line.muted {
   opacity: 0.35;
+}
+
+.spatial-court-line.net {
+  stroke-width: 1.8;
+}
+
+.spatial-zone-label {
+  fill: var(--muted);
+  font-size: 5px;
+  font-weight: 800;
+  text-anchor: middle;
 }
 
 .spatial-density {

@@ -106,20 +106,43 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
       <div className="spatial-visual-grid">
         {viewMode === 'heatmap' && (
           <figure className="spatial-court-card">
-            <svg viewBox="0 0 100 100" role="img" aria-label={`Heatmap: ${definition.label}`}>
-              <rect className="spatial-court-floor" x="2" y="2" width="96" height="96" rx="3" />
-              <line className="spatial-court-line" x1="2" y1="50" x2="98" y2="50" />
-              <line className="spatial-court-line muted" x1="2" y1="33" x2="98" y2="33" />
-              <line className="spatial-court-line muted" x1="2" y1="67" x2="98" y2="67" />
+            <svg
+              className="volleyball-court"
+              viewBox="0 0 120 72"
+              role="img"
+              aria-label={`Heatmap: ${definition.label}`}
+            >
+              <rect className="spatial-court-floor" x="4" y="4" width="112" height="64" rx="2" />
+              <line className="spatial-court-line net" x1="60" y1="4" x2="60" y2="68" />
+              <line className="spatial-court-line muted" x1="41.33" y1="4" x2="41.33" y2="68" />
+              <line className="spatial-court-line muted" x1="78.67" y1="4" x2="78.67" y2="68" />
+              <text className="spatial-zone-label" x="22" y="20">
+                4
+              </text>
+              <text className="spatial-zone-label" x="34" y="20">
+                3
+              </text>
+              <text className="spatial-zone-label" x="48" y="20">
+                2
+              </text>
+              <text className="spatial-zone-label" x="22" y="56">
+                5
+              </text>
+              <text className="spatial-zone-label" x="34" y="56">
+                6
+              </text>
+              <text className="spatial-zone-label" x="48" y="56">
+                1
+              </text>
               {attackHeatmap || receptionHeatmap
                 ? density.map((cell) => (
                     <rect
                       key={`${cell.x}-${cell.y}`}
                       className="spatial-density-cell"
-                      x={2 + (cell.x - 1 / 12) * 96}
-                      y={2 + (cell.y - 1 / 12) * 96}
-                      width={16}
-                      height={16}
+                      x={4 + (cell.x - 1 / 12) * 112}
+                      y={4 + (cell.y - 1 / 12) * 64}
+                      width={112 / 6}
+                      height={64 / 6}
                       opacity={
                         0.15 +
                         ((receptionHeatmap ? (cell.sideoutRate ?? 0) : (cell.pointRate ?? 0)) /
@@ -157,7 +180,8 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
 
         <figure className="spatial-court-card">
           <svg
-            viewBox="0 0 100 100"
+            className="volleyball-court"
+            viewBox="0 0 120 72"
             role="img"
             aria-label={
               viewMode === 'plays' ? 'Mapa de jogadas individuais' : 'Mapa agregado de trajetórias'
@@ -175,17 +199,37 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
                 <path d="M0,0 L6,3 L0,6 Z" />
               </marker>
             </defs>
-            <rect className="spatial-court-floor" x="2" y="2" width="96" height="96" rx="3" />
-            <line className="spatial-court-line" x1="2" y1="50" x2="98" y2="50" />
+            <rect className="spatial-court-floor" x="4" y="4" width="112" height="64" rx="2" />
+            <line className="spatial-court-line net" x1="60" y1="4" x2="60" y2="68" />
+            <line className="spatial-court-line muted" x1="41.33" y1="4" x2="41.33" y2="68" />
+            <line className="spatial-court-line muted" x1="78.67" y1="4" x2="78.67" y2="68" />
+            <text className="spatial-zone-label" x="22" y="20">
+              4
+            </text>
+            <text className="spatial-zone-label" x="34" y="20">
+              3
+            </text>
+            <text className="spatial-zone-label" x="48" y="20">
+              2
+            </text>
+            <text className="spatial-zone-label" x="22" y="56">
+              5
+            </text>
+            <text className="spatial-zone-label" x="34" y="56">
+              6
+            </text>
+            <text className="spatial-zone-label" x="48" y="56">
+              1
+            </text>
             {viewMode === 'plays'
               ? individualTrajectories.map((sample) => (
                   <g key={sample.eventId}>
                     <line
                       className="spatial-route"
-                      x1={2 + (sample.origin?.x ?? 0) * 96}
-                      y1={2 + (sample.origin?.y ?? 0) * 96}
-                      x2={2 + (sample.target?.x ?? 0) * 96}
-                      y2={2 + (sample.target?.y ?? 0) * 96}
+                      x1={4 + (sample.origin?.x ?? 0) * 112}
+                      y1={4 + (sample.origin?.y ?? 0) * 64}
+                      x2={4 + (sample.target?.x ?? 0) * 112}
+                      y2={4 + (sample.target?.y ?? 0) * 64}
                       strokeWidth="1"
                       markerEnd="url(#spatial-arrow)"
                     />
@@ -196,10 +240,10 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
                   <line
                     key={`${trajectory.origin.x}-${trajectory.origin.y}-${trajectory.target.x}-${trajectory.target.y}-${index}`}
                     className="spatial-route"
-                    x1={2 + (trajectory.origin.x ?? 0) * 96}
-                    y1={2 + (trajectory.origin.y ?? 0) * 96}
-                    x2={2 + (trajectory.target.x ?? 0) * 96}
-                    y2={2 + (trajectory.target.y ?? 0) * 96}
+                    x1={4 + (trajectory.origin.x ?? 0) * 112}
+                    y1={4 + (trajectory.origin.y ?? 0) * 64}
+                    x2={4 + (trajectory.target.x ?? 0) * 112}
+                    y2={4 + (trajectory.target.y ?? 0) * 64}
                     strokeWidth={1 + Math.min(5, trajectory.count)}
                     markerEnd="url(#spatial-arrow)"
                   />

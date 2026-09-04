@@ -6,6 +6,11 @@ Evolution V3 — Correção Macro 20 · Correção concluída
 
 ## Completed
 
+- Refinamento visual pós-Execução 6: controles de captura de direção e `Heatmap | Jogadas` foram
+  alinhados ao sistema visual do app, com estados legíveis, e as quadras analíticas passaram a
+  exibir rede, linhas de ataque e referência explícita das zonas 1–6. A mini-quadra também mostra
+  a legenda Frente/Fundo para reduzir ambiguidade durante a captura.
+
 - Correção Macro 20 · Etapa 6 (limpeza e fechamento): auditados os componentes espaciais alterados;
   captura usa mini-quadra contextual e a leitura usa heatmap/jogadas, sem bola gigante, curvas,
   animações, partículas ou heatmap durante a captura. A visualização individual mostra somente
