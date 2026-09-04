@@ -2,9 +2,133 @@
 
 ## Current phase
 
-Post-V2 local portability — folder export and free logging (completed)
+Evolution V3 — Correção Macro 20 · Correção concluída
 
 ## Completed
+
+- Correção Macro 20 · Etapa 6 (limpeza e fechamento): auditados os componentes espaciais alterados;
+  captura usa mini-quadra contextual e a leitura usa heatmap/jogadas, sem bola gigante, curvas,
+  animações, partículas ou heatmap durante a captura. A visualização individual mostra somente
+  origem/destino efetivamente registrados. Checks dirigidos e typecheck passam; IndexedDB permanece
+  na versão prevista.
+
+- Correção Macro 20 · Etapa 5 (jogadas individuais e integração): o painel espacial agora oferece
+  `Heatmap | Jogadas`. O modo Heatmap mantém a leitura agregada por região; o modo Jogadas usa
+  somente `SpatialSample` com origem e destino reais, desenhando linhas retas individuais sem
+  inventar trajetória, curva, animação ou volume visual. O filtro de fundamento/equipe existente
+  continua compartilhado pelos dois modos; saque permanece limitado aos dados espaciais disponíveis.
+- Teste dirigido de integração alterna entre os dois modos e confirma os mapas correspondentes;
+  `npm run typecheck`, ESLint direcionado e teste espacial de UI passam.
+
+- Correção Macro 20 · Etapa 4 (heatmap funcional de recepção): a projeção espacial agora agrega
+  `receptions`, `sideouts` e `sideoutRate` por região de contato da recepção. O sideout usa os
+  `servingTeamId`/`winnerTeamId` do `TacticalRallyProjection` existente; a UI não recalcula o
+  resultado. O mesmo visual de células do heatmap de ataque é reutilizado para recepção, com
+  tooltip e tabela mostrando volume, sideouts e taxa.
+- Fixture dirigida: 10 recepções na mesma região, 7 sideouts e taxa de 70%; typecheck, ESLint
+  direcionado e teste de integração espacial passam.
+
+- Correção Macro 20 · Etapa 3 (heatmap funcional de ataque): a projeção espacial agora agrega
+  `attempts`, `points`, `errors` e `pointRate` por região de destino, usando o `outcome` real do
+  evento. A visualização de ataque passou de círculos proporcionais para células de quadra com
+  intensidade baseada na taxa de ponto e detalhes de amostra no tooltip/tabela. Saque e recepção
+  permanecem sem alteração nesta etapa.
+- Fixture dirigida: 10 ataques na mesma região, 6 pontos e taxa de ponto de 60%; typecheck e
+  ESLint direcionado passam.
+
+- Correção Macro 20 · Etapa 2 (persistência espacial): confirma que origem/destino capturados pela
+  MiniCourt fluem do `captureDraft` ao evento canônico sem tipo paralelo, reutilizando o pipeline
+  typed/visual/híbrido. Troca clique/touch em x/y normalizado 0..1, converte a orientação visual
+  para a convenção canônica e deriva a zona das coordenadas via `CourtZoneResolver`
+  (`SemanticMapper` → `normalizeTacticalMetadata` → `canonicalCourtLocation`), removendo o
+  `captureDraft` do metadata persistido. Preserva digitado, visual, híbrido, correction, undo,
+  replay e scouts antigos somente com zona; IndexedDB permanece na versão atual.
+- Dirigido: novo teste de persistência da criação typed com x/y puro (zona derivada + direção +
+  complete) e correção do teste pré-existente de correção espacial que esperava zona obsoleta
+  (`targetZone` '1' → '2', valor real do resolver). `indexeddb-repositories.test.ts` agora passa
+  16/16; `npm run typecheck`, ESLint direcionado e `git diff --check` passam.
+
+- Correção Macro 20 · Etapa 1 (mini-quadra contextual, interação): ao digitar uma ação compatível
+  (ataque) em modo contínuo com a captura de direção habilitada, uma mini-quadra contextual abre
+  automaticamente; dois toques marcam origem e destino e Enter/Confirmar registra a trajetória
+  desenhada no pipeline de evento existente. Reutiliza a geometria canônica (`CourtGeometry`) e o
+  `TacticalCaptureDraft`; Esc cancela (mantém o buffer) e R refaz. Configuração global no scout
+  `[ ] Capturar direção das ações` (interação apenas, sem persistência IndexedDB). Escopada a
+  ataques para não interromper o prefill de saque. 2 testes de interação + 1 teste tático existente
+  passando; `npm run typecheck`, ESLint direcionado e `git diff --check` passam.
+
+- Macro 21 base histórica (antigas 21A + 21B): IndexedDB migrado de v4 para v5 adicionando a store
+  `analyticsSnapshots`; `MatchAnalyticsSnapshot` como cache reconstruível com versão do schema,
+  contagem de eventos-fonte e última sequência; `AnalyticsSnapshotRepository` e adaptador IndexedDB.
+- `HistoricalAnalyticsService` construindo o snapshot a partir de `MatchReportModel`, validando o
+  cache contra a versão/contagem/sequência atuais, invalidação + reconstrução por `delete`/`rebuild`
+  e agregação histórica ponderada (numeradores/denominadores somados, nunca média simples de
+  percentuais) para série de equipe e de atleta.
+- Referências históricas de sideout e breakpoint preservando numerador, denominador, amostra,
+  partidas usadas e permitindo manter amostra insuficiente explícita (denominador zerado → `null`).
+- Identidade por `teamId`/`playerId` nos agregados; camisa permanece rótulo.
+- Testes dirigidos: 8 testes de snapshot/agregação histórica + 1 teste de migração v5 e persistência
+  no IndexedDB; `npm run typecheck` e `git diff --check` passam.
+
+- Macro 20 Packages 20C–20D: one canonical court geometry now normalizes pointer coordinates,
+  converts displayed orientation, derives zones from the active `ZoneSystemProfile`, and rejects
+  persisted coordinates outside `0..1` while preserving zone-only scouts.
+- One non-persisted `SpatialProjection` consumes effective `ScoutEvent` data and exposes samples,
+  density, aggregated trajectories, and origin-by-target matrices through `MatchReportModel.spatial`.
+- The match summary now includes attack-target, serve-target, and reception-contact heatmaps,
+  aggregated trajectory maps, an origin × target matrix, textual summaries, and equivalent tables.
+- Correction/undo changes the effective spatial projection naturally; typed, visual, and hybrid
+  capture still share the canonical event pipeline, JSON keeps coordinates/input mode, and IndexedDB
+  remains at version 4.
+- Economic gate evidence: the two directed geometry/projection tests and the combined report/UI
+  correction-and-undo flow pass; `npm run typecheck` and `git diff --check` pass.
+
+- Macro 20 Package 20B: profile-driven `VisualScoutMapper` creates canonical serve, reception,
+  attack, and block candidates without invoking the text parser or inventing optional metadata.
+- Hybrid capture keeps the typed core authoritative, enriches only missing tactical fields, reports
+  explicit team/player/skill/evaluation conflicts, and creates exactly one canonical event.
+- The scout UI now switches between Typed, Visual, and Hybrid capture while reusing the roster,
+  tactical court/details, and `ExpectedNextAction` only as a suggestion.
+- Team-specific roster resolution rejects missing teams and athletes from the opposing roster;
+  continuous typed framing, keyboard entry, and Enter commit remain operational.
+- Directed evidence: 30 domain/application tests plus 3 integration/UI flows passing; TypeScript,
+  targeted ESLint, and targeted Prettier checks passing.
+
+- Macro 20 Package 20A: `ValidateAndCreateScoutEventUseCase` now owns attack-origin derivation,
+  validation, completeness, and `ScoutEvent` creation from a canonical candidate.
+- The typed register path retains normalization/tokenization/parsing/mapping and delegates to the
+  common boundary without changing its diagnostics or generated volleyball data.
+- New events record `inputMode` and `normalizedCode`; missing legacy `inputMode` resolves to `typed`
+  without an IndexedDB migration or history rewrite.
+- Directed evidence: 12 registration/common-pipeline/JSON tests passing; TypeScript, targeted ESLint,
+  and targeted Prettier checks passing.
+
+- Recharts 3.10.1 visual layer for team performance, rotations, setter distribution, attack
+  evenness, and setter repetition.
+- Setter-distribution filters backed by real setter, reception, set, and rally-phase dimensions.
+- Text summaries and auditable tables paired with every chart; existing detailed report tables remain.
+- Responsive chart containers, keyboard-enabled Recharts accessibility, and live-region tooltips.
+- Attack-direction set dimension and Attack Evenness observed/reference breakdown preserved in the
+  shared report model.
+
+- Expected Sideout and Expected Breakpoint using explicit empirical references, with unavailable
+  results instead of arbitrary fallback weights.
+- Attack Evenness against explicit attacker-share references, with team, rotation, setter-position,
+  phase, and reception-quality scopes.
+- Setter Repetition derived from ordered attacks for overall, after-point, after-error,
+  after-blocked, and within-rally categories.
+- Setter Attack Conversion grouped by derived setter, P1–P6, attacker, reception quality, phase,
+  and attack combination, without synthetic set events or assist terminology.
+- Advanced analytics integrated into the shared report model, statistics CSV, and six-page PDF.
+
+- V3 repository audit covering canonical input, effective event replay, derived setter context,
+  normalized court coordinates, analytics/reporting, IndexedDB v4, and export boundaries.
+- V3 canonical decisions for a shared visual-input pipeline, attack-derived setter context, and
+  rebuildable analytics snapshot caches.
+- Explicit no-video scope and third-party reference/license inventory for planned advanced,
+  visual, spatial, and historical analytics.
+- Baseline repair aligning one stale E2E with inferred attack origin and making Prettier compatible
+  with the Windows checkout line endings, without changing application behavior.
 
 - User-authorized local directory connection through the File System Access API with unsupported
   browser fallback to the existing individual downloads.
@@ -162,8 +286,8 @@ Post-V2 local portability — folder export and free logging (completed)
 
 ## Tests
 
-- `npm run test`: 224 tests passing, 0 failing.
-- `npm run test:e2e`: 4 critical Playwright flows passing in Chrome.
+- `npm run test`: 274 tests passing, 0 failing.
+- `npm run test:e2e`: 7 critical Playwright flows passing in Chrome.
 - `npm run lint`: passing.
 - `npm run typecheck`: passing.
 - `npm run build`: passing.
@@ -210,7 +334,9 @@ Post-V2 local portability — folder export and free logging (completed)
 
 ## Pending
 
-- No planned Evolution V2 macro stages remain.
+- Evolution V3 Macro 21 — tendências (séries de equipe/atleta alimentadas pelo
+  `HistoricalAnalyticsService`) e Opponent Profile (21C + 21D), + atualização de ROADMAP, PROJECT
+  CONTEXT, PIPELINES, CHANGELOG e versão `0.3.0`.
 
 ## Known debt
 
@@ -221,4 +347,7 @@ Post-V2 local portability — folder export and free logging (completed)
 
 ## Next phase
 
-Evolution V2 is complete. Any further work should begin with a new prioritized evolution plan.
+Continue Evolution V3 Macro 21 by the tendências/Opponent Profile execution (21C + 21D) according
+to the two-week economic plan. The base histórica (v5 migration, snapshots, historical aggregation
+and references) is functionally complete. IndexedDB is now at v5. The package version remains
+`0.2.0` until the final release execution sets `0.3.0`.

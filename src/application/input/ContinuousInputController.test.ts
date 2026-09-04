@@ -100,6 +100,17 @@ describe('ContinuousInputController', () => {
     });
   });
 
+  it('frames home and away Data Volley events in one stream', () => {
+    const input = controller(dataVolleyBasicV1);
+
+    expect(input.replace('*01A#*02S+A09R#')).toEqual({
+      committedCodes: ['*01A#', '*02S+'],
+      buffer: 'A09R#',
+      state: 'core_complete',
+    });
+    expect(input.manualCommit().committedCodes).toEqual(['A09R#']);
+  });
+
   it('does not split a valid continuation that only resembles a next-event prefix', () => {
     const profile: CodeProfile = {
       ...defaultCompactV1,

@@ -60,6 +60,12 @@ export function SummaryScreen({
         <span>{workspace.state.score.teamB}</span>
         <strong>{teamB.name}</strong>
       </div>
+
+      <nav className="summary-jump-links" aria-label="Atalhos do resumo">
+        <a href="#visual-analytics">Análise visual</a>
+        <a href="#spatial-analytics">Spatial Analytics</a>
+        <a href="#audit-tables">Tabelas auditáveis</a>
+      </nav>
       <section className="set-scoreboard" aria-labelledby="set-scoreboard-title">
         <div>
           <p className="eyebrow">Placar completo</p>

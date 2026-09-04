@@ -20,7 +20,19 @@ import type {
   SetterDistributionReport,
   SetterPositionAttackReport,
   SetterPositionDirectionReport,
+  AdvancedAuditableMetric,
+  AttackEvennessReport,
 } from '../reporting/MatchReportModel';
+import type { ExpectedRateReference } from '../../domain/statistics/metrics/advanced/expectedSideout';
+import type { AttackEvennessReference } from '../../domain/statistics/metrics/advanced/attackEvenness';
+import { EXPECTED_SIDEOUT_METRIC_ID } from '../../domain/statistics/metrics/advanced/expectedSideout';
+import { EXPECTED_BREAKPOINT_METRIC_ID } from '../../domain/statistics/metrics/advanced/expectedBreakpoint';
+import { ATTACK_EVENNESS_METRIC_ID } from '../../domain/statistics/metrics/advanced/attackEvenness';
+import { setterRepetitionReports } from '../../domain/statistics/metrics/advanced/setterRepetition';
+import { setterAttackConversionReports } from '../../domain/statistics/metrics/advanced/setterAttackConversion';
+import type { MetricResult } from '../../domain/statistics/metrics/MetricResult';
+import { SpatialProjection } from '../../domain/scout/spatial/SpatialProjection';
+import type { ZoneSystemProfile } from '../../domain/scout/tactical/ZoneSystemProfile';
 
 export interface MatchAnalyticsInput {
   readonly events: readonly ScoutEvent[];
@@ -29,6 +41,12 @@ export interface MatchAnalyticsInput {
   readonly teams: readonly Team[];
   readonly lineups: readonly SetLineup[];
   readonly tacticalRally: TacticalRallyProjection;
+  readonly expectedSideoutReferences?: Readonly<Record<string, readonly ExpectedRateReference[]>>;
+  readonly expectedBreakpointReferences?: Readonly<
+    Record<string, readonly ExpectedRateReference[]>
+  >;
+  readonly attackEvennessReferences?: Readonly<Record<string, readonly AttackEvennessReference[]>>;
+  readonly zoneSystem?: ZoneSystemProfile;
 }
 
 export type AttackDrillDownFilter = Pick<
@@ -52,6 +70,19 @@ function auditable(numerator: number, denominator: number): AuditableMetric {
     value: denominator === 0 ? null : numerator / denominator,
     numerator,
     denominator,
+  });
+}
+
+function advancedMetric(result: MetricResult): AdvancedAuditableMetric {
+  return Object.freeze({
+    value: result.value,
+    numerator: result.numerator ?? 0,
+    denominator: result.denominator ?? 0,
+    available: result.available,
+    ...(result.reasonUnavailable ? { reasonUnavailable: result.reasonUnavailable } : {}),
+    ...(result.referenceSampleSize !== undefined
+      ? { referenceSampleSize: result.referenceSampleSize }
+      : {}),
   });
 }
 
@@ -175,6 +206,7 @@ function attackDirections(input: MatchAnalyticsInput): readonly AttackDirectionR
     if (!setterPosition || !contact) continue;
     const dimensions = {
       teamId: event.teamId,
+      setNumber: event.setNumber,
       playerId: event.playerId,
       ...((event.setterPlayerId ?? contact.setterPlayerId)
         ? { setterPlayerId: event.setterPlayerId ?? contact.setterPlayerId }
@@ -346,7 +378,10 @@ function directionsBySetterPosition(
 }
 
 export class MatchAnalyticsService {
-  constructor(private readonly statisticsEngine: StatisticsEngine) {}
+  constructor(
+    private readonly statisticsEngine: StatisticsEngine,
+    private readonly spatialProjection = new SpatialProjection(),
+  ) {}
 
   queryAttacks(input: MatchAnalyticsInput, filter: AttackDrillDownFilter): readonly ScoutEvent[] {
     return scopedEvents({
@@ -498,6 +533,99 @@ export class MatchAnalyticsService {
           teamServes.reduce((sum, row) => sum + row.errors, 0),
       };
     });
+    const expectedSideout = input.teams.flatMap((team) => {
+      const references = input.expectedSideoutReferences?.[team.id];
+      const scopes = [
+        { teamId: team.id },
+        ...input.roster
+          .filter((player) => player.teamId === team.id)
+          .map((player) => ({ teamId: team.id, playerId: player.id })),
+      ];
+      return scopes.map((scope) => ({
+        ...scope,
+        rate: advancedMetric(
+          this.statisticsEngine.calculate([EXPECTED_SIDEOUT_METRIC_ID], {
+            events: input.events,
+            tacticalRally: input.tacticalRally,
+            scope,
+            expectedSideoutReferences: references,
+          })[0],
+        ),
+      }));
+    });
+    const expectedBreakpoint = input.teams.flatMap((team) => {
+      const references = input.expectedBreakpointReferences?.[team.id];
+      const scopes = [
+        { teamId: team.id },
+        ...input.roster
+          .filter((player) => player.teamId === team.id)
+          .map((player) => ({ teamId: team.id, playerId: player.id })),
+      ];
+      return scopes.map((scope) => ({
+        ...scope,
+        rate: advancedMetric(
+          this.statisticsEngine.calculate([EXPECTED_BREAKPOINT_METRIC_ID], {
+            events: input.events,
+            tacticalRally: input.tacticalRally,
+            scope,
+            expectedBreakpointReferences: references,
+          })[0],
+        ),
+      }));
+    });
+    const attackEvenness = input.teams.flatMap((team): readonly AttackEvennessReport[] => {
+      const scopes: StatisticsScope[] = [
+        { teamId: team.id },
+        ...ROTATION_POSITIONS.map((rotation) => ({ teamId: team.id, rotation })),
+        ...ROTATION_POSITIONS.map((setterPosition) => ({ teamId: team.id, setterPosition })),
+        ...(['sideout', 'breakpoint', 'transition'] as const).map((phase) => ({
+          teamId: team.id,
+          phase,
+        })),
+        ...(['A', 'B', 'C', 'ERROR'] as const).map((receptionGrade) => ({
+          teamId: team.id,
+          receptionGrade,
+        })),
+      ];
+      return scopes.map((scope) => {
+        const result = this.statisticsEngine.calculate([ATTACK_EVENNESS_METRIC_ID], {
+          events: input.events,
+          tacticalRally: input.tacticalRally,
+          scope,
+          attackEvennessReference: input.attackEvennessReferences?.[team.id],
+        })[0];
+        return {
+          teamId: team.id,
+          ...(scope.rotation ? { rotation: scope.rotation as CourtRotationPosition } : {}),
+          ...(scope.setterPosition ? { setterPosition: scope.setterPosition } : {}),
+          ...(scope.phase ? { phase: scope.phase } : {}),
+          ...(scope.receptionGrade ? { receptionGrade: scope.receptionGrade } : {}),
+          evenness: advancedMetric(result),
+          distribution: Object.freeze(
+            (result.breakdown ?? []).map((item) => ({
+              playerId: item.key,
+              volume: item.numerator,
+              observedShare: item.value,
+              expectedShare: item.components?.expectedShare ?? 0,
+            })),
+          ),
+        };
+      });
+    });
+    const setterRepetition = setterRepetitionReports(input.events, input.tacticalRally).map(
+      (row) => ({
+        ...row,
+        repeatRate: auditable(row.repeats, row.opportunities),
+      }),
+    );
+    const setterAttackConversion = setterAttackConversionReports(
+      input.events,
+      input.tacticalRally,
+    ).map((row) => ({
+      ...row,
+      killRate: auditable(row.points, row.volume),
+      attackEfficiency: auditable(row.points - row.errors - row.blocked, row.volume),
+    }));
     const timestamps = input.events.map((event) => event.timestamp);
 
     return Object.freeze({
@@ -529,6 +657,14 @@ export class MatchAnalyticsService {
         attackBySetterPosition: attacksByPosition,
         directionsBySetterPosition: directionsByPosition,
       }),
+      advanced: Object.freeze({
+        expectedSideout: Object.freeze(expectedSideout),
+        expectedBreakpoint: Object.freeze(expectedBreakpoint),
+        attackEvenness: Object.freeze(attackEvenness),
+        setterRepetition: Object.freeze(setterRepetition),
+        setterAttackConversion: Object.freeze(setterAttackConversion),
+      }),
+      spatial: this.spatialProjection.project(input.events, input.tacticalRally, input.zoneSystem),
     });
   }
 }

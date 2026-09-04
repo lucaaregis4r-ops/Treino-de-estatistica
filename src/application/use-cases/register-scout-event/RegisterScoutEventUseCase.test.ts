@@ -48,6 +48,8 @@ describe('RegisterScoutEventUseCase', () => {
       playerId: 'team_a_08',
       skill: 'attack',
       outcome: 'point',
+      inputMode: 'typed',
+      normalizedCode: '08A#',
       codeProfileVersion: '1.0.0',
       complexityProfileId: 'basic',
     });

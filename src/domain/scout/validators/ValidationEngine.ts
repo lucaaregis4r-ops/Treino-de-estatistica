@@ -6,6 +6,7 @@ import type { ScoutValidationContext } from './ScoutValidationContext';
 import { SequenceValidator } from './SequenceValidator';
 import { SyntaxValidator } from './SyntaxValidator';
 import { TacticalMetadataValidator } from './TacticalMetadataValidator';
+import { CourtCoordinateValidator } from './CourtCoordinateValidator';
 import type { ValidationResult, ValidationSeverity } from './validation';
 
 const SEVERITY_RANK: Readonly<Record<ValidationSeverity, number>> = {
@@ -21,6 +22,7 @@ export class ValidationEngine {
     private readonly rosterValidator = new RosterValidator(),
     private readonly sequenceValidator = new SequenceValidator(),
     private readonly tacticalMetadataValidator = new TacticalMetadataValidator(),
+    private readonly courtCoordinateValidator = new CourtCoordinateValidator(),
   ) {}
 
   validate(
@@ -34,6 +36,7 @@ export class ValidationEngine {
       this.rosterValidator.validate(candidate, context),
       this.sequenceValidator.validate(context),
       this.tacticalMetadataValidator.validate(candidate, profile),
+      this.courtCoordinateValidator.validate(candidate),
     ];
     const severity = results.reduce<ValidationSeverity>(
       (current, result) =>

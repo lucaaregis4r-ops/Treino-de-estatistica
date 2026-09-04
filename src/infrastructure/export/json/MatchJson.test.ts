@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MatchMetadata } from '../../../domain/match/entities/MatchMetadata';
 import { defaultCompactV1 } from '../../../profiles/code/default-compact/defaultCompactV1';
 import { basicProfile } from '../../../profiles/complexity/profiles';
+import { scoutInputMode } from '../../../domain/scout/events/ScoutEvent';
 import { JsonMatchExporter, JsonMatchImporter } from './MatchJson';
 
 const match: MatchMetadata = {
@@ -97,6 +98,11 @@ describe('match JSON', () => {
         },
       });
       expect(imported.value.match).toEqual(match);
+      const restored = imported.value.events[1];
+      if (restored.type === 'scout_registered') {
+        expect(restored.event.inputMode).toBeUndefined();
+        expect(scoutInputMode(restored.event)).toBe('typed');
+      }
     }
   });
 

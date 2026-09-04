@@ -9,7 +9,10 @@ export interface TeamRoster {
 export class RosterPlayerResolver {
   resolve(roster: TeamRoster, jerseyNumber: number): Player | undefined {
     return roster.players.find(
-      (player) => player.number === jerseyNumber && player.active !== false,
+      (player) =>
+        player.teamId === roster.teamId &&
+        player.number === jerseyNumber &&
+        player.active !== false,
     );
   }
 }

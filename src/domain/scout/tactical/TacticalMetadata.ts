@@ -1,4 +1,5 @@
 import type { RallyPhase, ReceptionGrade } from '../events/ScoutEvent';
+import type { CourtOrientation } from './CourtGeometry';
 
 export const TACTICAL_METADATA_SCHEMA_VERSION = '2.0.0' as const;
 
@@ -79,4 +80,5 @@ export interface TacticalCaptureDraft {
   readonly blockersCount?: number;
   readonly setterPosition?: number;
   readonly phase?: RallyPhase;
+  readonly orientation?: CourtOrientation;
 }

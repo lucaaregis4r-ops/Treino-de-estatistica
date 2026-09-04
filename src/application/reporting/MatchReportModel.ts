@@ -3,11 +3,70 @@ import type { CourtRotationPosition } from '../../domain/match/lineup/SetLineup'
 import type { ScoreSnapshot } from '../../domain/match/score/Score';
 import type { SetState } from '../../domain/match/state/SetState';
 import type { RallyPhase, ReceptionGrade } from '../../domain/scout/events/ScoutEvent';
+import type { SpatialAnalyticsProjection } from '../../domain/scout/spatial/SpatialProjection';
 
 export interface AuditableMetric {
   readonly value: number | null;
   readonly numerator: number;
   readonly denominator: number;
+}
+
+export interface AdvancedAuditableMetric extends AuditableMetric {
+  readonly available: boolean;
+  readonly reasonUnavailable?: string;
+  readonly referenceSampleSize?: number;
+}
+
+export interface ExpectedRateReport {
+  readonly teamId: string;
+  readonly playerId?: string;
+  readonly rate: AdvancedAuditableMetric;
+}
+
+export interface AttackEvennessReport {
+  readonly teamId: string;
+  readonly rotation?: CourtRotationPosition;
+  readonly setterPosition?: CourtRotationPosition;
+  readonly phase?: RallyPhase;
+  readonly receptionGrade?: ReceptionGrade;
+  readonly evenness: AdvancedAuditableMetric;
+  readonly distribution: readonly AttackEvennessDistributionItem[];
+}
+
+export interface AttackEvennessDistributionItem {
+  readonly playerId: string;
+  readonly volume: number;
+  readonly observedShare: number | null;
+  readonly expectedShare: number;
+}
+
+export type SetterRepeatCategory =
+  'overall' | 'after_point' | 'after_error' | 'after_blocked' | 'within_rally';
+
+export interface SetterRepetitionReport {
+  readonly teamId: string;
+  readonly setterPlayerId: string;
+  readonly attackerPlayerId: string;
+  readonly category: SetterRepeatCategory;
+  readonly opportunities: number;
+  readonly repeats: number;
+  readonly repeatRate: AuditableMetric;
+}
+
+export interface SetterAttackConversionReport {
+  readonly teamId: string;
+  readonly setterPlayerId: string;
+  readonly setterPosition: CourtRotationPosition;
+  readonly attackerPlayerId: string;
+  readonly receptionGrade?: ReceptionGrade;
+  readonly phase: RallyPhase;
+  readonly attackCombination?: string;
+  readonly volume: number;
+  readonly points: number;
+  readonly errors: number;
+  readonly blocked: number;
+  readonly killRate: AuditableMetric;
+  readonly attackEfficiency: AuditableMetric;
 }
 
 export interface ReportTeam {
@@ -90,6 +149,7 @@ export interface RotationReport {
 
 export interface AttackDirectionReport {
   readonly teamId: string;
+  readonly setNumber: number;
   readonly playerId: string;
   readonly setterPlayerId?: string;
   readonly setterPosition: CourtRotationPosition;
@@ -170,4 +230,13 @@ export interface MatchReportModel {
     readonly attackBySetterPosition: readonly SetterPositionAttackReport[];
     readonly directionsBySetterPosition: readonly SetterPositionDirectionReport[];
   };
+  readonly advanced: {
+    readonly expectedSideout: readonly ExpectedRateReport[];
+    readonly expectedBreakpoint: readonly ExpectedRateReport[];
+    readonly attackEvenness: readonly AttackEvennessReport[];
+    readonly setterRepetition: readonly SetterRepetitionReport[];
+    readonly setterAttackConversion: readonly SetterAttackConversionReport[];
+  };
+  /** Optional only for source compatibility with older report fixtures and consumers. */
+  readonly spatial?: SpatialAnalyticsProjection;
 }

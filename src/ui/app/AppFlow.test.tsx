@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ScoutTrainerService } from '../../application/ScoutTrainerService';
 import { TrainingService } from '../../application/TrainingService';
@@ -165,6 +165,131 @@ describe('usable MVP flow', () => {
     expect(screen.getByText('Data Volley')).toBeInTheDocument();
   }, 60_000);
 
+  it('registers one visual event and one hybrid event while preserving the typed mode', async () => {
+    const { service, trainingService, profileEditorService } = createService();
+    const created = await service.createMatch({
+      teamAName: 'Equipe A',
+      teamBName: 'Equipe B',
+      teamAPlayers: [1],
+      teamBPlayers: [7],
+      complexityProfileId: 'tactical',
+      codeProfileId: 'default_compact_v1',
+    });
+    if (!created.ok) throw created.error;
+    render(
+      <App
+        service={service}
+        trainingService={trainingService}
+        profileEditorService={profileEditorService}
+      />,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Equipe A x Equipe B/ }));
+
+    expect(await screen.findByLabelText('Digite o código')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Visual' }));
+    const visualForm = screen.getByRole('heading', { name: 'Registrar contato' }).closest('form');
+    if (!visualForm) throw new Error('Visual scout form was not found.');
+    fireEvent.submit(visualForm);
+    await screen.findByText(/\[VISUAL\]/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Híbrido' }));
+    const hybridForm = screen
+      .getByRole('heading', { name: 'Confirmar e enriquecer código' })
+      .closest('form');
+    if (!hybridForm) throw new Error('Hybrid scout form was not found.');
+    fireEvent.change(within(hybridForm).getByLabelText('Código digitado'), {
+      target: { value: '01A+' },
+    });
+    fireEvent.change(within(hybridForm).getByLabelText('Fundamento'), {
+      target: { value: 'attack' },
+    });
+    fireEvent.change(within(hybridForm).getByLabelText('Avaliação'), {
+      target: { value: 'positive' },
+    });
+    fireEvent.submit(hybridForm);
+    await screen.findByText('01A+');
+
+    const workspace = await service.loadMatch(created.value.state.metadata.id);
+    expect(workspace.ok).toBe(true);
+    if (!workspace.ok) return;
+    expect(workspace.value.timeline).toHaveLength(2);
+    expect(workspace.value.timeline.map((entry) => entry.event.inputMode)).toEqual([
+      'visual',
+      'hybrid',
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Digitado' }));
+    expect(screen.getByLabelText('Digite o código')).toBeInTheDocument();
+  }, 60_000);
+
+  it('projects effective spatial data after correction and undo and exposes it in the summary', async () => {
+    const { service, trainingService, profileEditorService } = createService();
+    const created = await service.createMatch({
+      teamAName: 'Equipe A',
+      teamBName: 'Equipe B',
+      teamAPlayers: [1],
+      teamBPlayers: [7],
+      complexityProfileId: 'tactical',
+      codeProfileId: 'default_compact_v1',
+    });
+    if (!created.ok) throw created.error;
+    const matchId = created.value.state.metadata.id;
+    const teamId = created.value.teams[0].id;
+    const registered = await service.registerVisualScout(matchId, {
+      teamId,
+      playerNumber: 1,
+      skill: 'attack',
+      evaluation: 'positive',
+      origin: { x: 0.2, y: 0.25 },
+      target: { x: 0.8, y: 0.75 },
+      captureMethod: 'drawn',
+    });
+    if (!registered.ok) throw registered.error;
+    expect(registered.value.report.spatial?.density).toEqual([
+      expect.objectContaining({ preset: 'attack_target', zoneId: '1', count: 1 }),
+    ]);
+
+    const sourceEventId = registered.value.timeline[0]?.sourceEventId;
+    if (!sourceEventId) throw new Error('Spatial source event was not found.');
+    const corrected = await service.correctScout(matchId, sourceEventId, '01A+', {
+      captureDraft: {
+        origin: { x: 0.2, y: 0.25 },
+        target: { x: 0.2, y: 0.75 },
+        captureMethod: 'drawn',
+      },
+    });
+    if (!corrected.ok) throw corrected.error;
+    expect(corrected.value.report.spatial?.density[0]).toMatchObject({ zoneId: '5', count: 1 });
+
+    const undone = await service.undo(matchId);
+    if (!undone.ok) throw undone.error;
+    expect(undone.value.report.spatial?.density[0]).toMatchObject({ zoneId: '1', count: 1 });
+
+    render(
+      <App
+        service={service}
+        trainingService={trainingService}
+        profileEditorService={profileEditorService}
+      />,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Equipe A x Equipe B/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir resumo' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Densidade e trajetórias na quadra' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('table', { name: 'Dados espaciais equivalentes ao heatmap' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('table', { name: 'Matriz espacial de origem por destino' }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Jogadas' }));
+    expect(screen.getByRole('img', { name: 'Mapa de jogadas individuais' })).toBeInTheDocument();
+    expect(screen.getByText(/jogadas com origem e destino registrados/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Heatmap' }));
+    expect(screen.getByRole('img', { name: 'Heatmap: Alvo de ataque' })).toBeInTheDocument();
+  }, 60_000);
+
   it('updates the court workspace through a generic substitution', async () => {
     const { service, trainingService, profileEditorService } = createService();
     render(
@@ -284,18 +409,18 @@ describe('usable MVP flow', () => {
     const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
     await waitFor(() => expect(input).toHaveValue('*01S'));
 
-    fireEvent.change(input, { target: { value: '*01A#*02S+a03R#' } });
+    fireEvent.change(input, { target: { value: '*01A#*02S+a09R#' } });
     fireEvent.submit(input.closest('form')!);
 
-    expect(await screen.findByText('A03R#')).toBeInTheDocument();
+    expect(await screen.findByText('A09R#')).toBeInTheDocument();
     expect(screen.getByText('*02S+')).toBeInTheDocument();
     expect(screen.getByText('*01A#')).toBeInTheDocument();
-    await waitFor(() => expect(input).toHaveValue('*01A#*02S+a03R#*01S'));
+    await waitFor(() => expect(input).toHaveValue('*01A#*02S+a09R#*01S'));
 
     fireEvent.change(input, { target: { value: '99A#' } });
-    expect(input).toHaveValue('*01A#*02S+a03R#*01S');
+    expect(input).toHaveValue('*01A#*02S+a09R#*01S');
 
-    fireEvent.change(input, { target: { value: '*01A#*02S+a03R#*01S*01X?' } });
+    fireEvent.change(input, { target: { value: '*01A#*02S+a09R#*01S*01X?' } });
     expect(screen.getByText('Código inválido')).toBeInTheDocument();
     const matches = await service.listMatches();
     const matchId = matches.ok ? matches.value[0]?.id : undefined;
@@ -354,6 +479,95 @@ describe('usable MVP flow', () => {
 
     expect(await screen.findByText('corrigido')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText(/parcial · faltam/)).not.toBeInTheDocument());
+  }, 60_000);
+
+  it('captures attack direction through the contextual mini court before committing', async () => {
+    const { service, trainingService, profileEditorService } = createService();
+    render(
+      <App
+        service={service}
+        trainingService={trainingService}
+        profileEditorService={profileEditorService}
+      />,
+    );
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    fireEvent.click(screen.getByRole('radio', { name: /Tático/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
+    const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
+
+    fireEvent.change(input, { target: { value: '*01A#' } });
+
+    const court = await screen.findByRole(
+      'button',
+      {
+        name: /Toque na quadra para marcar a origem/,
+      },
+      { timeout: 20_000 },
+    );
+    expect(court).toBeInTheDocument();
+    Object.defineProperty(court, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        width: 1000,
+        height: 500,
+        left: 0,
+        top: 0,
+        right: 1000,
+        bottom: 500,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.pointerDown(court, { clientX: 100, clientY: 50 });
+    expect(screen.getByRole('button', { name: /Toque onde a bola terminou/ })).toBeInTheDocument();
+    const confirmButton = screen.getByRole('button', { name: 'Confirmar' });
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.pointerDown(court, { clientX: 600, clientY: 100 });
+    expect(screen.getByText('Enter confirma · Esc cancela · R refaz')).toBeInTheDocument();
+    expect(confirmButton).toBeEnabled();
+
+    fireEvent.click(confirmButton);
+    expect(await screen.findByText('*01A#')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Toque na quadra/ })).not.toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText(/parcial · faltam direção/)).not.toBeInTheDocument(),
+    );
+  }, 60_000);
+
+  it('cancels the contextual mini court with Escape and falls back to a partial attack', async () => {
+    const { service, trainingService, profileEditorService } = createService();
+    render(
+      <App
+        service={service}
+        trainingService={trainingService}
+        profileEditorService={profileEditorService}
+      />,
+    );
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    fireEvent.click(screen.getByRole('radio', { name: /Tático/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
+    const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
+
+    fireEvent.change(input, { target: { value: '*01A#' } });
+    await screen.findByRole(
+      'button',
+      { name: /Toque na quadra para marcar a origem/ },
+      { timeout: 20_000 },
+    );
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(
+      screen.queryByRole('button', { name: /Toque na quadra para marcar a origem/ }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.submit(input.closest('form')!);
+    expect(await screen.findByText('*01A#')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/parcial · faltam direção/)).toBeInTheDocument());
   }, 60_000);
 
   it('creates a serialized code profile and makes it selectable for a new match', async () => {

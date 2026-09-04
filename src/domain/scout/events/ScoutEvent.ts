@@ -8,6 +8,7 @@ import type { FormationState } from '../../match/tactical/TacticalState';
 
 export type RallyPhase = 'sideout' | 'breakpoint' | 'transition';
 export type ReceptionGrade = 'A' | 'B' | 'C' | 'ERROR';
+export type ScoutInputMode = 'typed' | 'visual' | 'hybrid';
 
 export interface SubstitutionMetadata {
   readonly playerOutId: string;
@@ -53,7 +54,10 @@ export interface ScoutEvent {
   readonly setNumber: number;
   readonly scoreBefore: ScoreSnapshot;
   readonly timestamp: number;
+  /** Missing on legacy events and interpreted as `typed` without rewriting stored history. */
+  readonly inputMode?: ScoutInputMode;
   readonly rawCode: string;
+  readonly normalizedCode?: string;
   readonly codeProfileId: string;
   readonly codeProfileVersion: string;
   readonly complexityProfileId: string;
@@ -61,4 +65,8 @@ export interface ScoutEvent {
   readonly competitionProfileVersion?: string;
   readonly metadata?: ScoutEventMetadata;
   readonly completeness?: CompletenessResult;
+}
+
+export function scoutInputMode(event: Pick<ScoutEvent, 'inputMode'>): ScoutInputMode {
+  return event.inputMode ?? 'typed';
 }

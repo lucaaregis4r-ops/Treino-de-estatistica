@@ -22,6 +22,14 @@ function audit(metric: AuditableMetric): string {
   return `${percent(metric)} [${metric.numerator}/${metric.denominator}]`;
 }
 
+function advancedAudit(
+  metric: AuditableMetric & { available: boolean; reasonUnavailable?: string },
+): string {
+  return metric.available
+    ? audit(metric)
+    : `indisponivel (${metric.reasonUnavailable ?? 'sem amostra'})`;
+}
+
 function playerName(report: MatchReportModel, playerId: string): string {
   const player = report.players.find((candidate) => candidate.id === playerId);
   return player ? `#${String(player.number).padStart(2, '0')} ${player.name}` : playerId;
@@ -210,6 +218,38 @@ export class MatchPdfRenderer {
     ];
     const page6 = [
       '6. DISTRIBUICAO DA BOLA P1-P6',
+      'ANALYTICS AVANCADO',
+      ...report.advanced.expectedSideout
+        .filter((row) => !row.playerId)
+        .map(
+          (row) =>
+            `${teamName(report, row.teamId)} | Expected Sideout | ${advancedAudit(row.rate)}`,
+        ),
+      ...report.advanced.expectedBreakpoint
+        .filter((row) => !row.playerId)
+        .map(
+          (row) =>
+            `${teamName(report, row.teamId)} | Expected Breakpoint | ${advancedAudit(row.rate)}`,
+        ),
+      ...report.advanced.attackEvenness
+        .filter((row) => !row.rotation && !row.setterPosition && !row.phase && !row.receptionGrade)
+        .map(
+          (row) =>
+            `${teamName(report, row.teamId)} | Attack Evenness | ${advancedAudit(row.evenness)}`,
+        ),
+      ...report.advanced.setterRepetition
+        .slice(0, 6)
+        .map(
+          (row) =>
+            `Setter Repetition | ${playerName(report, row.setterPlayerId)} | ${playerName(report, row.attackerPlayerId)} | ${row.category} | ${audit(row.repeatRate)}`,
+        ),
+      ...report.advanced.setterAttackConversion
+        .slice(0, 6)
+        .map(
+          (row) =>
+            `Setter Attack Conversion | ${playerName(report, row.setterPlayerId)} | P${row.setterPosition} | ${playerName(report, row.attackerPlayerId)} | Kill ${audit(row.killRate)} | Ef ${audit(row.attackEfficiency)}`,
+        ),
+      '',
       'DISTRIBUICAO DO LEVANTADOR EM CADA POSICAO',
       'Equipe | Lev P | Recepcao | Atacante | Zona | Combinacao | Volume | Distribuicao',
       ...report.setterDistribution.map(

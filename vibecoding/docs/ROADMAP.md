@@ -49,6 +49,23 @@ O detalhamento e os critérios das macros 9–16 estão em `SCOUT_TRAINER_EVOLUT
 
 As oito macroetapas da Evolução V2 estão concluídas.
 
+## Evolução V3
+
+| Macro | Entrega                                     | Situação  |
+| ----: | ------------------------------------------- | --------- |
+|    17 | Fundação, auditoria e contratos             | Concluída |
+|    18 | Advanced Volleyball Analytics               | Concluída |
+|    19 | Visual Analytics                            | Concluída |
+|    20 | Scout visual/híbrido e Spatial Analytics    | Pendente  |
+|    21 | Histórico, temporada e perfil de adversário | Pendente  |
+
+A Macro 17 não altera comportamento funcional. Ela registra a convergência de todas as formas de
+entrada em `CanonicalScoutEventCandidate`, o levantamento normal implícito e snapshots analíticos
+como cache reconstruível. Todo recurso relacionado a vídeo permanece fora do escopo da V3.
+
+O detalhamento está em `SCOUT_TRAINER_EVOLUTION_V3_ANALYTICS.md` e no plano
+`../../docs/SCOUT_TRAINER_V0.3_PLANO_IMPLEMENTACAO.md`.
+
 ## Evoluções pós-V2
 
 | Entrega                                      | Situação  |

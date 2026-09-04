@@ -16,4 +16,5 @@ export interface MetricResult {
   readonly breakdown?: readonly MetricBreakdownItem[];
   readonly available: boolean;
   readonly reasonUnavailable?: string;
+  readonly referenceSampleSize?: number;
 }

@@ -424,6 +424,12 @@ export function App({
           onRegister={(teamId, rawCode, metadata) =>
             runWorkspaceAction(() => service.registerScout(matchId, teamId, rawCode, metadata))
           }
+          onRegisterVisual={(draft) =>
+            runWorkspaceAction(() => service.registerVisualScout(matchId, draft))
+          }
+          onRegisterHybrid={(teamId, rawCode, draft) =>
+            runWorkspaceAction(() => service.registerHybridScout(matchId, teamId, rawCode, draft))
+          }
           onCorrect={(sourceId, rawCode, metadata) =>
             runWorkspaceAction(() => service.correctScout(matchId, sourceId, rawCode, metadata))
           }

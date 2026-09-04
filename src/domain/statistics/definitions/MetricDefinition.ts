@@ -5,6 +5,8 @@ import type { RallyPhase, ReceptionGrade } from '../../scout/events/ScoutEvent';
 import type { TacticalRallyProjection } from '../../rally/context/TacticalRallyProjection';
 import type { CourtRotationPosition } from '../../match/lineup/SetLineup';
 import type { FormationState } from '../../match/tactical/TacticalState';
+import type { ExpectedRateReference } from '../metrics/advanced/expectedSideout';
+import type { AttackEvennessReference } from '../metrics/advanced/attackEvenness';
 
 export interface StatisticsScope {
   readonly teamId?: string;
@@ -35,6 +37,9 @@ export interface MetricContext {
   readonly scope?: StatisticsScope;
   readonly playerSetParticipations?: readonly PlayerSetParticipation[];
   readonly tacticalRally?: TacticalRallyProjection;
+  readonly expectedSideoutReferences?: readonly ExpectedRateReference[];
+  readonly expectedBreakpointReferences?: readonly ExpectedRateReference[];
+  readonly attackEvennessReference?: readonly AttackEvennessReference[];
 }
 
 export interface MetricDefinition {

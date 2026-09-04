@@ -31,7 +31,12 @@ import { CsvMatchExporter } from '../infrastructure/export/csv/MatchCsv';
 import { TxtMatchExporter } from '../infrastructure/export/txt/MatchTxt';
 import type { ProfileRegistry } from '../profiles/ProfileRegistry';
 import { ProfileResolver, type ResolvedProfileContext } from '../profiles/ProfileResolver';
-import type { ScoutEventMetadata } from '../domain/scout/events/ScoutEvent';
+import type { ScoutEvent, ScoutEventMetadata } from '../domain/scout/events/ScoutEvent';
+import type { ScoutValidationContext } from '../domain/scout/validators/ScoutValidationContext';
+import type { VisualScoutDraft } from '../domain/scout/mapper/VisualScoutDraft';
+import { VisualScoutMapper } from '../domain/scout/mapper/VisualScoutMapper';
+import { HybridScoutMerger } from '../domain/scout/mapper/HybridScoutMerger';
+import { ValidateAndCreateScoutEventUseCase } from './use-cases/register-scout-event/ValidateAndCreateScoutEventUseCase';
 import {
   ROTATION_POSITIONS,
   createDefaultLineup,
@@ -458,6 +463,9 @@ export class ScoutTrainerService {
         ),
       ],
       tacticalRally,
+      ...(profiles.value.codeProfile.tacticalInput?.zoneSystem
+        ? { zoneSystem: profiles.value.codeProfile.tacticalInput.zoneSystem }
+        : {}),
     });
 
     return success({
@@ -482,6 +490,64 @@ export class ScoutTrainerService {
     teamId: string,
     rawCode: string,
     metadata?: ScoutEventMetadata,
+  ): Promise<Result<MatchWorkspace, ServiceError>> {
+    return this.registerResolvedScout(matchId, teamId, (workspace, context) =>
+      new RegisterScoutEventUseCase().execute({
+        rawCode,
+        profiles: workspace.profiles,
+        context,
+        ...(metadata ? { metadata } : {}),
+      }),
+    );
+  }
+
+  async registerVisualScout(
+    matchId: string,
+    draft: VisualScoutDraft,
+  ): Promise<Result<MatchWorkspace, ServiceError>> {
+    return this.registerResolvedScout(matchId, draft.teamId, (workspace, context) =>
+      new ValidateAndCreateScoutEventUseCase().execute({
+        candidate: new VisualScoutMapper().map(draft, workspace.profiles.codeProfile),
+        inputMode: 'visual',
+        profiles: workspace.profiles,
+        context,
+      }),
+    );
+  }
+
+  async registerHybridScout(
+    matchId: string,
+    teamId: string,
+    rawCode: string,
+    visualDraft: VisualScoutDraft,
+  ): Promise<Result<MatchWorkspace, ServiceError>> {
+    return this.registerResolvedScout(matchId, teamId, (workspace, context) => {
+      const register = new RegisterScoutEventUseCase();
+      const typed = register.mapCandidate({ rawCode, profiles: workspace.profiles, context });
+      if (!typed.ok) return failure(typed.error);
+      const merged = new HybridScoutMerger().merge({
+        typedTeamId: teamId,
+        typedCandidate: typed.value.candidate,
+        visualDraft,
+        codeProfile: workspace.profiles.codeProfile,
+      });
+      if (!merged.ok) return failure(merged.error);
+      return new ValidateAndCreateScoutEventUseCase().execute({
+        candidate: merged.value,
+        inputMode: 'hybrid',
+        profiles: workspace.profiles,
+        context,
+      });
+    });
+  }
+
+  private async registerResolvedScout(
+    matchId: string,
+    teamId: string,
+    createEvent: (
+      workspace: MatchWorkspace,
+      context: ScoutValidationContext,
+    ) => Result<{ readonly event: ScoutEvent }, ParseError | ValidationError>,
   ): Promise<Result<MatchWorkspace, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
@@ -536,24 +602,20 @@ export class ScoutTrainerService {
     }
 
     const scoutSequence = sequence + (startsRally ? 2 : 1);
-    const registered = new RegisterScoutEventUseCase().execute({
-      rawCode,
-      profiles: workspace.value.profiles,
-      context: {
-        matchId,
-        rallyId,
-        teamId,
-        setNumber: workspace.value.state.currentSet,
-        scoreBefore: workspace.value.state.score,
-        sequence: scoutSequence,
-        previousSequence: scoutSequence - 1,
-        roster: workspace.value.players,
-        lineup: workspace.value.currentLineups.find((lineup) => lineup.teamId === teamId),
-        ...this.scoutTacticalContext(workspace.value.state, teamId),
-        enforceRegisteredPlayers: true,
-      },
-      ...(metadata ? { metadata } : {}),
-    });
+    const context: ScoutValidationContext = {
+      matchId,
+      rallyId,
+      teamId,
+      setNumber: workspace.value.state.currentSet,
+      scoreBefore: workspace.value.state.score,
+      sequence: scoutSequence,
+      previousSequence: scoutSequence - 1,
+      roster: workspace.value.players,
+      lineup: workspace.value.currentLineups.find((lineup) => lineup.teamId === teamId),
+      ...this.scoutTacticalContext(workspace.value.state, teamId),
+      enforceRegisteredPlayers: true,
+    };
+    const registered = createEvent(workspace.value, context);
     if (!registered.ok) return failure(registered.error);
 
     const eventsToPersist: MatchEvent[] = [...bootstrapEvents];

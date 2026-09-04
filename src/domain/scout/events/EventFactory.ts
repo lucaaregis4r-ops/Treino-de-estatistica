@@ -5,7 +5,7 @@ import type { ResolvedProfileContext } from '../../../profiles/ProfileResolver';
 import type { CanonicalScoutEventCandidate } from '../mapper/CanonicalScoutEventCandidate';
 import type { ScoutValidationContext } from '../validators/ScoutValidationContext';
 import type { ValidationResult } from '../validators/validation';
-import type { ScoutEvent } from './ScoutEvent';
+import type { ScoutEvent, ScoutInputMode } from './ScoutEvent';
 import { playerLineupContext } from '../../match/lineup/SetLineup';
 import { RosterPlayerResolver } from '../../match/roster/TeamRoster';
 import type { CompletenessResult } from '../completeness/CompletenessResult';
@@ -30,6 +30,7 @@ export class EventFactory {
     profiles: ResolvedProfileContext,
     validation: ValidationResult,
     completeness: CompletenessResult,
+    inputMode: ScoutInputMode = 'typed',
   ): Result<ScoutEvent, ValidationError> {
     if (!validation.valid) {
       return failure(new ValidationError('Scout event candidate is invalid.', validation.issues));
@@ -60,7 +61,9 @@ export class EventFactory {
       setNumber: context.setNumber,
       scoreBefore: { ...context.scoreBefore },
       timestamp: this.dependencies.now(),
+      inputMode,
       rawCode: candidate.rawCode,
+      normalizedCode: candidate.normalizedCode,
       codeProfileId: profiles.codeProfile.id,
       codeProfileVersion: profiles.codeProfile.version,
       complexityProfileId: profiles.complexityProfile.id,

@@ -6,6 +6,8 @@ import {
   type CourtLocation,
   type TacticalMetadata,
 } from './TacticalMetadata';
+import { canonicalCourtLocation } from './CourtGeometry';
+import type { ZoneSystemProfile } from './ZoneSystemProfile';
 
 function zone(zoneId: number | undefined): CourtLocation | undefined {
   return zoneId === undefined ? undefined : { zoneId: String(zoneId) };
@@ -90,6 +92,7 @@ export function toTacticalMetadata(metadata: ScoutEventMetadata, skill?: Skill):
 export function normalizeTacticalMetadata(
   metadata: ScoutEventMetadata | undefined,
   skill?: Skill,
+  zoneSystem?: ZoneSystemProfile,
 ): ScoutEventMetadata | undefined {
   if (!metadata) return undefined;
   if (
@@ -102,10 +105,79 @@ export function normalizeTacticalMetadata(
     -readonly [Key in keyof ScoutEventMetadata]: ScoutEventMetadata[Key];
   };
   delete canonical.captureDraft;
+  const tactical = toTacticalMetadata(metadata, skill);
+  const orientation = metadata.captureDraft?.orientation ?? 'canonical';
+  const location = (value: CourtLocation | undefined) =>
+    value ? canonicalCourtLocation(value, orientation, zoneSystem) : undefined;
+  const normalizeTrajectory = (value: BallTrajectory | undefined): BallTrajectory | undefined =>
+    value
+      ? {
+          ...value,
+          ...(value.origin ? { origin: location(value.origin) } : {}),
+          ...(value.target ? { target: location(value.target) } : {}),
+        }
+      : undefined;
+  const canonicalTactical: TacticalMetadata = {
+    ...tactical,
+    ...(tactical.trajectory ? { trajectory: normalizeTrajectory(tactical.trajectory) } : {}),
+    ...(tactical.serve
+      ? {
+          serve: {
+            ...tactical.serve,
+            ...(tactical.serve.trajectory
+              ? { trajectory: normalizeTrajectory(tactical.serve.trajectory) }
+              : {}),
+          },
+        }
+      : {}),
+    ...(tactical.reception
+      ? {
+          reception: {
+            ...tactical.reception,
+            ...(tactical.reception.contactLocation
+              ? { contactLocation: location(tactical.reception.contactLocation) }
+              : {}),
+          },
+        }
+      : {}),
+    ...(tactical.set
+      ? {
+          set: {
+            ...tactical.set,
+            ...(tactical.set.targetLocation
+              ? { targetLocation: location(tactical.set.targetLocation) }
+              : {}),
+          },
+        }
+      : {}),
+    ...(tactical.attack
+      ? {
+          attack: {
+            ...tactical.attack,
+            ...(tactical.attack.trajectory
+              ? { trajectory: normalizeTrajectory(tactical.attack.trajectory) }
+              : {}),
+            ...(tactical.attack.blockTouchLocation
+              ? { blockTouchLocation: location(tactical.attack.blockTouchLocation) }
+              : {}),
+          },
+        }
+      : {}),
+    ...(tactical.block
+      ? {
+          block: {
+            ...tactical.block,
+            ...(tactical.block.touchLocation
+              ? { touchLocation: location(tactical.block.touchLocation) }
+              : {}),
+          },
+        }
+      : {}),
+  };
   return {
     ...canonical,
     schemaVersion: TACTICAL_METADATA_SCHEMA_VERSION,
-    tactical: toTacticalMetadata(metadata, skill),
+    tactical: canonicalTactical,
   };
 }
 

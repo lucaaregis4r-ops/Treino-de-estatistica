@@ -129,10 +129,69 @@ const report: MatchReportModel = {
       errors: 3,
     },
   ],
+  advanced: {
+    expectedSideout: [
+      {
+        teamId: 'team_a',
+        rate: { ...rate(7, 10), available: true, referenceSampleSize: 250 },
+      },
+      {
+        teamId: 'team_b',
+        rate: {
+          ...rate(0, 0),
+          available: false,
+          reasonUnavailable: 'insufficient_reference_sample',
+          referenceSampleSize: 0,
+        },
+      },
+    ],
+    expectedBreakpoint: [
+      {
+        teamId: 'team_a',
+        rate: { ...rate(4, 10), available: true, referenceSampleSize: 300 },
+      },
+    ],
+    attackEvenness: [
+      {
+        teamId: 'team_a',
+        evenness: { ...rate(8, 10), available: true },
+        distribution: [],
+      },
+    ],
+    setterRepetition: [
+      {
+        teamId: 'team_a',
+        setterPlayerId: 'setter_a',
+        attackerPlayerId: 'player_a',
+        category: 'overall',
+        opportunities: 5,
+        repeats: 2,
+        repeatRate: rate(2, 5),
+      },
+    ],
+    setterAttackConversion: [
+      {
+        teamId: 'team_a',
+        setterPlayerId: 'setter_a',
+        setterPosition: 1,
+        attackerPlayerId: 'player_a',
+        receptionGrade: 'A',
+        phase: 'sideout',
+        attackCombination: 'X1',
+        volume: 10,
+        points: 5,
+        errors: 2,
+        blocked: 1,
+        killRate: rate(5, 10),
+        attackEfficiency: rate(2, 10),
+      },
+    ],
+  },
   tactical: {
     attackDirections: [
       {
         teamId: 'team_a',
+        setNumber: 1,
         playerId: 'player_a',
         setterPlayerId: 'setter_a',
         setterPosition: 1,
@@ -191,6 +250,11 @@ describe('Match report exporters', () => {
     expect(pdf).toContain('6. DISTRIBUICAO DA BOLA P1-P6');
     expect(pdf).toContain('/BaseFont /Helvetica-Bold');
     expect(pdf).toContain('DIRECIONAMENTO DO ATAQUE EM CADA P');
+    expect(pdf).toContain('ANALYTICS AVANCADO');
+    expect(pdf).toContain('Expected Sideout');
+    expect(pdf).toContain('Setter Attack Conversion');
+    expect(pdf).toContain('indisponivel');
+    expect(pdf).toContain('insufficient_reference_sample');
     expect(pdf).toContain('20.0% [2/10]');
     expect(pdf).toMatch(/xref[\s\S]+startxref[\s\S]+%%EOF$/);
     expect([...pdf].every((character) => character.charCodeAt(0) < 128)).toBe(true);
@@ -202,5 +266,13 @@ describe('Match report exporters', () => {
     expect(csv).toContain('section,team_id,player_id,rotation,metric,numerator,denominator,value');
     expect(csv).toContain('attack,team_a,player_a,,efficiency,2,10,0.2');
     expect(csv).toContain('rotation,team_a,,1,sideout,3,5,0.6');
+    expect(csv).toContain('advanced_expected_sideout,team_a,,,expected_sideout,7,10,0.7');
+    expect(csv).toContain(
+      'advanced_expected_sideout,team_b,,,expected_sideout,0,0,,false,insufficient_reference_sample,0',
+    );
+    expect(csv).toContain('advanced_setter_repetition,team_a,player_a,,overall,2,5,0.4');
+    expect(csv).toContain(
+      'advanced_setter_conversion,team_a,player_a,1,attack_efficiency,2,10,0.2',
+    );
   });
 });

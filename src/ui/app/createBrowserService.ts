@@ -13,6 +13,8 @@ import { IndexedDbMatchBackupRepository } from '../../infrastructure/persistence
 import { FreeLogService } from '../../application/FreeLogService';
 import { IndexedDbFreeLogSessionRepository } from '../../infrastructure/persistence/repositories/IndexedDbFreeLogSessionRepository';
 import { BrowserDirectoryExporter } from '../../infrastructure/export/filesystem/BrowserDirectoryExporter';
+import { IndexedDbAnalyticsSnapshotRepository } from '../../infrastructure/persistence/repositories/IndexedDbAnalyticsSnapshotRepository';
+import { HistoricalAnalyticsService } from '../../application/analytics/HistoricalAnalyticsService';
 
 const database = new ScoutTrainerDatabase();
 const profiles = createDefaultProfileRegistry();
@@ -40,3 +42,9 @@ export const browserFreeLogService = new FreeLogService(
 );
 
 export const browserDirectoryExporter = new BrowserDirectoryExporter();
+
+export const browserAnalyticsSnapshotRepository = new IndexedDbAnalyticsSnapshotRepository(database);
+
+export const browserHistoricalAnalyticsService = new HistoricalAnalyticsService(
+  browserAnalyticsSnapshotRepository,
+);

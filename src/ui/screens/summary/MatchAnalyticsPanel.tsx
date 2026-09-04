@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import type { MatchReportModel } from '../../../application/reporting/MatchReportModel';
 import type { CourtRotationPosition } from '../../../domain/match/lineup/SetLineup';
+import { AttackEvennessChart } from './charts/AttackEvennessChart';
+import { RotationPerformanceChart } from './charts/RotationPerformanceChart';
+import { SetterDistributionChart } from './charts/SetterDistributionChart';
+import { SetterRepetitionChart } from './charts/SetterRepetitionChart';
+import { TeamPerformanceChart } from './charts/TeamPerformanceChart';
+import { SpatialAnalyticsPanel } from './SpatialAnalyticsPanel';
 
 interface MatchAnalyticsPanelProps {
   readonly report: MatchReportModel;
@@ -38,7 +44,11 @@ export function MatchAnalyticsPanel({ report }: MatchAnalyticsPanelProps) {
   );
 
   return (
-    <section className="match-analytics" aria-labelledby="match-analytics-title">
+    <section
+      id="visual-analytics"
+      className="match-analytics"
+      aria-labelledby="match-analytics-title"
+    >
       <div className="tactical-analytics-heading">
         <div>
           <p className="eyebrow">Analytics auditável</p>
@@ -54,6 +64,25 @@ export function MatchAnalyticsPanel({ report }: MatchAnalyticsPanelProps) {
             ))}
           </select>
         </label>
+      </div>
+
+      <div className="visual-analytics-grid">
+        <TeamPerformanceChart report={report} />
+        <RotationPerformanceChart report={report} teamId={teamId} />
+        <SetterDistributionChart report={report} teamId={teamId} />
+        <AttackEvennessChart report={report} teamId={teamId} />
+        <SetterRepetitionChart report={report} teamId={teamId} />
+      </div>
+
+      <SpatialAnalyticsPanel report={report} teamId={teamId} />
+
+      <div id="audit-tables" className="analytics-section-heading">
+        <p className="eyebrow">Conferência detalhada</p>
+        <h3>Tabelas auditáveis</h3>
+        <p>
+          Os valores completos e seus numeradores/denominadores permanecem disponíveis para
+          conferência.
+        </p>
       </div>
 
       <div className="analytics-table-scroll">

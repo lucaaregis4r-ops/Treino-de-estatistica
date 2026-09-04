@@ -179,6 +179,21 @@ function completeRotationInput(): MatchAnalyticsInput {
       servingTeamId: 'team_a',
       rotationByTeamId: { team_a: 6 },
     },
+    expectedSideoutReferences: {
+      team_a: [{ key: 'A', opportunities: 100, successes: 80, rate: 0.8 }],
+    },
+    expectedBreakpointReferences: {
+      team_a: [
+        { key: 'ace', opportunities: 20, successes: 20, rate: 1 },
+        { key: 'continuation', opportunities: 80, successes: 20, rate: 0.25 },
+      ],
+    },
+    attackEvennessReferences: {
+      team_a: [
+        { playerId: 'attacker_a', expectedShare: 0.5 },
+        { playerId: 'setter_a', expectedShare: 0.5 },
+      ],
+    },
   };
 }
 
@@ -212,6 +227,7 @@ describe('MatchAnalyticsService', () => {
       report.rotations.filter((row) => row.teamId === 'team_a').map((row) => row.rotation),
     ).toEqual([1, 2, 3, 4, 5, 6]);
     expect(report.tactical.attackDirections).toHaveLength(6);
+    expect(report.tactical.attackDirections.every((row) => row.setNumber === 1)).toBe(true);
     expect(report.tactical.attackBySetterPosition).toHaveLength(6);
     expect(report.tactical.directionsBySetterPosition).toHaveLength(6);
     expect(report.tactical.directionsBySetterPosition[3]).toMatchObject({
@@ -220,6 +236,43 @@ describe('MatchAnalyticsService', () => {
       share: { value: 1, numerator: 1, denominator: 1 },
     });
     expect(report.setterDistribution.every((row) => row.share.denominator === 1)).toBe(true);
+    const expectedSideout = report.advanced.expectedSideout.find(
+      (row) => row.teamId === 'team_a' && !row.playerId,
+    )?.rate;
+    expect(expectedSideout).toMatchObject({
+      numerator: 4.8,
+      denominator: 6,
+      available: true,
+    });
+    expect(expectedSideout?.value).toBeCloseTo(0.8);
+    expect(
+      report.advanced.expectedBreakpoint.find((row) => row.teamId === 'team_a' && !row.playerId)
+        ?.rate,
+    ).toMatchObject({ value: 0.625, numerator: 3.75, denominator: 6, available: true });
+    expect(
+      report.advanced.attackEvenness.find(
+        (row) => row.teamId === 'team_a' && !row.rotation && !row.setterPosition && !row.phase,
+      ),
+    ).toMatchObject({
+      evenness: { value: 0.5, denominator: 6, available: true },
+      distribution: [
+        { playerId: 'attacker_a', volume: 6, observedShare: 1, expectedShare: 0.5 },
+        { playerId: 'setter_a', volume: 0, observedShare: 0, expectedShare: 0.5 },
+      ],
+    });
+    expect(
+      report.advanced.setterRepetition.find(
+        (row) => row.attackerPlayerId === 'attacker_a' && row.category === 'overall',
+      ),
+    ).toMatchObject({ opportunities: 5, repeats: 5, repeatRate: { value: 1 } });
+    expect(report.advanced.setterAttackConversion).toHaveLength(6);
+    expect(report.advanced.setterAttackConversion[0]).toMatchObject({
+      setterPlayerId: 'setter_a',
+      volume: 1,
+      points: 1,
+      killRate: { value: 1 },
+      attackEfficiency: { value: 1 },
+    });
   });
 
   it('drills down by athlete, current setter position and every tactical dimension', () => {

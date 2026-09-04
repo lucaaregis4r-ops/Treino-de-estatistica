@@ -22,6 +22,8 @@ import { IndexedDbProfileRepository } from '../../infrastructure/persistence/rep
 import { IndexedDbTeamRepository } from '../../infrastructure/persistence/repositories/IndexedDbTeamRepository';
 import { IndexedDbTrainingSessionRepository } from '../../infrastructure/persistence/repositories/IndexedDbTrainingSessionRepository';
 import { IndexedDbMatchBackupRepository } from '../../infrastructure/persistence/backup/IndexedDbMatchBackupRepository';
+import { IndexedDbAnalyticsSnapshotRepository } from '../../infrastructure/persistence/repositories/IndexedDbAnalyticsSnapshotRepository';
+import type { MatchAnalyticsSnapshot } from '../../domain/analytics/MatchAnalyticsSnapshot';
 
 const databases: ScoutTrainerDatabase[] = [];
 const databaseNames: string[] = [];
@@ -457,6 +459,91 @@ describe('IndexedDB repositories', () => {
     }
   });
 
+  it('registers visual and hybrid input as one canonical event through the shared pipeline', async () => {
+    const database = createDatabase();
+    let nextId = 1;
+    const service = new ScoutTrainerService(
+      new IndexedDbMatchRepository(database),
+      new IndexedDbEventRepository(database),
+      new IndexedDbTeamRepository(database),
+      new IndexedDbPlayerRepository(database),
+      createDefaultProfileRegistry(),
+      { createId: () => `visual_${nextId++}`, now: () => nextId * 100 },
+    );
+    const created = await service.createMatch({
+      teamAName: 'Olympico',
+      teamBName: 'Minas',
+      teamAPlayers: [8],
+      teamBPlayers: [12],
+      complexityProfileId: 'tactical',
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const matchId = created.value.state.metadata.id;
+    const teamId = created.value.teams[0].id;
+
+    const visual = await service.registerVisualScout(matchId, {
+      teamId,
+      playerNumber: 8,
+      skill: 'attack',
+      evaluation: 'excellent',
+      target: { zoneId: '1' },
+    });
+    expect(visual.ok).toBe(true);
+    if (!visual.ok) return;
+    expect(visual.value.timeline).toHaveLength(1);
+    expect(visual.value.timeline[0]?.event).toMatchObject({
+      inputMode: 'visual',
+      playerId: visual.value.players.find((player) => player.number === 8)?.id,
+      metadata: { tactical: { attack: { trajectory: { target: { zoneId: '1' } } } } },
+    });
+    expect(visual.value.timeline[0]?.event.rawCode.startsWith('[VISUAL]')).toBe(true);
+
+    const hybrid = await service.registerHybridScout(matchId, teamId, '08A+', {
+      teamId,
+      playerNumber: 8,
+      skill: 'attack',
+      evaluation: 'positive',
+      target: { zoneId: '5' },
+    });
+    expect(hybrid.ok).toBe(true);
+    if (!hybrid.ok) return;
+    expect(hybrid.value.timeline).toHaveLength(2);
+    expect(hybrid.value.timeline[1]?.event).toMatchObject({
+      inputMode: 'hybrid',
+      rawCode: '08A+',
+      metadata: { tactical: { attack: { trajectory: { target: { zoneId: '5' } } } } },
+    });
+
+    const conflict = await service.registerHybridScout(matchId, teamId, '08A+', {
+      teamId,
+      playerNumber: 8,
+      skill: 'serve',
+      evaluation: 'positive',
+    });
+    expect(conflict.ok).toBe(false);
+    const unchanged = await service.loadMatch(matchId);
+    expect(unchanged.ok && unchanged.value.timeline).toHaveLength(2);
+
+    const invalidVisual = await service.registerVisualScout(matchId, {
+      teamId: '',
+      playerNumber: 8,
+      skill: 'serve',
+      evaluation: 'positive',
+    });
+    expect(invalidVisual.ok).toBe(false);
+
+    const invalidAthlete = await service.registerVisualScout(matchId, {
+      teamId,
+      playerNumber: 99,
+      skill: 'serve',
+      evaluation: 'positive',
+    });
+    expect(invalidAthlete.ok).toBe(false);
+    const stillUnchanged = await service.loadMatch(matchId);
+    expect(stillUnchanged.ok && stillUnchanged.value.timeline).toHaveLength(2);
+  });
+
   it('validates and atomically restores a complete JSON backup', async () => {
     const sourceDatabase = createDatabase();
     let nextId = 1;
@@ -793,7 +880,7 @@ describe('IndexedDB repositories', () => {
           attackType: 'power',
           trajectory: {
             origin: { zoneId: '4', x: 1 / 6 },
-            target: { zoneId: '1', y: 1 / 2 },
+            target: { zoneId: '2', y: 1 / 2 },
             direction: 'diagonal',
           },
         },
@@ -810,7 +897,7 @@ describe('IndexedDB repositories', () => {
     });
     expect(enriched.ok && enriched.value.report.tactical.attackDirections[0]).toMatchObject({
       originZone: '4',
-      targetZone: '1',
+      targetZone: '2',
       direction: 'diagonal',
       setterPosition: 1,
     });
@@ -853,6 +940,47 @@ describe('IndexedDB repositories', () => {
     const replayed = await reopenedService.loadMatch(matchId);
     expect(replayed.ok && replayed.value.timeline[0]?.event.completeness?.status).toBe('complete');
     expect(replayed.ok && replayed.value.report).toEqual(redone.value.report);
+  });
+
+  it('persists normalized coordinates and derived zones on the initial typed registration', async () => {
+    const database = createDatabase();
+    const service = new ScoutTrainerService(
+      new IndexedDbMatchRepository(database),
+      new IndexedDbEventRepository(database),
+      new IndexedDbTeamRepository(database),
+      new IndexedDbPlayerRepository(database),
+      createDefaultProfileRegistry(),
+    );
+    const created = await service.createMatch({
+      teamAName: 'A',
+      teamBName: 'B',
+      teamAPlayers: [1, 2, 3, 4, 5, 6],
+      teamBPlayers: [7, 8, 9, 10, 11, 12],
+      complexityProfileId: 'tactical',
+    });
+    if (!created.ok) throw created.error;
+    const matchId = created.value.state.metadata.id;
+    const teamAId = created.value.teams[0].id;
+
+    const registered = await service.registerScout(matchId, teamAId, '01A#', {
+      captureDraft: {
+        origin: { x: 0.5, y: 0.2 },
+        target: { x: 0.8, y: 0.78 },
+        direction: 'diagonal',
+        captureMethod: 'drawn',
+      },
+    });
+    expect(registered.ok).toBe(true);
+    if (!registered.ok) throw registered.error;
+    const event = registered.value.timeline.at(-1)?.event;
+    expect(event?.metadata?.tactical?.attack?.trajectory).toMatchObject({
+      origin: { x: 0.5, y: 0.2, zoneId: '3' },
+      target: { x: 0.8, y: 0.78, zoneId: '1' },
+      direction: 'diagonal',
+      captureMethod: 'drawn',
+    });
+    expect(event?.metadata).not.toHaveProperty('captureDraft');
+    expect(event?.completeness?.status).toBe('complete');
   });
 
   it('produces identical contextual rally projections live and after replay', async () => {
@@ -905,5 +1033,55 @@ describe('IndexedDB repositories', () => {
     const replayed = await replayService.loadMatch(matchId);
 
     expect(replayed.ok && replayed.value.tacticalRally).toEqual(live.value.tacticalRally);
+  });
+
+  it('migrates to version 5 and persists and rebuilds analytics snapshots', async () => {
+    const database = createDatabase();
+    const connection = await database.open();
+
+    expect(connection.version).toBe(DATABASE_VERSION);
+    expect(connection.objectStoreNames.contains(STORE_NAMES.analyticsSnapshots)).toBe(true);
+
+    const repository = new IndexedDbAnalyticsSnapshotRepository(database);
+    const snapshot: MatchAnalyticsSnapshot = {
+      matchId: 'm1',
+      schemaVersion: 1,
+      eventCount: 10,
+      lastSequence: 10,
+      generatedAt: 1,
+      teamSummary: [
+        {
+          teamId: 't1',
+          attackEfficiencyNumerator: 5,
+          attackEfficiencyDenominator: 10,
+          serveEfficiencyNumerator: 2,
+          serveEfficiencyDenominator: 10,
+          receptionPositiveNumerator: 8,
+          receptionPositiveDenominator: 10,
+          receptionExcellentNumerator: 4,
+          receptionExcellentDenominator: 10,
+          sideoutNumerator: 6,
+          sideoutDenominator: 10,
+          breakpointNumerator: 3,
+          breakpointDenominator: 10,
+          blocks: 2,
+          aces: 1,
+          errors: 0,
+        },
+      ],
+      playerSummary: [],
+    };
+
+    const saved = await repository.save(snapshot);
+    expect(saved.ok).toBe(true);
+
+    const found = await repository.findById('m1');
+    expect(found.ok && found.value).toEqual(snapshot);
+
+    const deleted = await repository.deleteByMatchId('m1');
+    expect(deleted.ok).toBe(true);
+
+    const afterDelete = await repository.findById('m1');
+    expect(afterDelete.ok && afterDelete.value).toBeNull();
   });
 });

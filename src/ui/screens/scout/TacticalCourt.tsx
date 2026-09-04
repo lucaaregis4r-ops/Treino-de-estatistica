@@ -5,6 +5,10 @@ import type {
   ZoneSystemProfile,
 } from '../../../domain/scout/tactical/ZoneSystemProfile';
 import { normalizedCourtPoint } from './courtGeometry';
+import {
+  courtLocationToDisplayPoint,
+  displayPointToCourtLocation,
+} from '../../../domain/scout/tactical/CourtGeometry';
 
 export type CourtSelectionMode = 'origin' | 'target';
 
@@ -41,12 +45,13 @@ export function TacticalCourt({
 }: TacticalCourtProps) {
   const drawStartRef = useRef<CourtLocation | undefined>(undefined);
 
-  function point(event: PointerEvent<HTMLDivElement>): CourtLocation {
-    return normalizedCourtPoint(
+  function point(event: PointerEvent<HTMLDivElement>, side: CourtSelectionMode): CourtLocation {
+    const displayed = normalizedCourtPoint(
       event.clientX,
       event.clientY,
       event.currentTarget.getBoundingClientRect(),
     );
+    return displayPointToCourtLocation(displayed, side, profile);
   }
 
   function startsOnZone(event: PointerEvent<HTMLDivElement>): boolean {
@@ -106,17 +111,17 @@ export function TacticalCourt({
         aria-label={profile.name}
         onPointerDown={(event) => {
           if (startsOnZone(event)) return;
-          drawStartRef.current = point(event);
+          drawStartRef.current = point(event, 'origin');
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
           const drawStart = drawStartRef.current;
-          if (drawStart && event.buttons === 1) onDraw(drawStart, point(event));
+          if (drawStart && event.buttons === 1) onDraw(drawStart, point(event, 'target'));
         }}
         onPointerUp={(event) => {
           const drawStart = drawStartRef.current;
           if (!drawStart || startsOnZone(event)) return;
-          const target = point(event);
+          const target = point(event, 'target');
           drawStartRef.current = undefined;
           event.currentTarget.releasePointerCapture(event.pointerId);
           onDraw(drawStart, target);
@@ -154,10 +159,10 @@ export function TacticalCourt({
                 </marker>
               </defs>
               <line
-                x1={drawnOrigin.x * 100}
-                y1={drawnOrigin.y * 100}
-                x2={drawnTarget.x * 100}
-                y2={drawnTarget.y * 100}
+                x1={(courtLocationToDisplayPoint(drawnOrigin, 'origin', profile).x ?? 0) * 100}
+                y1={(courtLocationToDisplayPoint(drawnOrigin, 'origin', profile).y ?? 0) * 100}
+                x2={(courtLocationToDisplayPoint(drawnTarget, 'target', profile).x ?? 1) * 100}
+                y2={(courtLocationToDisplayPoint(drawnTarget, 'target', profile).y ?? 1) * 100}
                 markerEnd="url(#trajectory-arrow)"
               />
             </svg>

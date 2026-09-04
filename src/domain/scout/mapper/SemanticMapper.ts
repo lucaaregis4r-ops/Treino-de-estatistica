@@ -35,7 +35,11 @@ export class SemanticMapper {
       outcome,
       rawCode: input.rawCode,
       normalizedCode: input.normalizedCode,
-      ...(metadata ? { metadata: normalizeTacticalMetadata(metadata, skill) } : {}),
+      ...(metadata
+        ? {
+            metadata: normalizeTacticalMetadata(metadata, skill, profile.tacticalInput?.zoneSystem),
+          }
+        : {}),
     });
   }
 }

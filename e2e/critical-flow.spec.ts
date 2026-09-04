@@ -60,8 +60,6 @@ test('creates, scouts, recovers, exports, and records a training attempt', async
 
   await page.getByRole('button', { name: 'Completar', exact: true }).click();
   await page.getByLabel('Tipo da ação').fill('potência');
-  await page.getByLabel('Zona de origem').selectOption('4');
-  await page.getByLabel('Zona de destino').selectOption('1');
   await page.getByLabel('Direção').selectOption('diagonal');
   await page.getByLabel('Corrigindo evento').fill('*01A+');
   await page.getByLabel('Corrigindo evento').press('Enter');
@@ -84,6 +82,11 @@ test('creates, scouts, recovers, exports, and records a training attempt', async
   await page.getByRole('button', { name: 'Resumo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Distribuições e eficiência' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Atletas, rotações e levantador' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Performance das equipes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Desempenho por P1–P6' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Distribuição ofensiva por P1–P6' }),
+  ).toBeVisible();
   await expect(page.getByRole('table', { name: 'Box score por atleta' })).toBeVisible();
   await expect(page.getByRole('table', { name: 'Estatísticas por rotação' })).toBeVisible();
   await page.getByLabel('Grupo').selectOption('attack');

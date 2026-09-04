@@ -454,6 +454,82 @@ texto arbitrário + Enter
 O fluxo Livre é deliberadamente separado do scout canônico: não tokeniza, não valida fundamento,
 não altera rally e não produz estatísticas de partida.
 
+## Fronteira planejada para entrada visual e híbrida — V3
+
+```text
+Digitado
+  → Normalizer → Tokenizer → Parser → SemanticMapper ─┐
+                                                      ├→ CanonicalScoutEventCandidate
+Visual
+  → VisualScoutDraft → VisualScoutMapper ─────────────┤
+                                                      │
+Híbrido
+  → texto + detalhes visuais → mapper combinado ──────┘
+       → validação compartilhada
+       → completude compartilhada
+       → EventFactory compartilhada
+       → ScoutEvent → MatchEvent → IndexedDB
+```
+
+Esta fronteira está decidida, mas ainda não implementada. Entrada visual não fabricará código para
+o parser e os três modos não criarão tipos concorrentes de evento. A representação `[VISUAL] ...`
+servirá somente para auditoria compatível com `rawCode`.
+
+## Contexto derivado do levantador — V3
+
+```text
+ataque efetivo
+  + lineup/rotação no instante do contato
+  → ActiveSetterResolver + TacticalRallyProjection
+  → levantador + P1–P6 + recepção + fase
+  → distribuição, conversão, repetição e evenness
+```
+
+Levantamentos normais não são persistidos implicitamente. Somente ocorrências observadas de forma
+independente, como erro de levantamento, podem produzir evento explícito.
+
+## Snapshot histórico planejado — V3
+
+```text
+MatchEvent/ScoutEvent efetivo (fonte de verdade)
+  → MatchAnalyticsService
+  → MatchAnalyticsSnapshot (cache reconstruível)
+       invalidar por schemaVersion | eventCount | lastSequence
+```
+
+A store e a migração v4→v5 pertencem à Macro 21 e ainda não existem. Gráficos nunca são persistidos.
+
+## Pipeline de analytics avançado — V3 Macro 18
+
+```text
+scouts efetivos + TacticalRallyProjection
+  ├→ recepções + referência empírica → Expected Sideout
+  ├→ saques + referência empírica → Expected Breakpoint
+  ├→ ataques + distribuição esperada → Attack Evenness
+  ├→ ataques ordenados + levantador derivado → Setter Repetition
+  └→ ataques + levantador/P/recepção/fase/combinação → Setter Attack Conversion
+       → MatchReportModel.advanced
+          ├→ StatisticsCsvExporter
+          └→ MatchPdfRenderer
+```
+
+Referências ausentes nunca são substituídas por pesos arbitrários. Resultados indisponíveis carregam
+motivo explícito. O fluxo recebe a timeline efetiva já corrigida e consciente de undo/redo; não cria
+nem persiste eventos de levantamento.
+
+## Pipeline de Visual Analytics — V3 Macro 19
+
+```text
+MatchReportModel
+  ├→ resumo textual
+  ├→ Recharts responsivo e acessível
+  └→ tabela auditável com valor e N/D
+```
+
+Os componentes apenas selecionam, filtram e formatam dados do relatório. O número do set integra os
+agrupamentos direcionais e o breakdown observado/referência de Attack Evenness atravessa o contrato
+de reporting. Nenhum SVG, tooltip ou estado de filtro é persistido.
+
 ## Matriz de robustez V2
 
 | Critério               | Cobertura executável                                    |

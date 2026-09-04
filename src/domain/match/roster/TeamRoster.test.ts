@@ -10,4 +10,13 @@ describe('RosterPlayerResolver', () => {
     expect(resolver.resolve({ teamId: 'team', players: [player] }, 9)).toBeUndefined();
     expect('role' in player).toBe(false);
   });
+
+  it('does not resolve the same jersey number from the opposing team', () => {
+    const resolver = new RosterPlayerResolver();
+    const home = { id: 'home_8', teamId: 'home', number: 8, active: true };
+    const away = { id: 'away_8', teamId: 'away', number: 8, active: true };
+
+    expect(resolver.resolve({ teamId: 'home', players: [away, home] }, 8)).toEqual(home);
+    expect(resolver.resolve({ teamId: '', players: [away, home] }, 8)).toBeUndefined();
+  });
 });

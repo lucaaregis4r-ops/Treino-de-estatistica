@@ -1,19 +1,17 @@
 import type { ParseError } from '../../../core/errors/ParseError';
-import { ValidationError } from '../../../core/errors/ValidationError';
 import { failure, type Result, success } from '../../../core/result/Result';
-import { EventFactory } from '../../../domain/scout/events/EventFactory';
 import type { ScoutEvent, ScoutEventMetadata } from '../../../domain/scout/events/ScoutEvent';
+import type { CanonicalScoutEventCandidate } from '../../../domain/scout/mapper/CanonicalScoutEventCandidate';
 import { SemanticMapper } from '../../../domain/scout/mapper/SemanticMapper';
 import { Normalizer } from '../../../domain/scout/normalizer/Normalizer';
 import { Parser } from '../../../domain/scout/parser/Parser';
 import { Tokenizer } from '../../../domain/scout/tokenizer/Tokenizer';
 import type { ScoutValidationContext } from '../../../domain/scout/validators/ScoutValidationContext';
-import { ValidationEngine } from '../../../domain/scout/validators/ValidationEngine';
 import type { ValidationResult } from '../../../domain/scout/validators/validation';
 import type { ResolvedProfileContext } from '../../../profiles/ProfileResolver';
-import { CompletenessEvaluator } from '../../../domain/scout/completeness/CompletenessEvaluator';
 import type { CompletenessResult } from '../../../domain/scout/completeness/CompletenessResult';
-import { AttackOriginResolver } from '../../../domain/scout/tactical/AttackOriginResolver';
+import { ValidateAndCreateScoutEventUseCase } from './ValidateAndCreateScoutEventUseCase';
+import type { ValidationError } from '../../../core/errors/ValidationError';
 
 export interface RegisterScoutEventInput {
   readonly rawCode: string;
@@ -29,21 +27,21 @@ export interface RegisterScoutEventOutput {
   readonly completeness: CompletenessResult;
 }
 
+export interface MapTypedScoutCandidateOutput {
+  readonly candidate: CanonicalScoutEventCandidate;
+  readonly normalizedCode: string;
+}
+
 export class RegisterScoutEventUseCase {
   constructor(
     private readonly normalizer = new Normalizer(),
     private readonly tokenizer = new Tokenizer(),
     private readonly parser = new Parser(),
     private readonly mapper = new SemanticMapper(),
-    private readonly validationEngine = new ValidationEngine(),
-    private readonly completenessEvaluator = new CompletenessEvaluator(),
-    private readonly eventFactory = new EventFactory(),
-    private readonly attackOriginResolver = new AttackOriginResolver(),
+    private readonly validateAndCreate = new ValidateAndCreateScoutEventUseCase(),
   ) {}
 
-  execute(
-    input: RegisterScoutEventInput,
-  ): Result<RegisterScoutEventOutput, ParseError | ValidationError> {
+  mapCandidate(input: RegisterScoutEventInput): Result<MapTypedScoutCandidateOutput, ParseError> {
     const normalized = this.normalizer.normalize(
       { rawCode: input.rawCode },
       input.profiles.codeProfile,
@@ -62,37 +60,28 @@ export class RegisterScoutEventUseCase {
     );
     if (!mapped.ok) return failure(mapped.error);
 
-    const candidate = this.attackOriginResolver.resolve(mapped.value, input.context);
+    return success({ candidate: mapped.value, normalizedCode: normalized.normalizedCode });
+  }
 
-    const validation = this.validationEngine.validate(
-      candidate,
-      input.profiles.complexityProfile,
-      input.context,
-    );
-    if (!validation.valid) {
-      return failure(new ValidationError('Scout event validation failed.', validation.issues));
-    }
+  execute(
+    input: RegisterScoutEventInput,
+  ): Result<RegisterScoutEventOutput, ParseError | ValidationError> {
+    const mapped = this.mapCandidate(input);
+    if (!mapped.ok) return failure(mapped.error);
 
-    const completeness = this.completenessEvaluator.evaluate(
-      candidate,
-      input.profiles.complexityProfile,
-      input.context,
-    );
-
-    const event = this.eventFactory.create(
-      candidate,
-      input.context,
-      input.profiles,
-      validation,
-      completeness,
-    );
-    if (!event.ok) return failure(event.error);
+    const created = this.validateAndCreate.execute({
+      candidate: mapped.value.candidate,
+      inputMode: 'typed',
+      profiles: input.profiles,
+      context: input.context,
+    });
+    if (!created.ok) return failure(created.error);
 
     return success({
-      event: event.value,
-      normalizedCode: normalized.normalizedCode,
-      validation,
-      completeness,
+      event: created.value.event,
+      normalizedCode: mapped.value.normalizedCode,
+      validation: created.value.validation,
+      completeness: created.value.completeness,
     });
   }
 }

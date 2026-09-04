@@ -14,12 +14,12 @@ A ideia principal é que o usuário consiga praticar o registro de acontecimento
 
 O foco não está apenas em registrar estatísticas, mas em treinar:
 
-* identificação rápida das ações;
-* associação entre ação e código;
-* velocidade de digitação;
-* consistência no registro;
-* organização das informações de uma partida;
-* familiaridade com a lógica utilizada no scout de voleibol.
+- identificação rápida das ações;
+- associação entre ação e código;
+- velocidade de digitação;
+- consistência no registro;
+- organização das informações de uma partida;
+- familiaridade com a lógica utilizada no scout de voleibol.
 
 ## 💡 Por que eu criei isso?
 
@@ -63,11 +63,11 @@ Isso significa que o programa não precisa enviar as informações para um servi
 
 As informações podem ser exportadas em **JSON**, permitindo:
 
-* criar backups;
-* transferir dados entre computadores;
-* preservar sessões de treinamento;
-* reutilizar informações posteriormente;
-* facilitar futuras análises dos registros.
+- criar backups;
+- transferir dados entre computadores;
+- preservar sessões de treinamento;
+- reutilizar informações posteriormente;
+- facilitar futuras análises dos registros.
 
 ### 🖥️ Aplicação desktop portátil
 
@@ -77,13 +77,13 @@ Não é necessário realizar instalação: basta baixar e executar o arquivo.
 
 ### ✨ Novidades da versão 0.2.0
 
-* ajuda contextual durante a captura do scout;
-* escalações, rotações e substituições auditáveis;
-* confirmação de uma nova escalação entre sets;
-* cabeçalho fixo e navegação pelo manual sem reiniciar a partida;
-* análises por atleta, rotação e posição do levantador;
-* distribuição e direcionamento dos ataques em P1–P6;
-* exportações CSV, TXT, JSON e relatório PDF redesenhado.
+- ajuda contextual durante a captura do scout;
+- escalações, rotações e substituições auditáveis;
+- confirmação de uma nova escalação entre sets;
+- cabeçalho fixo e navegação pelo manual sem reiniciar a partida;
+- análises por atleta, rotação e posição do levantador;
+- distribuição e direcionamento dos ataques em P1–P6;
+- exportações CSV, TXT, JSON e relatório PDF redesenhado.
 
 Consulte o [changelog completo](CHANGELOG.md).
 
@@ -111,16 +111,16 @@ Uma preocupação importante durante o desenvolvimento foi separar essas respons
 
 Além da aplicação em si, o projeto foi uma oportunidade para estudar e praticar conceitos como:
 
-* arquitetura modular;
-* separação de responsabilidades;
-* modelagem de eventos esportivos;
-* validação de entradas;
-* configuração dinâmica;
-* persistência local;
-* serialização de dados em JSON;
-* interface para aplicações desktop;
-* construção e empacotamento de aplicações;
-* distribuição de um executável para usuários finais.
+- arquitetura modular;
+- separação de responsabilidades;
+- modelagem de eventos esportivos;
+- validação de entradas;
+- configuração dinâmica;
+- persistência local;
+- serialização de dados em JSON;
+- interface para aplicações desktop;
+- construção e empacotamento de aplicações;
+- distribuição de um executável para usuários finais.
 
 Uma parte especialmente interessante foi transformar uma atividade que acontece de maneira muito rápida e contínua durante uma partida em uma estrutura que pudesse ser interpretada pelo programa.
 
@@ -171,4 +171,3 @@ O objetivo é criar um ambiente para estudo e treinamento de scout de voleibol. 
 ## 👨‍💻 Autor
 
 Desenvolvido por **Lucas Regis**.
-

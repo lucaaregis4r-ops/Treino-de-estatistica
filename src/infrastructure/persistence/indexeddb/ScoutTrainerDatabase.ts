@@ -3,7 +3,7 @@ import { isSkill } from '../../../domain/scout/entities/Skill';
 import type { ScoutEvent } from '../../../domain/scout/events/ScoutEvent';
 import { normalizeTacticalMetadata } from '../../../domain/scout/tactical/TacticalMetadataAdapter';
 
-export const DATABASE_VERSION = 4;
+export const DATABASE_VERSION = 5;
 
 export const STORE_NAMES = {
   matches: 'matches',
@@ -18,6 +18,7 @@ export const STORE_NAMES = {
   trainingAttempts: 'trainingAttempts',
   settings: 'settings',
   freeLogSessions: 'freeLogSessions',
+  analyticsSnapshots: 'analyticsSnapshots',
 } as const;
 
 export type StoreName = (typeof STORE_NAMES)[keyof typeof STORE_NAMES];
@@ -98,6 +99,12 @@ function migrateToVersion3(transaction: IDBTransaction): void {
   };
 }
 
+function migrateToVersion5(database: IDBDatabase): void {
+  if (!database.objectStoreNames.contains(STORE_NAMES.analyticsSnapshots)) {
+    createStore(database, STORE_NAMES.analyticsSnapshots, 'matchId');
+  }
+}
+
 export class ScoutTrainerDatabase {
   private databasePromise?: Promise<IDBDatabase>;
 
@@ -112,6 +119,7 @@ export class ScoutTrainerDatabase {
         migrateToVersion1(database);
         if (request.transaction) migrateToVersion2(database, request.transaction);
         if (event.oldVersion < 3 && request.transaction) migrateToVersion3(request.transaction);
+        if (event.oldVersion < 5) migrateToVersion5(database);
       };
 
       request.onsuccess = () => {

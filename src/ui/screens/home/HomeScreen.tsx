@@ -72,7 +72,8 @@ export function HomeScreen({
                   <span>
                     <strong>{match.name}</strong>
                     <small>
-                      Perfil {complexityLabels[match.complexityProfileId] ?? match.complexityProfileId}
+                      Perfil{' '}
+                      {complexityLabels[match.complexityProfileId] ?? match.complexityProfileId}
                     </small>
                   </span>
                   <span aria-hidden="true">→</span>

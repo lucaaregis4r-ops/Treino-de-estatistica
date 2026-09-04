@@ -65,6 +65,20 @@ function validCompleteness(value: unknown): boolean {
   );
 }
 
+function validCourtCoordinates(value: unknown): boolean {
+  if (Array.isArray(value)) return value.every(validCourtCoordinates);
+  if (!isRecord(value)) return true;
+  for (const [key, nested] of Object.entries(value)) {
+    if (
+      (key === 'x' || key === 'y') &&
+      (typeof nested !== 'number' || !Number.isFinite(nested) || nested < 0 || nested > 1)
+    )
+      return false;
+    if (!validCourtCoordinates(nested)) return false;
+  }
+  return true;
+}
+
 function validScoutEvent(
   value: unknown,
   matchId: string,
@@ -87,7 +101,12 @@ function validScoutEvent(
     isFiniteNumber(value.scoreBefore.teamA) &&
     isFiniteNumber(value.scoreBefore.teamB) &&
     isFiniteNumber(value.timestamp) &&
+    (value.inputMode === undefined ||
+      value.inputMode === 'typed' ||
+      value.inputMode === 'visual' ||
+      value.inputMode === 'hybrid') &&
     typeof value.rawCode === 'string' &&
+    (value.normalizedCode === undefined || typeof value.normalizedCode === 'string') &&
     isText(value.codeProfileId) &&
     isText(value.codeProfileVersion) &&
     isText(value.complexityProfileId) &&
@@ -99,6 +118,8 @@ function validScoutEvent(
         (value.setterPosition as number) <= 6)) &&
     (value.formationState === undefined ||
       (typeof value.formationState === 'string' && FORMATION_STATES.has(value.formationState))) &&
+    (value.metadata === undefined ||
+      (isRecord(value.metadata) && validCourtCoordinates(value.metadata))) &&
     validCompleteness(value.completeness)
   );
 }

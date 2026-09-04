@@ -10,7 +10,12 @@ import {
   ContinuousInputController,
   type ContinuousInputUpdate,
 } from '../../../application/input/ContinuousInputController';
-import type { ReceptionGrade, ScoutEventMetadata } from '../../../domain/scout/events/ScoutEvent';
+import type {
+  ReceptionGrade,
+  ScoutEventMetadata,
+  ScoutInputMode,
+} from '../../../domain/scout/events/ScoutEvent';
+import type { VisualScoutDraft } from '../../../domain/scout/mapper/VisualScoutDraft';
 import type { InputCandidateState } from '../../../domain/scout/input/InputCandidateState';
 import type { Skill } from '../../../domain/scout/entities/Skill';
 import { tacticalValue } from '../../../domain/scout/tactical/TacticalMetadataAdapter';
@@ -18,6 +23,7 @@ import type { CourtLocation } from '../../../domain/scout/tactical/TacticalMetad
 import { DirectionResolver } from '../../../domain/scout/tactical/DirectionResolver';
 import { TacticalInputInterpreter } from '../../../domain/scout/input/TacticalInputInterpreter';
 import { TacticalCourt, type CourtSelectionMode } from './TacticalCourt';
+import { MiniCourt, type MiniCourtStep } from './MiniCourt';
 import { matchesShortcut } from './keyboardShortcut';
 import { ScoreHeader } from './ScoreHeader';
 import { MatchContextBar } from './MatchContextBar';
@@ -28,6 +34,8 @@ import { TacticalQuickEditor } from './TacticalQuickEditor';
 import { ScoutCaptureHelp } from './ScoutCaptureHelp';
 import { NextSetLineupEditor } from './NextSetLineupEditor';
 import { ATTACK_COMBINATION_OPTIONS } from './attackCombinationOptions';
+import { ScoutModeSelector } from './ScoutModeSelector';
+import { VisualScoutForm } from './VisualScoutForm';
 
 interface ScoutScreenProps {
   readonly workspace: MatchWorkspace;
@@ -38,6 +46,12 @@ interface ScoutScreenProps {
     teamId: string,
     rawCode: string,
     metadata?: ScoutEventMetadata,
+  ) => Promise<void>;
+  readonly onRegisterVisual: (draft: VisualScoutDraft) => Promise<void>;
+  readonly onRegisterHybrid: (
+    teamId: string,
+    rawCode: string,
+    draft: VisualScoutDraft,
   ) => Promise<void>;
   readonly onCorrect: (
     sourceEventId: string,
@@ -61,6 +75,8 @@ export function ScoutScreen({
   onBack,
   onSummary,
   onRegister,
+  onRegisterVisual,
+  onRegisterHybrid,
   onCorrect,
   onUndo,
   onRedo,
@@ -75,6 +91,17 @@ export function ScoutScreen({
   );
   const [candidateState, setCandidateState] = useState<InputCandidateState>('empty');
   const [activeTeamId, setActiveTeamId] = useState(workspace.teams[0].id);
+  const [inputMode, setInputMode] = useState<ScoutInputMode>('typed');
+  const [visualPlayerNumber, setVisualPlayerNumber] = useState(
+    String(
+      workspace.players.find((player) => player.teamId === workspace.teams[0].id)?.number ?? '',
+    ),
+  );
+  const [visualSkill, setVisualSkill] = useState<Skill>(
+    workspace.tacticalRally.expectedNextAction?.skill ?? 'serve',
+  );
+  const [visualEvaluation, setVisualEvaluation] = useState('excellent');
+  const [hybridCode, setHybridCode] = useState('');
   const [editingId, setEditingId] = useState<string>();
   const [originZone, setOriginZone] = useState('');
   const [targetZone, setTargetZone] = useState('');
@@ -90,6 +117,8 @@ export function ScoutScreen({
   const [courtMode, setCourtMode] = useState<CourtSelectionMode>('origin');
   const [drawnOrigin, setDrawnOrigin] = useState<CourtLocation>();
   const [drawnTarget, setDrawnTarget] = useState<CourtLocation>();
+  const [captureDirection, setCaptureDirection] = useState(true);
+  const [miniSuppressed, setMiniSuppressed] = useState(false);
   const [quickEditorOpen, setQuickEditorOpen] = useState(false);
   const [quickCommand, setQuickCommand] = useState('');
   const [quickError, setQuickError] = useState('');
@@ -117,6 +146,7 @@ export function ScoutScreen({
   }
   const inputController = controllerRef.current.controller;
   const decodedCapture = inputController.decode(buffer);
+  const lastCoreCodeRef = useRef<string | undefined>(decodedCapture?.coreCode);
   const captureEvaluation = decodedCapture
     ? Object.keys(workspace.profiles.codeProfile.evaluations).find((symbol) =>
         decodedCapture.coreCode.endsWith(symbol),
@@ -127,15 +157,54 @@ export function ScoutScreen({
       ? decodedCapture.coreCode.slice(0, -captureEvaluation.length)
       : undefined;
   const activeCaptureSkill =
-    (captureWithoutEvaluation
-      ? Object.entries(workspace.profiles.codeProfile.skills)
+    inputMode === 'typed'
+      ? ((captureWithoutEvaluation
+          ? Object.entries(workspace.profiles.codeProfile.skills)
+              .sort(([left], [right]) => right.length - left.length)
+              .find(([code]) => captureWithoutEvaluation.endsWith(code))?.[1]
+          : undefined) ?? workspace.tacticalRally.expectedNextAction?.skill)
+      : visualSkill;
+  const typedCoreSkill = decodedCapture
+    ? (() => {
+        const evaluationSymbols = Object.keys(workspace.profiles.codeProfile.evaluations).sort(
+          (left, right) => right.length - left.length,
+        );
+        let core = decodedCapture.coreCode;
+        for (const symbol of evaluationSymbols) {
+          if (core.endsWith(symbol)) {
+            core = core.slice(0, -symbol.length);
+            break;
+          }
+        }
+        return Object.entries(workspace.profiles.codeProfile.skills)
           .sort(([left], [right]) => right.length - left.length)
-          .find(([code]) => captureWithoutEvaluation.endsWith(code))?.[1]
-      : undefined) ?? workspace.tacticalRally.expectedNextAction?.skill;
+          .find(([code]) => core.endsWith(code))?.[1];
+      })()
+    : undefined;
   const [teamA, teamB] = workspace.teams;
   const tactical = ['tactical', 'advanced'].includes(workspace.profiles.complexityProfile.level);
   const advanced = workspace.profiles.complexityProfile.level === 'advanced';
   const tacticalInput = workspace.profiles.codeProfile.tacticalInput;
+  // Execution 1: contextual mini court for typed attacks only. Serve/reception
+  // are intentionally excluded to avoid interrupting the serve prefill flow.
+  const miniCourtScope =
+    typedCoreSkill === 'attack';
+  const miniCourtOpen =
+    tactical &&
+    !!tacticalInput &&
+    captureDirection &&
+    !editingId &&
+    inputMode === 'typed' &&
+    miniCourtScope &&
+    !!decodedCapture &&
+    !miniSuppressed;
+  const miniCourtStep: MiniCourtStep = miniCourtOpen
+    ? drawnOrigin && drawnTarget
+      ? 'readyToConfirm'
+      : drawnOrigin
+        ? 'awaitingDestination'
+        : 'awaitingOrigin'
+    : 'hidden';
   const teamCodes = workspace.profiles.codeProfile.teamCodes;
   const tacticalInterpreter = useRef(new TacticalInputInterpreter()).current;
   const directionOptions = [
@@ -155,8 +224,23 @@ export function ScoutScreen({
   );
   const serverSlot = servingLineup?.slots[servingLineup.positions[1]];
   const server = workspace.players.find((player) => player.id === serverSlot?.playerId);
+  const visualSkills = [...new Set(Object.values(workspace.profiles.codeProfile.skills))];
+  const visualEvaluations = [...new Set(Object.values(workspace.profiles.codeProfile.evaluations))];
+  const visualTeamPlayers = workspace.players.filter(
+    (player) => player.teamId === activeTeamId && player.active !== false,
+  );
+  const selectedVisualPlayerNumber = visualTeamPlayers.some(
+    (player) => String(player.number) === visualPlayerNumber,
+  )
+    ? visualPlayerNumber
+    : String(visualTeamPlayers[0]?.number ?? '');
+  const selectedVisualEvaluation = visualEvaluations.includes(visualEvaluation)
+    ? visualEvaluation
+    : (visualEvaluations[0] ?? '');
 
-  useEffect(() => inputRef.current?.focus(), [workspace.events.length]);
+  useEffect(() => {
+    if (inputMode === 'typed') inputRef.current?.focus();
+  }, [inputMode, workspace.events.length]);
   useEffect(() => {
     if (editingId || !inputRef.current) return;
     inputRef.current.setSelectionRange(stream.length, stream.length);
@@ -165,6 +249,7 @@ export function ScoutScreen({
   useEffect(() => {
     if (
       !server ||
+      inputMode !== 'typed' ||
       setCompleted ||
       editingId ||
       buffer.trim() ||
@@ -199,6 +284,7 @@ export function ScoutScreen({
   }, [
     buffer,
     editingId,
+    inputMode,
     inputController,
     server,
     setCompleted,
@@ -217,6 +303,13 @@ export function ScoutScreen({
     },
     [],
   );
+  useEffect(() => {
+    const core = decodedCapture?.coreCode;
+    if (core !== lastCoreCodeRef.current) {
+      lastCoreCodeRef.current = core;
+      setMiniSuppressed(false);
+    }
+  }, [decodedCapture]);
 
   function courtLocation(zoneId: string) {
     if (!zoneId) return undefined;
@@ -323,6 +416,73 @@ export function ScoutScreen({
     setDrawnTarget(undefined);
   }
 
+  function changeInputMode(mode: ScoutInputMode) {
+    if (editingId || mode === inputMode) return;
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    if (inputMode === 'typed' && buffer.length > 0) {
+      setStream((current) => current.slice(0, Math.max(0, current.length - buffer.length)));
+    }
+    inputController.clear();
+    setBuffer('');
+    setCandidateState('empty');
+    setInputMode(mode);
+    const suggestion = workspace.tacticalRally.expectedNextAction;
+    if (suggestion?.teamId && workspace.teams.some((team) => team.id === suggestion.teamId)) {
+      setActiveTeamId(suggestion.teamId);
+      const first = workspace.players.find(
+        (player) => player.teamId === suggestion.teamId && player.active !== false,
+      );
+      setVisualPlayerNumber(String(first?.number ?? ''));
+    }
+    if (suggestion?.skill) setVisualSkill(suggestion.skill);
+  }
+
+  function buildVisualDraft(): VisualScoutDraft | undefined {
+    const playerNumber = Number(selectedVisualPlayerNumber);
+    if (!activeTeamId || !Number.isInteger(playerNumber)) return undefined;
+    const capture = metadata()?.captureDraft;
+    const contactLocation = capture?.origin ?? capture?.target;
+    return {
+      teamId: activeTeamId,
+      playerNumber,
+      skill: visualSkill,
+      evaluation: selectedVisualEvaluation,
+      ...(visualSkill === 'reception' || visualSkill === 'block'
+        ? contactLocation
+          ? { contactLocation }
+          : {}
+        : {
+            ...(capture?.origin ? { origin: capture.origin } : {}),
+            ...(capture?.target ? { target: capture.target } : {}),
+          }),
+      ...(capture?.skillType ? { skillType: capture.skillType } : {}),
+      ...(capture?.direction ? { direction: capture.direction } : {}),
+      ...(capture?.receptionGrade ? { receptionGrade: capture.receptionGrade } : {}),
+      ...(capture?.setterCall ? { setterCall: capture.setterCall } : {}),
+      ...(capture?.setterPosition !== undefined ? { setterPosition: capture.setterPosition } : {}),
+      ...(capture?.tempo ? { attackTempo: capture.tempo } : {}),
+      ...(capture?.combination ? { attackCombination: capture.combination } : {}),
+      ...(capture?.blockersCount !== undefined ? { blockersCount: capture.blockersCount } : {}),
+      ...(capture?.phase ? { phase: capture.phase } : {}),
+      ...(capture?.captureMethod ? { captureMethod: capture.captureMethod } : {}),
+    };
+  }
+
+  async function submitVisual(event: FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    const draft = buildVisualDraft();
+    if (!draft) return;
+    if (inputMode === 'hybrid') {
+      if (!hybridCode.trim()) return;
+      await onRegisterHybrid(activeTeamId, hybridCode, draft);
+      setHybridCode('');
+    } else {
+      await onRegisterVisual(draft);
+    }
+    clearTacticalCapture();
+  }
+
   function enqueueCodes(codes: readonly string[]) {
     if (codes.length === 0) return;
     const teamIdForCode = (code: string) => {
@@ -376,6 +536,10 @@ export function ScoutScreen({
     applyInputUpdate(inputController.replace(value.slice(committedLength)));
   }
 
+  function commitTypedBuffer() {
+    applyInputUpdate(inputController.manualCommit(), false);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!buffer.trim()) return;
@@ -389,7 +553,7 @@ export function ScoutScreen({
       inputRef.current?.focus();
       return;
     }
-    applyInputUpdate(inputController.manualCommit(), false);
+    commitTypedBuffer();
   }
 
   function edit(
@@ -399,6 +563,7 @@ export function ScoutScreen({
     eventMetadata?: ScoutEventMetadata,
   ) {
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    setInputMode('typed');
     inputController.clear();
     setEditingId(sourceEventId);
     setBuffer(rawCode.trim());
@@ -439,6 +604,13 @@ export function ScoutScreen({
     }
     if (event.key === 'Escape') {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (miniCourtOpen) {
+        event.preventDefault();
+        setMiniSuppressed(true);
+        setDrawnOrigin(undefined);
+        setDrawnTarget(undefined);
+        return;
+      }
       if (!editingId) {
         setStream((current) => current.slice(0, Math.max(0, current.length - buffer.length)));
       }
@@ -446,6 +618,12 @@ export function ScoutScreen({
       setBuffer('');
       setCandidateState('empty');
       setEditingId(undefined);
+    }
+    if (miniCourtOpen && (event.key === 'r' || event.key === 'R')) {
+      event.preventDefault();
+      setDrawnOrigin(undefined);
+      setDrawnTarget(undefined);
+      return;
     }
     if (event.ctrlKey && event.key.toLowerCase() === 'z') {
       event.preventDefault();
@@ -568,8 +746,44 @@ export function ScoutScreen({
           />
         </section>
         <section className="capture-workspace" aria-label="Captura do scout">
+          <ScoutModeSelector
+            mode={inputMode}
+            disabled={editingId !== undefined}
+            onChange={changeInputMode}
+          />
+          {inputMode !== 'typed' && (
+            <VisualScoutForm
+              mode={inputMode}
+              teams={workspace.teams}
+              players={workspace.players}
+              teamId={activeTeamId}
+              playerNumber={selectedVisualPlayerNumber}
+              skill={visualSkill}
+              evaluation={selectedVisualEvaluation}
+              skills={visualSkills}
+              evaluations={visualEvaluations}
+              hybridCode={hybridCode}
+              busy={busy}
+              suggestion={workspace.tacticalRally.expectedNextAction?.skill}
+              onTeamChange={(teamId) => {
+                setActiveTeamId(teamId);
+                const first = workspace.players.find(
+                  (player) => player.teamId === teamId && player.active !== false,
+                );
+                setVisualPlayerNumber(String(first?.number ?? ''));
+              }}
+              onPlayerChange={setVisualPlayerNumber}
+              onSkillChange={setVisualSkill}
+              onEvaluationChange={setVisualEvaluation}
+              onHybridCodeChange={setHybridCode}
+              onSubmit={(event) => void submitVisual(event)}
+            />
+          )}
           {tactical && (
-            <details className="tactical-panel" open={editingId !== undefined || quickEditorOpen}>
+            <details
+              className="tactical-panel"
+              open={inputMode !== 'typed' || editingId !== undefined || quickEditorOpen}
+            >
               <summary>{editingId ? 'Corrigir detalhes' : 'Detalhes'}</summary>
               {tacticalInput && (
                 <TacticalQuickEditor
@@ -593,7 +807,9 @@ export function ScoutScreen({
               )}
               <div className="tactical-fields">
                 <label>
-                  {activeCaptureSkill === 'attack' ? 'Exceção de origem' : 'Zona de origem'}
+                  {activeCaptureSkill === 'attack' && inputMode === 'typed'
+                    ? 'Exceção de origem'
+                    : 'Zona de origem'}
                   {tacticalInput ? (
                     <select
                       value={originZone}
@@ -619,13 +835,13 @@ export function ScoutScreen({
                       }}
                     />
                   )}
-                  {activeCaptureSkill === 'attack' && (
+                  {activeCaptureSkill === 'attack' && inputMode === 'typed' && (
                     <small>
                       Inferida pela posição atual. Altere somente em uma jogada atípica.
                     </small>
                   )}
                 </label>
-                {activeCaptureSkill !== 'attack' && (
+                {(activeCaptureSkill !== 'attack' || inputMode !== 'typed') && (
                   <label>
                     Zona de destino
                     {tacticalInput ? (
@@ -767,7 +983,7 @@ export function ScoutScreen({
                   </>
                 )}
               </div>
-              {tacticalInput && activeCaptureSkill !== 'attack' && (
+              {tacticalInput && (activeCaptureSkill !== 'attack' || inputMode !== 'typed') && (
                 <TacticalCourt
                   profile={tacticalInput.zoneSystem}
                   mode={courtMode}
@@ -807,25 +1023,64 @@ export function ScoutScreen({
               )}
             </details>
           )}
-          <ScoutInput
-            inputRef={inputRef}
-            value={editingId ? buffer : stream}
-            editing={editingId !== undefined}
-            candidateState={candidateState}
-            placeholder={teamCodes ? '*08A#' : '08A#'}
-            onSubmit={(event) => void submit(event)}
-            onChange={(event) => {
-              if (editingId) setBuffer(event.target.value);
-              else updateContinuousStream(event.target.value);
-            }}
-            onKeyDown={handleKeyDown}
-          />
-          <ScoutCaptureHelp
-            enabled={captureHelpEnabled}
-            rawCode={buffer}
-            profile={workspace.profiles.codeProfile}
-            onToggle={() => setCaptureHelpEnabled((current) => !current)}
-          />
+          {miniCourtOpen && tacticalInput && (
+            <MiniCourt
+              profile={tacticalInput.zoneSystem}
+              skill={typedCoreSkill ?? 'attack'}
+              step={miniCourtStep}
+              origin={drawnOrigin}
+              target={drawnTarget}
+              onOrigin={setDrawnOrigin}
+              onTarget={setDrawnTarget}
+              onConfirm={() => {
+                if (miniCourtStep !== 'readyToConfirm') return;
+                commitTypedBuffer();
+              }}
+              onCancel={() => {
+                setMiniSuppressed(true);
+                setDrawnOrigin(undefined);
+                setDrawnTarget(undefined);
+                inputRef.current?.focus();
+              }}
+              onReset={() => {
+                setDrawnOrigin(undefined);
+                setDrawnTarget(undefined);
+              }}
+            />
+          )}
+          {inputMode === 'typed' && (
+            <ScoutInput
+              inputRef={inputRef}
+              value={editingId ? buffer : stream}
+              editing={editingId !== undefined}
+              candidateState={candidateState}
+              placeholder={teamCodes ? '*08A#' : '08A#'}
+              onSubmit={(event) => void submit(event)}
+              onChange={(event) => {
+                if (editingId) setBuffer(event.target.value);
+                else updateContinuousStream(event.target.value);
+              }}
+              onKeyDown={handleKeyDown}
+            />
+          )}
+          {inputMode === 'typed' && (
+            <ScoutCaptureHelp
+              enabled={captureHelpEnabled}
+              rawCode={buffer}
+              profile={workspace.profiles.codeProfile}
+              onToggle={() => setCaptureHelpEnabled((current) => !current)}
+            />
+          )}
+          {tactical && (
+            <label className="capture-direction-toggle">
+              <input
+                type="checkbox"
+                checked={captureDirection}
+                onChange={(event) => setCaptureDirection(event.target.checked)}
+              />
+              Capturar direção das ações
+            </label>
+          )}
         </section>
         <EventTimeline
           timeline={workspace.timeline}
