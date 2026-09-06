@@ -1,0 +1,206 @@
+.spatial-points-panel {
+  padding: 18px;
+  border: 1px solid rgb(143 184 194 / 30%);
+  border-radius: 12px;
+  background: rgb(13 28 39 / 70%);
+}
+
+.spatial-points-heading,
+.spatial-points-filters {
+  display: flex;
+  align-items: end;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.spatial-points-heading {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.spatial-points-heading h3 {
+  margin: 0;
+}
+.spatial-points-count {
+  color: #c8d3da;
+  font-size: 13px;
+}
+
+.spatial-points-filters label,
+.spatial-points-filters legend {
+  color: #c8d3da;
+  font-size: 12px;
+}
+
+.spatial-points-filters select {
+  display: block;
+  min-width: 150px;
+  margin-top: 5px;
+  padding: 6px 8px;
+  border: 1px solid #7399a2;
+  border-radius: 5px;
+  background: #183a51;
+  color: #fff;
+}
+
+.spatial-points-filters fieldset {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.spatial-points-filters fieldset label {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.spatial-points-court {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin: 20px auto 0;
+  aspect-ratio: 2 / 1;
+}
+.spatial-points-floor {
+  fill: #bd6133;
+}
+.spatial-points-border {
+  fill: none;
+  stroke: #fff4df;
+  stroke-width: 1.6;
+}
+.spatial-points-attack-line {
+  stroke: #fff4df;
+  stroke-width: 1;
+  opacity: 0.8;
+}
+.spatial-points-net {
+  stroke: #fff;
+  stroke-width: 2;
+}
+.spatial-point {
+  fill: #ffe66b;
+  stroke: #183a51;
+  stroke-width: 0.8;
+}
+.spatial-play-line {
+  stroke: #50ddcf;
+  stroke-width: 1;
+  opacity: 0.75;
+}
+.spatial-play-origin {
+  fill: #e3ff4f;
+}
+.spatial-play-target {
+  fill: #50ddcf;
+  stroke: #07100e;
+  stroke-width: 0.6;
+}
+.spatial-points-empty {
+  margin: 22px 0 4px;
+  color: #c8d3da;
+}
+.analysis-page .match-analytics {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.analysis-page .tactical-analytics-heading {
+  margin-bottom: 18px;
+}
+.spatial-points-panel {
+  background: var(--panel);
+  border-color: var(--line);
+  padding: 20px;
+}
+.spatial-points-filters {
+  gap: 12px;
+  padding: 12px;
+  background: var(--panel-strong);
+  border-radius: 8px;
+}
+.spatial-points-filters select {
+  background: var(--panel);
+  border-color: var(--line);
+  min-width: 110px;
+}
+.analysis-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0 10px;
+}
+.analysis-toolbar > div {
+  display: flex;
+  gap: 4px;
+}
+.analysis-toolbar button {
+  padding: 8px 14px;
+  background: var(--panel-strong);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.analysis-toolbar button[aria-pressed='true'] {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+.analysis-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.analysis-adjustments {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.analysis-adjustments summary {
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.analysis-adjustments > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 18px 0 0;
+}
+.analysis-adjustments small {
+  color: var(--muted);
+}
+.spatial-points-court {
+  max-width: 680px;
+}
+.analysis-heat-court {
+  position: relative;
+  max-width: 680px;
+  margin: 20px auto 0;
+  background: #10251e;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+}
+.analysis-heat-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.analysis-heat-court .spatial-points-court {
+  position: relative;
+  margin: 0;
+}
+.spatial-points-floor {
+  fill: #173e30;
+}
+.spatial-points-count {
+  color: var(--accent);
+  font-weight: 700;
+}

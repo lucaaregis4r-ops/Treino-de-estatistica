@@ -1,20 +1,19 @@
 import type { PointerEvent } from 'react';
 import type { Skill } from '../../../domain/scout/entities/Skill';
-import { canonicalCourtLocation } from '../../../domain/scout/tactical/CourtGeometry';
-import type { CourtLocation } from '../../../domain/scout/tactical/TacticalMetadata';
+import {
+  courtLocationToDisplayPoint,
+  displayPointToCourtLocation,
+} from '../../../domain/scout/tactical/CourtGeometry';
 import type { ZoneSystemProfile } from '../../../domain/scout/tactical/ZoneSystemProfile';
+import type { CourtLocation } from '../../../domain/scout/tactical/TacticalMetadata';
 import { normalizedCourtPoint } from './courtGeometry';
 
-export type MiniCourtStep =
-  | 'hidden'
-  | 'awaitingPoint'
-  | 'awaitingOrigin'
-  | 'awaitingDestination'
-  | 'readyToConfirm';
+/** Interaction step of the contextual mini court. */
+export type MiniCourtStep = 'hidden' | 'awaitingOrigin' | 'awaitingPoint' | 'awaitingDestination' | 'readyToConfirm';
 
 export interface MiniCourtCapture {
   readonly origin: CourtLocation;
-  readonly target?: CourtLocation;
+  readonly target: CourtLocation;
 }
 
 interface MiniCourtProps {
@@ -29,56 +28,35 @@ interface MiniCourtProps {
   readonly onConfirm: (capture: MiniCourtCapture) => void;
   readonly onCancel: () => void;
   readonly onReset: () => void;
-  readonly executingTeamSide: 'left' | 'right';
-  readonly opposingTeamSide: 'left' | 'right';
 }
 
-const ZONES = [
-  ['4', 16.7, 25],
-  ['3', 50, 25],
-  ['2', 83.3, 25],
-  ['5', 16.7, 75],
-  ['6', 50, 75],
-  ['1', 83.3, 75],
-] as const;
-
-function getSideX(side: 'left' | 'right'): number {
-  return side === 'left' ? 8 : 92;
+function hint(step: MiniCourtStep, skill: Skill): string {
+  switch (step) {
+    case 'awaitingOrigin':
+      return `Toque na quadra para marcar a origem de ${skill}`;
+    case 'awaitingDestination':
+      return 'Toque onde a bola terminou para marcar o destino';
+    case 'readyToConfirm':
+      return 'Enter confirma · Esc cancela · R refaz';
+    default:
+      return '';
+  }
 }
 
-function hint(step: MiniCourtStep, skill: Skill, captureMode: 'point' | 'trajectory'): string {
-  if (step === 'awaitingPoint') return `Clique no local do contato de ${skill}`;
-  if (step === 'awaitingOrigin') return 'Clique na origem';
-  if (step === 'awaitingDestination') return 'Clique no destino';
-  if (step === 'readyToConfirm') return 'Enter confirma · Esc cancela · R refaz';
-  return captureMode === 'point' ? 'Marque o local do contato' : 'Marque a origem';
-}
-
-function displayedPoint(location: CourtLocation | undefined) {
-  if (location?.x === undefined || location.y === undefined) return undefined;
-  return { x: location.x * 100, y: location.y * 100 };
-}
-
-function applyCourtSideRule(
-  location: CourtLocation,
-  executingSide: 'left' | 'right',
-  mode: 'point' | 'trajectory',
-): CourtLocation {
-  if (!location.x && !location.y) return location;
-  const x = location.x ?? 0.5;
-  const y = location.y ?? 0.5;
-  // For trajectory: if origin is on executing side, destination must be on opposing side
-  // Simple normalization: ensure origin x is on the correct side
-  const adjustedX = mode === 'trajectory' && x !== undefined
-    ? (executingSide === 'left' ? Math.min(x, 0.5) : Math.max(x, 0.5))
-    : x;
-  return { ...location, x: adjustedX, y };
+function displayedPoint(
+  location: CourtLocation | undefined,
+  side: 'origin' | 'target',
+  profile: ZoneSystemProfile,
+): { x: number; y: number } | undefined {
+  if (!location) return undefined;
+  const point = courtLocationToDisplayPoint(location, side, profile);
+  if (point.x === undefined || point.y === undefined) return undefined;
+  return { x: point.x * 100, y: point.y * 100 };
 }
 
 export function MiniCourt({
   profile,
   skill,
-  captureMode,
   step,
   origin,
   target,
@@ -87,57 +65,67 @@ export function MiniCourt({
   onConfirm,
   onCancel,
   onReset,
-  executingTeamSide,
-  opposingTeamSide,
 }: MiniCourtProps) {
-  function locate(event: PointerEvent<HTMLDivElement>): CourtLocation {
-    const point = normalizedCourtPoint(
+  function locate(event: PointerEvent<HTMLDivElement>, side: 'origin' | 'target'): CourtLocation {
+    const displayed = normalizedCourtPoint(
       event.clientX,
       event.clientY,
       event.currentTarget.getBoundingClientRect(),
     );
-    return canonicalCourtLocation(point, 'canonical', profile);
+    return displayPointToCourtLocation(displayed, side, profile);
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (step === 'awaitingPoint' || step === 'awaitingOrigin') {
-      onOrigin(applyCourtSideRule(locate(event), executingTeamSide, captureMode!));
-    } else if (step === 'awaitingDestination') {
-      onTarget(applyCourtSideRule(locate(event), executingTeamSide, captureMode!));
+    if (step === 'awaitingOrigin') {
+      onOrigin(locate(event, 'origin'));
+      return;
+    }
+    if (step === 'awaitingDestination') {
+      onTarget(locate(event, 'target'));
     }
   }
 
-  const originPoint = displayedPoint(origin);
-  const targetPoint = displayedPoint(target);
-  const message = hint(step, skill, captureMode);
-
-  const sideLabelClass = (side: 'team' | 'opponent') => {
-    const cssSide = side === 'team' ? 'team' : 'opponent';
-    return `mini-court-side-label ${cssSide}`;
-  };
+  const originPoint = displayedPoint(origin, 'origin', profile);
+  const targetPoint = displayedPoint(target, 'target', profile);
 
   return (
     <section className="mini-court" aria-label={`Captura espacial de ${skill}`}>
-      <div className="mini-court-canvas" role="button" tabIndex={0} aria-label={message} onPointerDown={handlePointerDown}>
-        <span className="mini-court-net" aria-hidden="true" />
-        <span className={sideLabelClass('team')} aria-hidden="true" style={{ left: `${getSideX(executingTeamSide)}%` }}>Seu lado</span>
-        <span className={sideLabelClass('opponent')} aria-hidden="true" style={{ left: `${getSideX(opposingTeamSide)}%` }}>Lado adversário</span>
-        <span className="mini-court-side-label front" aria-hidden="true">frente</span>
-        <span className="mini-court-side-label back" aria-hidden="true">fundo</span>
-        {ZONES.map(([zone, x, y]) => (
-          <span key={zone} className={`mini-court-zone-label z${zone}`} style={{ left: `${x}%`, top: `${y}%` }} aria-hidden="true">
-            {zone}
-          </span>
-        ))}
+      <div
+        className="mini-court-canvas"
+        role="button"
+        tabIndex={0}
+        aria-label={hint(step, skill)}
+        onPointerDown={handlePointerDown}
+      >
+        <span className="court-net" aria-hidden="true" />
+        <span className="court-team-label origin" aria-hidden="true">
+          origem
+        </span>
+        <span className="court-team-label target" aria-hidden="true">
+          destino
+        </span>
         {originPoint && (
-          <span className={`mini-point ${executingTeamSide === 'left' ? 'origin-left' : 'origin-right'}`} style={{ left: `${originPoint.x}%`, top: `${originPoint.y}%` }} aria-hidden="true" />
+          <span
+            className="mini-point origin"
+            style={{ left: `${originPoint.x}%`, top: `${originPoint.y}%` }}
+            aria-hidden="true"
+          />
         )}
         {targetPoint && (
-          <span className={`mini-point ${captureMode === 'trajectory' ? (targetPoint.x! < 50 ? 'target-opponent' : 'target-team') : 'target'}`} style={{ left: `${targetPoint.x}%`, top: `${targetPoint.y}%` }} aria-hidden="true" />
+          <span
+            className="mini-point target"
+            style={{ left: `${targetPoint.x}%`, top: `${targetPoint.y}%` }}
+            aria-hidden="true"
+          />
         )}
-        {originPoint && targetPoint && captureMode === 'trajectory' && (
-          <svg className="mini-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            <line x1={originPoint.x} y1={originPoint.y} x2={targetPoint.x} y2={targetPoint.y} stroke="currentColor" strokeWidth={1} />
+        {originPoint && targetPoint && (
+          <svg
+            className="mini-line"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <line x1={originPoint.x} y1={originPoint.y} x2={targetPoint.x} y2={targetPoint.y} />
           </svg>
         )}
       </div>
@@ -146,11 +134,22 @@ export function MiniCourt({
         <strong>Frente: 4 · 3 · 2</strong>
         <strong>Fundo: 5 · 6 · 1</strong>
       </div>
-      <small className="mini-court-hint" aria-live="polite">{message}</small>
+      <small className="mini-court-hint" aria-live="polite">
+        {hint(step, skill)}
+      </small>
       <div className="mini-court-actions">
-        <button type="button" onClick={onReset} disabled={step !== 'readyToConfirm'}>Refazer</button>
-        <button type="button" onClick={onCancel}>Cancelar</button>
-        <button type="button" className="button primary" onClick={() => origin && onConfirm({ origin, ...(target ? { target } : {}) })} disabled={step !== 'readyToConfirm'}>
+        <button type="button" onClick={onReset} disabled={step !== 'readyToConfirm'}>
+          Refazer
+        </button>
+        <button type="button" onClick={onCancel}>
+          Cancelar
+        </button>
+        <button
+          type="button"
+          className="button primary"
+          onClick={() => origin && target && onConfirm({ origin, target })}
+          disabled={step !== 'readyToConfirm'}
+        >
           Confirmar
         </button>
       </div>

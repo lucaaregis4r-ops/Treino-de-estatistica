@@ -1,331 +1,433 @@
 import { useState } from 'react';
 import type { MatchReportModel } from '../../../application/reporting/MatchReportModel';
-import type { SpatialHeatmapPreset } from '../../../domain/scout/spatial/SpatialProjection';
+import { SKILLS, type Skill } from '../../../domain/scout/entities/Skill';
+import type {
+  SpatialLocation,
+  SpatialSample,
+} from '../../../domain/scout/spatial/SpatialProjection';
+import './SpatialAnalyticsPanel.css';
+import { HeatmapLayer } from './HeatmapLayer';
 
 interface SpatialAnalyticsPanelProps {
   readonly report: MatchReportModel;
   readonly teamId: string;
 }
 
-const PRESETS: readonly {
-  readonly id: SpatialHeatmapPreset;
-  readonly label: string;
-  readonly skill: 'attack' | 'serve' | 'reception';
-}[] = [
-  { id: 'attack_target', label: 'Alvo de ataque', skill: 'attack' },
-  { id: 'serve_target', label: 'Alvo de saque', skill: 'serve' },
-  { id: 'reception_contact', label: 'Contato de recepção', skill: 'reception' },
-];
+type Coordinate = 'origin' | 'target';
+type ViewMode = 'points' | 'plays' | 'heatmap';
 
-function percent(value: number): string {
-  return `${(value * 100).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%`;
+const SKILL_LABELS: Readonly<Record<Skill, string>> = {
+  serve: 'Saque',
+  reception: 'Recepção',
+  set: 'Levantamento',
+  attack: 'Ataque',
+  block: 'Bloqueio',
+  dig: 'Defesa',
+  free_ball: 'Free ball',
+};
+
+function pointFor(sample: SpatialSample, coordinate: Coordinate): SpatialLocation | undefined {
+  const point = sample[coordinate];
+  return point?.surface === 'court' && point.x !== undefined && point.y !== undefined
+    ? point
+    : undefined;
+}
+
+function PointCourt({
+  points,
+  heatmap = false,
+}: {
+  readonly points: readonly { x: number; y: number; label: string }[];
+  heatmap?: boolean;
+}) {
+  return (
+    <svg
+      className="spatial-points-court"
+      viewBox="0 0 200 100"
+      role="img"
+      aria-label={heatmap ? 'Mapa de calor' : 'Mapa de pontos'}
+    >
+      {!heatmap && <rect className="spatial-points-floor" x="0" y="0" width="200" height="100" />}
+      {[200 / 3, 100, 400 / 3].map((x) => (
+        <line
+          key={x}
+          className={x === 100 ? 'spatial-points-net' : 'spatial-points-attack-line'}
+          x1={x}
+          y1="0"
+          x2={x}
+          y2="100"
+        />
+      ))}
+      <rect className="spatial-points-border" x="0" y="0" width="200" height="100" />
+      {!heatmap &&
+        points.map((point, index) => (
+          <circle
+            key={`${point.x}-${point.y}-${index}`}
+            className="spatial-point"
+            cx={point.x * 200}
+            cy={point.y * 100}
+            r="2.4"
+          >
+            <title>{point.label}</title>
+          </circle>
+        ))}
+    </svg>
+  );
+}
+
+function TrajectoryCourt({ samples }: { readonly samples: readonly SpatialSample[] }) {
+  return (
+    <svg
+      className="spatial-points-court"
+      viewBox="0 0 200 100"
+      role="img"
+      aria-label="Mapa de jogadas"
+    >
+      <rect className="spatial-points-floor" x="0" y="0" width="200" height="100" />
+      {[200 / 3, 100, 400 / 3].map((x) => (
+        <line
+          key={x}
+          className={x === 100 ? 'spatial-points-net' : 'spatial-points-attack-line'}
+          x1={x}
+          y1="0"
+          x2={x}
+          y2="100"
+        />
+      ))}
+      {samples.map((sample) => {
+        const origin = pointFor(sample, 'origin');
+        const target = pointFor(sample, 'target');
+        if (!origin || !target) return null;
+        return (
+          <g key={sample.eventId}>
+            <line
+              className="spatial-play-line"
+              x1={origin.x! * 200}
+              y1={origin.y! * 100}
+              x2={target.x! * 200}
+              y2={target.y! * 100}
+            >
+              <title>
+                {SKILL_LABELS[sample.skill]} · Set {sample.setNumber}
+              </title>
+            </line>
+            <circle
+              className="spatial-play-origin"
+              cx={origin.x! * 200}
+              cy={origin.y! * 100}
+              r="2"
+            />
+            <circle
+              className="spatial-play-target"
+              cx={target.x! * 200}
+              cy={target.y! * 100}
+              r="2"
+            />
+          </g>
+        );
+      })}
+      <rect className="spatial-points-border" x="0" y="0" width="200" height="100" />
+    </svg>
+  );
 }
 
 export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelProps) {
-  const [preset, setPreset] = useState<SpatialHeatmapPreset>('attack_target');
-  const [viewMode, setViewMode] = useState<'heatmap' | 'plays'>('heatmap');
-  const definition = PRESETS.find((item) => item.id === preset) ?? PRESETS[0];
-  const spatial = report.spatial ?? { samples: [], density: [], trajectories: [], matrix: [] };
-  const density = spatial.density.filter(
-    (cell) => cell.teamId === teamId && cell.preset === preset,
+  const [skill, setSkill] = useState<Skill | 'all'>('attack');
+  const [evaluations, setEvaluations] = useState<readonly string[] | null>(null);
+  const [coordinate, setCoordinate] = useState<Coordinate>('origin');
+  const [viewMode, setViewMode] = useState<ViewMode>('points');
+  const [playerId, setPlayerId] = useState('all');
+  const [setNumber, setSetNumber] = useState('all');
+  const [rotation, setRotation] = useState('all');
+  const [radius, setRadius] = useState(0.16);
+  const [intensity, setIntensity] = useState(1);
+  const samples = (report.spatial?.samples ?? []).filter(
+    (sample) => sample.teamId === teamId && sample.source === 'spatial',
   );
-  const trajectories = spatial.trajectories.filter(
-    (trajectory) => trajectory.teamId === teamId && trajectory.skill === definition.skill,
+  const availableSkills = SKILLS.filter((value) =>
+    samples.some((sample) => sample.skill === value),
   );
-  const individualTrajectories = spatial.samples.filter(
-    (sample) =>
-      sample.teamId === teamId &&
-      sample.skill === definition.skill &&
-      sample.origin?.x !== undefined &&
-      sample.origin.y !== undefined &&
-      sample.target?.x !== undefined &&
-      sample.target.y !== undefined,
+  const selectedSkill =
+    skill === 'all' || availableSkills.includes(skill) ? skill : (availableSkills[0] ?? skill);
+  const availableEvaluations = [
+    ...new Set(
+      samples
+        .map((sample) => sample.evaluation)
+        .filter((value): value is string => value !== undefined),
+    ),
+  ];
+  const activeEvaluations =
+    evaluations === null
+      ? availableEvaluations
+      : evaluations.filter((value) => availableEvaluations.includes(value));
+  const filteredSamples = samples
+    .filter((sample) => selectedSkill === 'all' || sample.skill === selectedSkill)
+    .filter((sample) => playerId === 'all' || sample.playerId === playerId)
+    .filter((sample) => setNumber === 'all' || String(sample.setNumber) === setNumber)
+    .filter((sample) => rotation === 'all' || String(sample.setterPosition) === rotation)
+    .filter(
+      (sample) =>
+        evaluations === null ||
+        (sample.evaluation !== undefined && activeEvaluations.includes(sample.evaluation)),
+    );
+  const filteredPoints = filteredSamples.flatMap((sample) => {
+    const point = pointFor(sample, coordinate);
+    return point
+      ? [
+          {
+            x: point.x!,
+            y: point.y!,
+            label: [
+              `${SKILL_LABELS[sample.skill]}${sample.evaluation ? ` ${sample.evaluation}` : ''}`,
+              playerLabel(sample.playerId),
+              `Set ${sample.setNumber}`,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          },
+        ]
+      : [];
+  });
+  const filteredPlays = filteredSamples.filter(
+    (sample) => pointFor(sample, 'origin') && pointFor(sample, 'target'),
   );
-  const matrix = spatial.matrix.filter(
-    (cell) => cell.teamId === teamId && cell.skill === definition.skill,
-  );
-  const total = density.reduce((sum, cell) => sum + cell.attempts, 0);
-  const maxCount = Math.max(1, ...density.map((cell) => cell.count));
-  const maxPointRate = Math.max(1, ...density.map((cell) => cell.pointRate ?? 0));
-  const maxSideoutRate = Math.max(1, ...density.map((cell) => cell.sideoutRate ?? 0));
-  const strongest = [...density].sort(
-    (left, right) =>
-      (right[definition.skill === 'reception' ? 'sideoutRate' : 'pointRate'] ?? 0) -
-      (left[definition.skill === 'reception' ? 'sideoutRate' : 'pointRate'] ?? 0),
-  )[0];
-  const attackHeatmap = preset === 'attack_target';
-  const receptionHeatmap = preset === 'reception_contact';
+  const players = [
+    ...new Set(
+      samples.map((sample) => sample.playerId).filter((value): value is string => Boolean(value)),
+    ),
+  ];
+  const sets = [...new Set(samples.map((sample) => sample.setNumber))].sort((a, b) => a - b);
+  const positions = [
+    ...new Set(samples.flatMap((s) => (s.setterPosition ? [s.setterPosition] : []))),
+  ].sort();
+  function playerLabel(id?: string) {
+    const player = report.players?.find((p) => p.id === id);
+    return player
+      ? `#${player.number} ${player.name}`
+      : id
+        ? 'Atleta ' + (samples.findIndex((s) => s.playerId === id) + 1)
+        : 'Não informado';
+  }
+
+  function changeSkill(value: Skill | 'all') {
+    setSkill(value);
+  }
+
+  function toggleEvaluation(value: string) {
+    setEvaluations((current) =>
+      (current ?? availableEvaluations).includes(value)
+        ? (current ?? availableEvaluations).filter((item) => item !== value)
+        : [...(current ?? availableEvaluations), value],
+    );
+  }
 
   return (
-    <section id="spatial-analytics" className="spatial-analytics" aria-labelledby="spatial-title">
-      <div className="analytics-section-heading spatial-heading">
+    <section className="spatial-points-panel" aria-labelledby="spatial-points-title">
+      <div className="spatial-points-heading">
         <div>
-          <p className="eyebrow">Spatial Analytics</p>
-          <h3 id="spatial-title">Densidade e trajetórias na quadra</h3>
-          <p>
-            {total === 0
-              ? 'Ainda não há coordenadas para este recorte.'
-              : attackHeatmap
-                ? `${total} ataques. Melhor taxa por região: ${strongest?.zoneId ? `Z${strongest.zoneId}, ` : ''}${percent(strongest?.pointRate ?? 0)}.`
-                : receptionHeatmap
-                  ? `${total} recepções. Melhor sideout por região: ${strongest?.zoneId ? `Z${strongest.zoneId}, ` : ''}${percent(strongest?.sideoutRate ?? 0)}.`
-                  : `${total} contatos. Maior concentração: ${strongest?.zoneId ? `Z${strongest.zoneId}, ` : ''}${strongest?.count ?? 0} (${percent((strongest?.count ?? 0) / total)}).`}
-          </p>
+          <p className="eyebrow">Análise espacial</p>
+          <h3 id="spatial-points-title">Distribuição em quadra</h3>
         </div>
+        <span className="spatial-points-count">
+          {viewMode === 'plays' ? filteredPlays.length : filteredPoints.length} ações
+        </span>
+      </div>
+
+      <div className="spatial-points-filters">
         <label>
-          Mapa
+          Ação
           <select
-            value={preset}
-            onChange={(event) => setPreset(event.target.value as SpatialHeatmapPreset)}
+            value={selectedSkill}
+            onChange={(event) => changeSkill(event.target.value as Skill | 'all')}
           >
-            {PRESETS.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
+            <option value="all">Todas</option>
+            {availableSkills.map((value) => (
+              <option key={value} value={value}>
+                {SKILL_LABELS[value]}
               </option>
             ))}
           </select>
         </label>
-        <div className="spatial-view-toggle" aria-label="Modo de visualização espacial">
-          <button
-            type="button"
-            aria-pressed={viewMode === 'heatmap'}
-            onClick={() => setViewMode('heatmap')}
-          >
-            Heatmap
-          </button>
-          <button
-            type="button"
-            aria-pressed={viewMode === 'plays'}
-            onClick={() => setViewMode('plays')}
-          >
-            Jogadas
-          </button>
-        </div>
-      </div>
-
-      <div className="spatial-visual-grid">
-        {viewMode === 'heatmap' && (
-          <figure className="spatial-court-card">
-            <svg
-              className="volleyball-court"
-              viewBox="0 0 120 72"
-              role="img"
-              aria-label={`Heatmap: ${definition.label}`}
-            >
-              <rect className="spatial-court-floor" x="4" y="4" width="112" height="64" rx="2" />
-              <line className="spatial-court-line net" x1="60" y1="4" x2="60" y2="68" />
-              <line className="spatial-court-line muted" x1="41.33" y1="4" x2="41.33" y2="68" />
-              <line className="spatial-court-line muted" x1="78.67" y1="4" x2="78.67" y2="68" />
-              <text className="spatial-zone-label" x="22" y="20">
-                4
-              </text>
-              <text className="spatial-zone-label" x="34" y="20">
-                3
-              </text>
-              <text className="spatial-zone-label" x="48" y="20">
-                2
-              </text>
-              <text className="spatial-zone-label" x="22" y="56">
-                5
-              </text>
-              <text className="spatial-zone-label" x="34" y="56">
-                6
-              </text>
-              <text className="spatial-zone-label" x="48" y="56">
-                1
-              </text>
-              {attackHeatmap || receptionHeatmap
-                ? density.map((cell) => (
-                    <rect
-                      key={`${cell.x}-${cell.y}`}
-                      className="spatial-density-cell"
-                      x={4 + (cell.x - 1 / 12) * 112}
-                      y={4 + (cell.y - 1 / 12) * 64}
-                      width={112 / 6}
-                      height={64 / 6}
-                      opacity={
-                        0.15 +
-                        ((receptionHeatmap ? (cell.sideoutRate ?? 0) : (cell.pointRate ?? 0)) /
-                          (receptionHeatmap ? maxSideoutRate : maxPointRate)) *
-                          0.8
-                      }
-                    >
-                      <title>
-                        {receptionHeatmap
-                          ? `${cell.receptions ?? 0} recepções · ${cell.sideouts ?? 0} sideouts · ${percent(cell.sideoutRate ?? 0)}`
-                          : `${cell.attempts} ataques · ${cell.points} pontos · ${percent(cell.pointRate ?? 0)}`}
-                      </title>
-                    </rect>
-                  ))
-                : density.map((cell) => (
-                    <circle
-                      key={`${cell.x}-${cell.y}`}
-                      className="spatial-density"
-                      cx={2 + cell.x * 96}
-                      cy={2 + cell.y * 96}
-                      r={5 + (cell.count / maxCount) * 10}
-                      opacity={0.35 + (cell.count / maxCount) * 0.55}
-                    />
-                  ))}
-            </svg>
-            <figcaption>
-              {attackHeatmap
-                ? 'Cada região mostra a taxa de ponto; a amostra acompanha a intensidade.'
-                : receptionHeatmap
-                  ? 'Cada região mostra a taxa de sideout; a amostra acompanha a intensidade.'
-                  : `${definition.label}; círculos maiores representam mais contatos.`}
-            </figcaption>
-          </figure>
+        <fieldset>
+          <legend>Avaliação</legend>
+          {availableEvaluations.map((value) => (
+            <label key={value}>
+              <input
+                type="checkbox"
+                checked={activeEvaluations.includes(value)}
+                onChange={() => toggleEvaluation(value)}
+              />
+              {value}
+            </label>
+          ))}
+        </fieldset>
+        <fieldset>
+          <legend>Coordenada</legend>
+          <label>
+            <input
+              type="radio"
+              checked={coordinate === 'origin'}
+              onChange={() => setCoordinate('origin')}
+            />{' '}
+            Origem
+          </label>
+          <label>
+            <input
+              type="radio"
+              checked={coordinate === 'target'}
+              onChange={() => setCoordinate('target')}
+            />{' '}
+            Destino
+          </label>
+        </fieldset>
+        <label>
+          Atleta
+          <select value={playerId} onChange={(event) => setPlayerId(event.target.value)}>
+            <option value="all">Todos</option>
+            {players.map((value) => (
+              <option key={value} value={value}>
+                {playerLabel(value)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Set
+          <select value={setNumber} onChange={(event) => setSetNumber(event.target.value)}>
+            <option value="all">Todos</option>
+            {sets.map((value) => (
+              <option key={value} value={value}>
+                Set {value}
+              </option>
+            ))}
+          </select>
+        </label>
+        {positions.length > 0 && (
+          <label>
+            P do levantador
+            <select value={rotation} onChange={(e) => setRotation(e.target.value)}>
+              <option value="all">Todos</option>
+              {positions.map((p) => (
+                <option key={p} value={p}>
+                  P{p}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
-
-        <figure className="spatial-court-card">
-          <svg
-            className="volleyball-court"
-            viewBox="0 0 120 72"
-            role="img"
-            aria-label={
-              viewMode === 'plays' ? 'Mapa de jogadas individuais' : 'Mapa agregado de trajetórias'
-            }
-          >
-            <defs>
-              <marker
-                id="spatial-arrow"
-                markerWidth="6"
-                markerHeight="6"
-                refX="5"
-                refY="3"
-                orient="auto"
-              >
-                <path d="M0,0 L6,3 L0,6 Z" />
-              </marker>
-            </defs>
-            <rect className="spatial-court-floor" x="4" y="4" width="112" height="64" rx="2" />
-            <line className="spatial-court-line net" x1="60" y1="4" x2="60" y2="68" />
-            <line className="spatial-court-line muted" x1="41.33" y1="4" x2="41.33" y2="68" />
-            <line className="spatial-court-line muted" x1="78.67" y1="4" x2="78.67" y2="68" />
-            <text className="spatial-zone-label" x="22" y="20">
-              4
-            </text>
-            <text className="spatial-zone-label" x="34" y="20">
-              3
-            </text>
-            <text className="spatial-zone-label" x="48" y="20">
-              2
-            </text>
-            <text className="spatial-zone-label" x="22" y="56">
-              5
-            </text>
-            <text className="spatial-zone-label" x="34" y="56">
-              6
-            </text>
-            <text className="spatial-zone-label" x="48" y="56">
-              1
-            </text>
-            {viewMode === 'plays'
-              ? individualTrajectories.map((sample) => (
-                  <g key={sample.eventId}>
-                    <line
-                      className="spatial-route"
-                      x1={4 + (sample.origin?.x ?? 0) * 112}
-                      y1={4 + (sample.origin?.y ?? 0) * 64}
-                      x2={4 + (sample.target?.x ?? 0) * 112}
-                      y2={4 + (sample.target?.y ?? 0) * 64}
-                      strokeWidth="1"
-                      markerEnd="url(#spatial-arrow)"
-                    />
-                    <title>{`Evento ${sample.eventId}: origem → destino`}</title>
-                  </g>
-                ))
-              : trajectories.map((trajectory, index) => (
-                  <line
-                    key={`${trajectory.origin.x}-${trajectory.origin.y}-${trajectory.target.x}-${trajectory.target.y}-${index}`}
-                    className="spatial-route"
-                    x1={4 + (trajectory.origin.x ?? 0) * 112}
-                    y1={4 + (trajectory.origin.y ?? 0) * 64}
-                    x2={4 + (trajectory.target.x ?? 0) * 112}
-                    y2={4 + (trajectory.target.y ?? 0) * 64}
-                    strokeWidth={1 + Math.min(5, trajectory.count)}
-                    markerEnd="url(#spatial-arrow)"
-                  />
-                ))}
-          </svg>
-          <figcaption>
-            {viewMode === 'plays'
-              ? `${individualTrajectories.length} jogadas com origem e destino registrados.`
-              : `${trajectories.length} rotas agregadas com origem e destino.`}
-          </figcaption>
-        </figure>
       </div>
-
+      <div className="analysis-toolbar">
+        <div role="group" aria-label="Visualização">
+          {(
+            [
+              ['points', 'Pontos'],
+              ['heatmap', 'Heatmap'],
+              ['plays', 'Jogadas'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              type="button"
+              key={value}
+              aria-pressed={viewMode === value}
+              onClick={() => setViewMode(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setSkill('all');
+            setEvaluations(null);
+            setPlayerId('all');
+            setSetNumber('all');
+            setRotation('all');
+          }}
+        >
+          Limpar filtros
+        </button>
+      </div>
+      <div className="analysis-metrics">
+        {availableEvaluations.map((q) => (
+          <span key={q}>
+            {filteredSamples.filter((s) => s.evaluation === q).length} {q}
+          </span>
+        ))}
+      </div>
       {viewMode === 'heatmap' && (
+        <details className="analysis-adjustments">
+          <summary>Ajustes do heatmap</summary>
+          <label>
+            Raio
+            <input
+              type="range"
+              min="0.04"
+              max="0.35"
+              step="0.01"
+              value={radius}
+              onChange={(e) => setRadius(Number(e.target.value))}
+            />
+          </label>
+          <label>
+            Intensidade
+            <input
+              type="range"
+              min="0.2"
+              max="3"
+              step="0.1"
+              value={intensity}
+              onChange={(e) => setIntensity(Number(e.target.value))}
+            />
+          </label>
+          <small>Densidade: menor → maior</small>
+        </details>
+      )}
+
+      {viewMode === 'heatmap' && filteredPoints.length > 0 ? (
+        <div className="analysis-heat-court">
+          <HeatmapLayer points={filteredPoints} radius={radius} intensity={intensity} />
+          <PointCourt points={[]} heatmap />
+        </div>
+      ) : viewMode === 'points' && filteredPoints.length > 0 ? (
+        <PointCourt points={filteredPoints} />
+      ) : viewMode === 'plays' && filteredPlays.length > 0 ? (
+        <TrajectoryCourt samples={filteredPlays} />
+      ) : (
+        <p className="spatial-points-empty">Nenhuma ação corresponde aos filtros selecionados.</p>
+      )}
+      {viewMode === 'plays' && <small>● Origem (amarelo) → destino (verde)</small>}
+      <details className="analysis-adjustments">
+        <summary>Ver tabela detalhada · {filteredSamples.length} ações</summary>
         <div className="analytics-table-scroll">
-          <table className="analytics-table" aria-label="Dados espaciais equivalentes ao heatmap">
+          <table className="analytics-table">
             <thead>
               <tr>
-                <th>Zona</th>
-                <th>X</th>
-                <th>Y</th>
-                <th>{attackHeatmap ? 'Ataques' : receptionHeatmap ? 'Recepções' : 'Contatos'}</th>
-                <th>{attackHeatmap ? 'Pontos' : receptionHeatmap ? 'Sideouts' : 'Participação'}</th>
-                {(attackHeatmap || receptionHeatmap) && (
-                  <th>{attackHeatmap ? 'Taxa de ponto' : 'Taxa de sideout'}</th>
-                )}
+                <th>Atleta</th>
+                <th>Ação</th>
+                <th>Qualidade</th>
+                <th>Set</th>
+                <th>P</th>
+                <th>Origem</th>
+                <th>Destino</th>
               </tr>
             </thead>
             <tbody>
-              {density.map((cell) => (
-                <tr key={`${cell.x}-${cell.y}`}>
-                  <th scope="row">{cell.zoneId ? `Z${cell.zoneId}` : 'Grade'}</th>
-                  <td>{cell.x.toFixed(2)}</td>
-                  <td>{cell.y.toFixed(2)}</td>
-                  <td>
-                    {attackHeatmap
-                      ? cell.attempts
-                      : receptionHeatmap
-                        ? cell.receptions
-                        : cell.count}
-                  </td>
-                  <td>
-                    {attackHeatmap
-                      ? cell.points
-                      : receptionHeatmap
-                        ? cell.sideouts
-                        : total
-                          ? percent(cell.count / total)
-                          : '—'}
-                  </td>
-                  {(attackHeatmap || receptionHeatmap) && (
-                    <td>
-                      {percent(receptionHeatmap ? (cell.sideoutRate ?? 0) : (cell.pointRate ?? 0))}
-                    </td>
-                  )}
+              {filteredSamples.map((s) => (
+                <tr key={s.eventId}>
+                  <td>{playerLabel(s.playerId)}</td>
+                  <td>{SKILL_LABELS[s.skill]}</td>
+                  <td>{s.evaluation ?? '—'}</td>
+                  <td>{s.setNumber}</td>
+                  <td>{s.setterPosition ?? '—'}</td>
+                  <td>{s.origin ? `${s.origin.x}, ${s.origin.y}` : '—'}</td>
+                  <td>{s.target ? `${s.target.x}, ${s.target.y}` : '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-
-      <div className="analytics-table-scroll">
-        <table className="analytics-table" aria-label="Matriz espacial de origem por destino">
-          <thead>
-            <tr>
-              <th>Origem</th>
-              <th>Destino</th>
-              <th>Contatos</th>
-            </tr>
-          </thead>
-          <tbody>
-            {matrix.map((cell) => (
-              <tr key={`${cell.originZoneId}-${cell.targetZoneId}`}>
-                <th scope="row">Z{cell.originZoneId}</th>
-                <td>Z{cell.targetZoneId}</td>
-                <td>{cell.count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      </details>
     </section>
   );
 }

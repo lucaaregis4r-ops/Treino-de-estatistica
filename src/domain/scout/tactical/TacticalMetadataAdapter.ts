@@ -17,6 +17,13 @@ function compact<T extends object>(value: T): T | undefined {
   return Object.values(value).some((item) => item !== undefined) ? value : undefined;
 }
 
+function mergeDefined<T extends object>(previous: T | undefined, patch: T | undefined): T {
+  return {
+    ...previous,
+    ...Object.fromEntries(Object.entries(patch ?? {}).filter(([, value]) => value !== undefined)),
+  } as T;
+}
+
 function capturedTrajectory(metadata: ScoutEventMetadata): BallTrajectory | undefined {
   const draft = metadata.captureDraft;
   return compact({
@@ -95,6 +102,37 @@ export function normalizeTacticalMetadata(
   zoneSystem?: ZoneSystemProfile,
 ): ScoutEventMetadata | undefined {
   if (!metadata) return undefined;
+  // spatial is already executor-relative and uses a separate service surface, not CourtLocation.
+  // Preserve it verbatim while normalizing only legacy tactical locations.
+  if (metadata.tactical && metadata.captureDraft) {
+    // Normalize the new draft separately so its orientation does not rotate existing locations.
+    const patch = normalizeTacticalMetadata(
+      { ...metadata, tactical: undefined },
+      skill,
+      zoneSystem,
+    )!;
+    const previous = metadata.tactical;
+    const next = patch.tactical!;
+    const tactical = mergeDefined(previous, next);
+    return {
+      ...patch,
+      tactical: {
+        ...tactical,
+        trajectory: mergeDefined(previous.trajectory, next.trajectory),
+        reception: mergeDefined(previous.reception, next.reception),
+        set: mergeDefined(previous.set, next.set),
+        block: mergeDefined(previous.block, next.block),
+        serve: {
+          ...mergeDefined(previous.serve, next.serve),
+          trajectory: mergeDefined(previous.serve?.trajectory, next.serve?.trajectory),
+        },
+        attack: {
+          ...mergeDefined(previous.attack, next.attack),
+          trajectory: mergeDefined(previous.attack?.trajectory, next.attack?.trajectory),
+        },
+      },
+    };
+  }
   if (
     metadata.schemaVersion === TACTICAL_METADATA_SCHEMA_VERSION &&
     metadata.tactical &&

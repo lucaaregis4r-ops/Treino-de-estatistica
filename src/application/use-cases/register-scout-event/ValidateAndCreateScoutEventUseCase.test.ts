@@ -43,6 +43,46 @@ function useCase() {
 }
 
 describe('ValidateAndCreateScoutEventUseCase', () => {
+  it.each(['typed', 'visual', 'hybrid'] as const)(
+    'validates and preserves spatial metadata for %s',
+    (inputMode) => {
+      const spatial = {
+        origin: { surface: 'court', x: 0.123456789012345, y: 0.987654321098765 },
+        destination: { surface: 'court', x: 0.876543210987654, y: 0.012345678901234 },
+      } as const;
+      const result = useCase().execute({
+        candidate: { ...candidate, metadata: { spatial } },
+        inputMode,
+        profiles: resolved.value,
+        context,
+      });
+      if (!result.ok) throw result.error;
+      expect(result.value.event.metadata?.spatial).toEqual(spatial);
+      expect(result.value.event.metadata?.tactical?.attack?.trajectory?.origin).toBeUndefined();
+      const invalid = useCase().execute({
+        candidate: {
+          ...candidate,
+          metadata: { spatial: { ...spatial, destination: { ...spatial.destination, x: NaN } } },
+        },
+        inputMode,
+        profiles: resolved.value,
+        context,
+      });
+      expect(invalid.ok).toBe(false);
+      if (!invalid.ok)
+        expect(invalid.error.issues).toContainEqual(
+          expect.objectContaining({ code: 'invalid_spatial_coordinate' }),
+        );
+      const typed = new RegisterScoutEventUseCase().execute({
+        rawCode: '08A#',
+        metadata: { spatial },
+        profiles: resolved.value,
+        context,
+      });
+      expect(typed.ok && typed.value.event.metadata?.spatial).toEqual(spatial);
+    },
+  );
+
   it('keeps the typed route in parity with the canonical-candidate route', () => {
     const typed = new RegisterScoutEventUseCase().execute({
       rawCode: '08A#',

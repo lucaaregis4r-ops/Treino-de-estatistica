@@ -3,7 +3,7 @@ import { defaultTacticalInput } from '../../../profiles/code/default-compact/def
 import type { ScoutEvent } from '../events/ScoutEvent';
 import { canonicalCourtLocation, normalizedCourtPoint } from '../tactical/CourtGeometry';
 import { CourtCoordinateValidator } from '../validators/CourtCoordinateValidator';
-import { SpatialProjection } from './SpatialProjection';
+import { SpatialProjection, spatialDensityAt } from './SpatialProjection';
 
 function event(
   id: string,
@@ -77,12 +77,13 @@ describe('canonical court geometry and spatial projection', () => {
     expect(projection.samples).toHaveLength(4);
     expect(projection.density).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ preset: 'attack_target', zoneId: '1', count: 2 }),
-        expect.objectContaining({ preset: 'serve_target', zoneId: '6', count: 1 }),
+        expect.objectContaining({ preset: 'attack_target', zoneId: '1', count: 1 }),
         expect.objectContaining({ preset: 'reception_contact', zoneId: '6', count: 1 }),
       ]),
     );
     expect(projection.trajectories).toHaveLength(1);
+    expect(projection.samples[1].target).toEqual({ zoneId: '1' });
+    expect(projection.density.some((cell) => cell.preset === 'serve_target')).toBe(false);
     expect(projection.matrix).toContainEqual({
       teamId: 'team_a',
       skill: 'attack',
@@ -90,6 +91,68 @@ describe('canonical court geometry and spatial projection', () => {
       targetZoneId: '1',
       count: 2,
     });
+  });
+
+  it('adds nearby radial density, separates distant points and surfaces, and retains volume', () => {
+    const point = { surface: 'court' as const, x: 0.4, y: 0.5 };
+    const nearby = { ...point, x: 0.42 };
+    const far = { ...point, x: 0.9 };
+    const one = spatialDensityAt([point], 'court', 0.4, 0.5);
+    expect(one).toBe(1);
+    expect(spatialDensityAt([point, nearby], 'court', 0.4, 0.5)).toBeGreaterThan(one);
+    expect(spatialDensityAt([point, far], 'court', 0.4, 0.5)).toBe(one);
+    expect(spatialDensityAt([point, point, point], 'court', 0.4, 0.5)).toBe(3);
+    expect(spatialDensityAt([{ ...point, surface: 'serviceZone' }], 'court', 0.4, 0.5)).toBe(0);
+    expect(spatialDensityAt([point], 'serviceZone', 0.4, 0.5)).toBe(0);
+  });
+
+  it('prioritizes V2 endpoints and projects reception destinations and external serve routes', () => {
+    const origin = { surface: 'court' as const, x: 0.23, y: 0.46 };
+    const destination = { surface: 'court' as const, x: 0.43, y: 0.25 };
+    const reception: ScoutEvent = {
+      ...event('receive_1', 'reception', { reception: { contactLocation: { x: 0.9, y: 0.9 } } }),
+      metadata: { spatial: { origin, destination } },
+    };
+    const serve: ScoutEvent = {
+      ...event('serve_2', 'serve', undefined),
+      metadata: {
+        spatial: {
+          origin: { surface: 'serviceZone', x: 0.7, y: 0.8 },
+          destination: { ...destination, x: 0.8 },
+        },
+      },
+    };
+    const projection = new SpatialProjection().project([reception, serve]);
+    expect(projection.samples[0]).toMatchObject({ source: 'spatial', origin, target: destination });
+    expect(projection.density.map((cell) => cell.preset)).toEqual([
+      'reception_contact',
+      'reception_target',
+      'serve_target',
+      'serve_origin',
+    ]);
+    expect(projection.density.find((cell) => cell.preset === 'serve_origin')).toMatchObject({
+      surface: 'serviceZone',
+    });
+    expect(projection.trajectories).toHaveLength(2);
+    expect(projection.trajectories[1].origin).toEqual(serve.metadata?.spatial?.origin);
+    const corrected = { ...serve, metadata: { spatial: { origin, destination } } };
+    expect(new SpatialProjection().project([corrected]).samples).toHaveLength(1);
+    expect(new SpatialProjection().project([corrected]).trajectories[0].origin).toEqual(origin);
+    expect(new SpatialProjection().project([])).toEqual({
+      samples: [],
+      density: [],
+      trajectories: [],
+      matrix: [],
+    });
+  });
+
+  it('does not fabricate a destination or route for legacy reception contacts', () => {
+    const projection = new SpatialProjection().project([
+      event('receive_1', 'reception', { reception: { contactLocation: { x: 0.2, y: 0.3 } } }),
+    ]);
+    expect(projection.samples[0].source).toBe('legacy');
+    expect(projection.density.map((cell) => cell.preset)).toEqual(['reception_contact']);
+    expect(projection.trajectories).toEqual([]);
   });
 
   it('rejects persisted coordinates outside the canonical range', () => {

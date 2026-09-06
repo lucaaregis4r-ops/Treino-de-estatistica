@@ -4,7 +4,6 @@ import type {
   TacticalMetricGroup,
   TacticalMetricViewModel,
 } from '../../../application/view-models/TacticalAnalyticsViewModel';
-import { MatchAnalyticsPanel } from './MatchAnalyticsPanel';
 
 interface SummaryScreenProps {
   readonly workspace: MatchWorkspace;
@@ -61,11 +60,6 @@ export function SummaryScreen({
         <strong>{teamB.name}</strong>
       </div>
 
-      <nav className="summary-jump-links" aria-label="Atalhos do resumo">
-        <a href="#visual-analytics">Análise visual</a>
-        <a href="#spatial-analytics">Spatial Analytics</a>
-        <a href="#audit-tables">Tabelas auditáveis</a>
-      </nav>
       <section className="set-scoreboard" aria-labelledby="set-scoreboard-title">
         <div>
           <p className="eyebrow">Placar completo</p>
@@ -167,7 +161,6 @@ export function SummaryScreen({
           </div>
         )}
       </section>
-      <MatchAnalyticsPanel report={workspace.report} />
       <section className="folder-export" aria-labelledby="folder-export-title">
         <div>
           <h2 id="folder-export-title">Exportar pacote para uma pasta</h2>

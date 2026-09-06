@@ -1,0 +1,261 @@
+.visual-workspace .capture-workspace {
+  order: -1;
+}
+.scout-screen:has(.visual-workspace) .score-header { position: static; box-shadow: none; }
+.visual-workspace { padding-top: 8px; }
+.visual-workspace .volley-visual { padding: 12px 16px; }
+.visual-workspace .volley-heading { margin-bottom: 8px; }
+.visual-workspace .volley-heading h2 { font-size: 1.05rem; }
+.visual-workspace .volley-heading .eyebrow { display: none; }
+.visual-workspace .volley-teams { margin-bottom: 10px; }
+.visual-workspace .volley-board { grid-template-columns: 135px minmax(0, 1fr) 80px; gap: 12px; max-width: 950px; margin: auto; }
+.visual-workspace .volley-court { padding: 8px 12px; }
+.visual-workspace .volley-court .spatial-v2 { max-width: min(580px, 75vh); }
+.visual-workspace .volley-visual button:not(.primary) { padding: 7px 10px; }
+.visual-workspace .volley-roster { margin-top: 10px; padding-top: 10px; }
+.visual-workspace .volley-details { margin-top: 8px; }
+.visual-workspace .volley-submit { margin-top: 8px; padding-top: 8px; }
+.visual-workspace .volley-roster button { gap: 6px; }
+@media (max-width: 760px) { .visual-workspace .volley-board { grid-template-columns: minmax(0, 1fr); } }
+.volley-visual {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: clamp(14px, 2vw, 28px);
+}
+.volley-visual fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.volley-heading,
+.volley-court-heading,
+.volley-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.volley-heading {
+  margin-bottom: 20px;
+}
+.volley-heading h2 {
+  margin: 4px 0;
+  font-size: 1.5rem;
+}
+.volley-heading p:last-child,
+.volley-submit p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 6px 0;
+}
+.volley-live {
+  color: var(--accent);
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+.volley-visual h3 {
+  margin: 0 0 12px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+.volley-visual button:not(.primary) {
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 11px 14px;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.volley-visual button:not(.primary):hover {
+  border-color: var(--muted);
+}
+.volley-visual button[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.volley-visual button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+.volley-visual fieldset:disabled {
+  opacity: 0.65;
+  pointer-events: none;
+}
+.volley-teams {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.volley-board {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 90px;
+  gap: 20px;
+  align-items: start;
+}
+.volley-actions,
+.volley-quality {
+  display: grid;
+  gap: 7px;
+}
+.volley-actions button {
+  text-align: left;
+  font-size: 0.84rem !important;
+}
+.volley-quality button {
+  font-size: 1.25rem !important;
+  padding: 7px !important;
+  font-weight: 800 !important;
+}
+.volley-court {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #0b1512;
+}
+.volley-court-heading {
+  align-items: start;
+}
+.volley-court-heading span {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.volley-court .spatial-v2 {
+  max-width: none;
+  margin: 12px auto 0;
+}
+.volley-roster {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.volley-roster h3 small {
+  font-size: 0.68rem;
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left: 8px;
+}
+.volley-roster > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.volley-roster button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 210px;
+}
+.volley-roster b {
+  font:
+    800 1.2rem ui-monospace,
+    monospace;
+}
+.volley-roster button span {
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.volley-details {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  font-size: 0.8rem;
+}
+.volley-details small {
+  color: var(--muted);
+  margin-right: 10px;
+}
+.volley-submit {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.volley-submit .primary {
+  min-width: 205px;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+}
+@media (max-width: 760px) {
+  .volley-board {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .volley-actions,
+  .volley-quality {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .volley-actions h3,
+  .volley-quality h3 {
+    width: 100%;
+    margin-bottom: 0;
+  }
+  .volley-quality button {
+    min-width: 44px;
+  }
+  .volley-court {
+    padding: 10px;
+  }
+  .volley-submit {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .volley-heading {
+    align-items: start;
+  }
+}
+.volley-score { display:flex; align-items:center; justify-content:center; gap:14px; padding:7px 12px; margin-bottom:8px; border:1px solid var(--line); border-radius:8px; background:#091611; }
+.volley-score > b { font:800 1.65rem ui-monospace,monospace; color:var(--accent); white-space:nowrap; }
+.volley-score > b span { color:var(--muted); font-size:1rem; }
+.volley-score strong { font-size:.8rem; }
+.volley-score > small { color:var(--muted); font-size:.7rem; }
+.visual-workspace .volley-roster .volley-rotation { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }
+.volley-rotation button { max-width:none; min-width:0; position:relative; flex-wrap:wrap; }
+.volley-rotation button small { color:var(--muted); font-size:.7rem; }
+.volley-rotation button[aria-pressed='true'] small { color:inherit; }
+.volley-rotation em { font-size:.6rem; font-style:normal; color:var(--cyan); }
+.volley-rotation button[aria-pressed='true'] em { color:var(--accent-ink); }
+.volley-rotation button.is-setter { border-color:var(--cyan); }
+.volley-visual .volley-bench-title { margin:8px 0 5px; }
+.volley-recent { border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
+.volley-recent header { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.volley-recent header h3 { margin:0; }
+.volley-recent header > div { display:flex; gap:5px; }
+.volley-recent ol { list-style:none; padding:0; margin:5px 0; }
+.volley-recent li { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--line); font-size:.7rem; }
+.volley-recent li > span { max-width:35%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); }
+.volley-recent li strong { flex:1; }
+.volley-recent small,.volley-shortcuts { color:var(--muted); font-size:.65rem; }
+.volley-visual .volley-recent button { padding:4px 7px !important; font-size:.65rem !important; }
+.volley-shortcuts { display:block; margin-top:4px; }
+.volley-visual:focus { outline:none; }
+@media (min-width: 900px) {
+ .visual-workspace .volley-visual > fieldset { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0 16px; grid-template-areas:'teams teams' 'board board' 'roster recent' 'details recent' 'footer footer' 'shortcuts shortcuts'; }
+ .volley-teams { grid-area:teams; }
+ .volley-board { grid-area:board; width:100%; }
+ .volley-roster { grid-area:roster; }
+ .volley-details { grid-area:details; }
+ .volley-submit { grid-area:footer; }
+ .volley-shortcuts { grid-area:shortcuts; }
+ .volley-recent { grid-area:recent; }
+ .visual-workspace .volley-court .spatial-v2 { max-width:min(470px,65vh); }
+}
+@media (max-width: 600px) { .volley-score { gap:8px; flex-wrap:wrap; } .volley-score > small { width:100%; text-align:center; } }
+.volley-libero-controls { display:flex; align-items:center; gap:8px; margin-bottom:7px; font-size:.7rem; color:var(--muted); }
+.volley-libero-controls label { display:flex; align-items:center; gap:5px; }

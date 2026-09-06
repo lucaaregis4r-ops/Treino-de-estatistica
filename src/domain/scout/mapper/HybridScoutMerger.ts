@@ -41,7 +41,13 @@ function mergedMetadata(
     },
     block: { ...enrichment.block, ...primary.block },
   };
-  return normalizeTacticalMetadata({ schemaVersion: '2.0.0', tactical: merged });
+  return normalizeTacticalMetadata({
+    ...visual,
+    ...typed,
+    spatial: typed.spatial ?? visual.spatial,
+    schemaVersion: '2.0.0',
+    tactical: merged,
+  });
 }
 
 export class HybridScoutMerger {

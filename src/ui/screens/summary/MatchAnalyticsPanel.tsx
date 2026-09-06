@@ -23,6 +23,7 @@ function audit(metric: { readonly numerator: number; readonly denominator: numbe
 }
 
 export function MatchAnalyticsPanel({ report }: MatchAnalyticsPanelProps) {
+  const winProbability = report.winProbability ?? { teamA: .5, teamB: .5, setTeamA: .5, setTeamB: .5, points: [] };
   const [teamId, setTeamId] = useState(report.teams[0]?.id ?? '');
   const teamPlayers = report.players.filter((player) => player.teamId === teamId);
   const [playerId, setPlayerId] = useState('');
@@ -51,8 +52,8 @@ export function MatchAnalyticsPanel({ report }: MatchAnalyticsPanelProps) {
     >
       <div className="tactical-analytics-heading">
         <div>
-          <p className="eyebrow">Analytics auditável</p>
-          <h2 id="match-analytics-title">Atletas, rotações e levantador</h2>
+          <p className="eyebrow">Estatísticas da partida</p>
+          <h2 id="match-analytics-title">Análise</h2>
         </div>
         <label>
           Equipe
@@ -65,18 +66,23 @@ export function MatchAnalyticsPanel({ report }: MatchAnalyticsPanelProps) {
           </select>
         </label>
       </div>
+      <section className="win-probability-card" aria-labelledby="win-probability-title">
+        <div className="win-probability-heading"><div><p className="eyebrow">Estimativa por estado do jogo</p><h3 id="win-probability-title">Probabilidade de vitória</h3></div><strong>{winProbability.teamA.toLocaleString('pt-BR',{style:'percent',maximumFractionDigits:1})} × {winProbability.teamB.toLocaleString('pt-BR',{style:'percent',maximumFractionDigits:1})}</strong></div>
+        <svg className="win-probability-chart" viewBox="0 0 600 180" role="img" aria-label="Gráfico de probabilidade de vitória"><line className="probability-midline" x1="0" y1="90" x2="600" y2="90" /><polyline className="probability-line-a" points={winProbability.points.map((point,index)=>`${winProbability.points.length < 2 ? 0 : index*600/(winProbability.points.length-1)},${180-point.teamA*180}`).join(' ')} /><polyline className="probability-line-b" points={winProbability.points.map((point,index)=>`${winProbability.points.length < 2 ? 0 : index*600/(winProbability.points.length-1)},${180-point.teamB*180}`).join(' ')} />{winProbability.points.map((point,index)=><circle key={point.sequence} className={point.actionImpact && point.actionImpact >= 0 ? 'probability-point-a' : 'probability-point-b'} cx={winProbability.points.length < 2 ? 0 : index*600/(winProbability.points.length-1)} cy={180-point.teamA*180} r="2"><title>Ponto {point.sequence} · {point.scoreTeamA}–{point.scoreTeamB} · impacto {(point.actionImpact ?? 0).toLocaleString('pt-BR',{style:'percent',maximumFractionDigits:1})}</title></circle>)}</svg>
+        <div className="probability-legend"><span><i className="probability-dot-a" />{report.teams[0]?.name}</span><span><i className="probability-dot-b" />{report.teams[1]?.name}</span><small>Estimativa baseada no placar atual; calibrar com histórico para uso preditivo.</small></div>
+        <div className="probability-impacts"><strong>Maiores variações</strong>{winProbability.points.slice().sort((a,b)=>Math.abs(b.actionImpact ?? 0)-Math.abs(a.actionImpact ?? 0)).slice(0,3).map(point=><span key={point.sequence}>Ponto {point.sequence} · {point.actionSkill ?? 'ação'}: {(point.actionImpact ?? 0).toLocaleString('pt-BR',{style:'percent',signDisplay:'always',maximumFractionDigits:1})}</span>)}</div>
+      </section>
 
-      <div className="visual-analytics-grid">
+      <SpatialAnalyticsPanel key={teamId} report={report} teamId={teamId} />
+      <details className="analysis-adjustments"><summary>Indicadores de desempenho</summary><div className="visual-analytics-grid">
         <TeamPerformanceChart report={report} />
         <RotationPerformanceChart report={report} teamId={teamId} />
         <SetterDistributionChart report={report} teamId={teamId} />
         <AttackEvennessChart report={report} teamId={teamId} />
         <SetterRepetitionChart report={report} teamId={teamId} />
-      </div>
+      </div></details>
 
-      <SpatialAnalyticsPanel report={report} teamId={teamId} />
-
-      <div id="audit-tables" className="analytics-section-heading">
+      <details className="analysis-adjustments"><summary>Tabelas estatísticas da partida</summary><div id="audit-tables" className="analytics-section-heading">
         <p className="eyebrow">Conferência detalhada</p>
         <h3>Tabelas auditáveis</h3>
         <p>
@@ -250,6 +256,7 @@ export function MatchAnalyticsPanel({ report }: MatchAnalyticsPanelProps) {
           <p className="tactical-empty">Ainda não há ataques com contexto neste recorte.</p>
         )}
       </div>
+      </details>
     </section>
   );
 }

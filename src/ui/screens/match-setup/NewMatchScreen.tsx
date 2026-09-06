@@ -1,4 +1,12 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import type {
+  AthleteRegistration,
+  TeamRegistration,
+} from '../../../domain/match/entities/Registration';
+import {
+  browserAthleteRegistrations,
+  browserTeamRegistrations,
+} from '../../app/createBrowserService';
 import type {
   CreateMatchInput,
   LineupPositionInput,
@@ -20,6 +28,7 @@ const playerRoleAliases: Readonly<Record<string, PlayerRole>> = {
   libero: 'libero',
   líbero: 'libero',
   defensivo: 'defensive_specialist',
+  defensive_specialist: 'defensive_specialist',
   custom: 'custom',
 };
 
@@ -76,6 +85,24 @@ const profileOptions: readonly {
 ];
 
 export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMatchScreenProps) {
+  const [registeredTeams, setRegisteredTeams] = useState<readonly TeamRegistration[]>([]);
+  const [registeredAthletes, setRegisteredAthletes] = useState<readonly AthleteRegistration[]>([]);
+  const [registrationError, setRegistrationError] = useState('');
+  useEffect(() => {
+    let active = true;
+    void Promise.all([browserTeamRegistrations.list(), browserAthleteRegistrations.list()]).then(
+      ([teams, athletes]) => {
+        if (!active) return;
+        if (teams.ok) setRegisteredTeams(teams.value);
+        else setRegistrationError(teams.error.message);
+        if (athletes.ok) setRegisteredAthletes(athletes.value);
+        else setRegistrationError(athletes.error.message);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
   const [teamAName, setTeamAName] = useState('Equipe A');
   const [teamBName, setTeamBName] = useState('Equipe B');
   const [teamAPlayers, setTeamAPlayers] = useState(
@@ -92,6 +119,44 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
   const [complexityProfileId, setComplexityProfileId] =
     useState<CreateMatchInput['complexityProfileId']>('basic');
   const [codeProfileId, setCodeProfileId] = useState('data_volley_basic_v1');
+
+  function useRegisteredTeam(id: string, side: 'A' | 'B') {
+    const team = registeredTeams.find((item) => item.id === id);
+    if (!team) return;
+    const roster = team.athleteIds.flatMap((athleteId) => {
+      const athlete = registeredAthletes.find((item) => item.id === athleteId);
+      return athlete?.active ? [athlete] : [];
+    });
+    if (roster.some((athlete) => athlete.number === undefined)) {
+      setRegistrationError(
+        'Preencha a camisa dos atletas ativos no cadastro antes de usar esta equipe.',
+      );
+      return;
+    }
+    setRegistrationError('');
+    const text = roster
+      .map(
+        (athlete) =>
+          `${athlete.number} ${athlete.name}${athlete.position ? ` | ${athlete.position}` : ''}`,
+      )
+      .join('\n');
+    const lineup = tacticalRoles.map((role, index) => ({
+      position: (index + 1) as LineupPositionInput['position'],
+      tacticalRole: role.value,
+      playerNumber: roster[index]?.number ?? 0,
+    }));
+    if (side === 'A') {
+      setTeamAName(team.name);
+      setTeamAPlayers(text);
+      setTeamALineup(lineup);
+      setTeamALibero(undefined);
+    } else {
+      setTeamBName(team.name);
+      setTeamBPlayers(text);
+      setTeamBLineup(lineup);
+      setTeamBLibero(undefined);
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -128,9 +193,25 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
           Voltar
         </button>
       </div>
+      {registrationError && <p role="alert">{registrationError}</p>}
       <form className="setup-form" onSubmit={(event) => void submit(event)}>
         <div className="team-form-card">
           <span className="team-marker">A</span>
+          <label>
+            Usar equipe cadastrada
+            <select
+              disabled={busy}
+              defaultValue=""
+              onChange={(e) => useRegisteredTeam(e.target.value, 'A')}
+            >
+              <option value="">Preencher manualmente</option>
+              {registeredTeams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             Nome da equipe
             <input
@@ -154,6 +235,21 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
         </div>
         <div className="team-form-card team-b">
           <span className="team-marker">B</span>
+          <label>
+            Usar equipe cadastrada
+            <select
+              disabled={busy}
+              defaultValue=""
+              onChange={(e) => useRegisteredTeam(e.target.value, 'B')}
+            >
+              <option value="">Preencher manualmente</option>
+              {registeredTeams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             Nome da equipe
             <input

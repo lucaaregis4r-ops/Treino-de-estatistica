@@ -41,8 +41,12 @@ function metadataFor(
       ? { captureMethod: draft.captureMethod ?? ('selected' as const) }
       : {}),
   };
-  return Object.keys(captureDraft).length > 0
-    ? normalizeTacticalMetadata({ captureDraft }, draft.skill, profile.tacticalInput?.zoneSystem)
+  return Object.keys(captureDraft).length > 0 || draft.spatial !== undefined
+    ? normalizeTacticalMetadata(
+        { captureDraft, ...(draft.spatial !== undefined ? { spatial: draft.spatial } : {}) },
+        draft.skill,
+        profile.tacticalInput?.zoneSystem,
+      )
     : undefined;
 }
 

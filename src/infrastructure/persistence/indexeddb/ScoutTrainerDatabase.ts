@@ -3,9 +3,11 @@ import { isSkill } from '../../../domain/scout/entities/Skill';
 import type { ScoutEvent } from '../../../domain/scout/events/ScoutEvent';
 import { normalizeTacticalMetadata } from '../../../domain/scout/tactical/TacticalMetadataAdapter';
 
-export const DATABASE_VERSION = 5;
+export const DATABASE_VERSION = 6;
 
 export const STORE_NAMES = {
+  athleteRegistrations: 'athleteRegistrations',
+  teamRegistrations: 'teamRegistrations',
   matches: 'matches',
   events: 'events',
   teams: 'teams',
@@ -120,6 +122,10 @@ export class ScoutTrainerDatabase {
         if (request.transaction) migrateToVersion2(database, request.transaction);
         if (event.oldVersion < 3 && request.transaction) migrateToVersion3(request.transaction);
         if (event.oldVersion < 5) migrateToVersion5(database);
+        if (event.oldVersion < 6) {
+          createStore(database, STORE_NAMES.athleteRegistrations, 'id');
+          createStore(database, STORE_NAMES.teamRegistrations, 'id');
+        }
       };
 
       request.onsuccess = () => {

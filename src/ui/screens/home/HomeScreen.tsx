@@ -5,6 +5,7 @@ interface HomeScreenProps {
   readonly busy: boolean;
   readonly onNewMatch: () => void;
   readonly onTraining: () => void;
+  readonly onAllMatches: () => void;
   readonly onOpenMatch: (matchId: string) => Promise<void>;
   readonly onImportBackup: (serialized: string) => Promise<void>;
 }
@@ -22,6 +23,7 @@ export function HomeScreen({
   busy,
   onNewMatch,
   onTraining,
+  onAllMatches,
   onOpenMatch,
   onImportBackup,
 }: HomeScreenProps) {
@@ -66,7 +68,7 @@ export function HomeScreen({
           </div>
         ) : (
           <ul className="match-list">
-            {matches.map((match) => (
+            {matches.slice(0, 5).map((match) => (
               <li key={match.id}>
                 <button type="button" onClick={() => void onOpenMatch(match.id)} disabled={busy}>
                   <span>
@@ -82,6 +84,9 @@ export function HomeScreen({
             ))}
           </ul>
         )}
+        <button className="button secondary" type="button" onClick={onAllMatches}>
+          Ver todas as partidas
+        </button>
       </aside>
     </section>
   );

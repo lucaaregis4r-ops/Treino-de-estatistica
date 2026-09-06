@@ -33,6 +33,7 @@ import { setterAttackConversionReports } from '../../domain/statistics/metrics/a
 import type { MetricResult } from '../../domain/statistics/metrics/MetricResult';
 import { SpatialProjection } from '../../domain/scout/spatial/SpatialProjection';
 import type { ZoneSystemProfile } from '../../domain/scout/tactical/ZoneSystemProfile';
+import { buildWinProbability } from './WinProbabilityService';
 
 export interface MatchAnalyticsInput {
   readonly events: readonly ScoutEvent[];
@@ -665,6 +666,7 @@ export class MatchAnalyticsService {
         setterAttackConversion: Object.freeze(setterAttackConversion),
       }),
       spatial: this.spatialProjection.project(input.events, input.tacticalRally, input.zoneSystem),
+      winProbability: buildWinProbability(input.events, input.state, [input.teams[0].id, input.teams[1].id]),
     });
   }
 }

@@ -22,8 +22,8 @@ import { tacticalValue } from '../../../domain/scout/tactical/TacticalMetadataAd
 import type { CourtLocation } from '../../../domain/scout/tactical/TacticalMetadata';
 import { DirectionResolver } from '../../../domain/scout/tactical/DirectionResolver';
 import { TacticalInputInterpreter } from '../../../domain/scout/input/TacticalInputInterpreter';
-import { TacticalCourt, type CourtSelectionMode } from './TacticalCourt';
-import { MiniCourt, type MiniCourtStep } from './MiniCourt';
+import type { SpatialMetadata } from '../../../domain/scout/spatial/SpatialMetadata';
+import { SpatialCourtInputV2 } from './SpatialCourtInputV2';
 import { matchesShortcut } from './keyboardShortcut';
 import { ScoreHeader } from './ScoreHeader';
 import { MatchContextBar } from './MatchContextBar';
@@ -36,6 +36,7 @@ import { NextSetLineupEditor } from './NextSetLineupEditor';
 import { ATTACK_COMBINATION_OPTIONS } from './attackCombinationOptions';
 import { ScoutModeSelector } from './ScoutModeSelector';
 import { VisualScoutForm } from './VisualScoutForm';
+import { VolleyballVisualScout } from './VolleyballVisualScout';
 
 interface ScoutScreenProps {
   readonly workspace: MatchWorkspace;
@@ -114,11 +115,11 @@ export function ScoutScreen({
   const [attackCombination, setAttackCombination] = useState('');
   const [blockersCount, setBlockersCount] = useState('');
   const [phase, setPhase] = useState<'' | 'sideout' | 'breakpoint' | 'transition'>('');
-  const [courtMode, setCourtMode] = useState<CourtSelectionMode>('origin');
   const [drawnOrigin, setDrawnOrigin] = useState<CourtLocation>();
   const [drawnTarget, setDrawnTarget] = useState<CourtLocation>();
   const [captureDirection, setCaptureDirection] = useState(true);
-  const [miniSuppressed, setMiniSuppressed] = useState(false);
+  const [spatialCapture, setSpatialCapture] = useState<{ key: string; value: SpatialMetadata }>();
+  const [captureCycle, setCaptureCycle] = useState(0);
   const [quickEditorOpen, setQuickEditorOpen] = useState(false);
   const [quickCommand, setQuickCommand] = useState('');
   const [quickError, setQuickError] = useState('');
@@ -146,7 +147,6 @@ export function ScoutScreen({
   }
   const inputController = controllerRef.current.controller;
   const decodedCapture = inputController.decode(buffer);
-  const lastCoreCodeRef = useRef<string | undefined>(decodedCapture?.coreCode);
   const captureEvaluation = decodedCapture
     ? Object.keys(workspace.profiles.codeProfile.evaluations).find((symbol) =>
         decodedCapture.coreCode.endsWith(symbol),
@@ -185,45 +185,20 @@ export function ScoutScreen({
   const tactical = ['tactical', 'advanced'].includes(workspace.profiles.complexityProfile.level);
   const advanced = workspace.profiles.complexityProfile.level === 'advanced';
   const tacticalInput = workspace.profiles.codeProfile.tacticalInput;
-const miniCourtMode: 'point' | 'trajectory' | undefined =
-    typedCoreSkill === 'reception'
-      ? 'point'
-      : typedCoreSkill === 'attack' ||
-          (typedCoreSkill === 'serve' && buffer !== servePrefillValueRef.current)
-        ? 'trajectory'
-        : undefined;
-
-const miniCourtOpen =
-tactical &&
-!!tacticalInput &&
-captureDirection &&
-!editingId &&
-inputMode === 'typed' &&
-!!miniCourtMode &&
-!!decodedCapture &&
-!miniSuppressed;
-// Determine which team is executing the action for court-side rules
-// The activeTeamId is the team currently in focus; servingTeamId is who serves
-const servingTeamId = workspace.state.servingTeamId;
-const executingTeamId = miniCourtOpen && typedCoreSkill === 'serve'
-  ? servingTeamId
-  : activeTeamId;
-const executingTeamSide: 'left' | 'right' =
-  executingTeamId === teamA.id ? 'left' : 'right';
-const opposingTeamSide: 'left' | 'right' =
-  executingTeamSide === 'left' ? 'right' : 'left';
-const miniCourtStep: MiniCourtStep = miniCourtOpen
-    ? miniCourtMode === 'point'
-      ? drawnOrigin
-        ? 'readyToConfirm'
-        : 'awaitingPoint'
-      : drawnOrigin && drawnTarget
-        ? 'readyToConfirm'
-        : drawnOrigin
-          ? 'awaitingDestination'
-          : 'awaitingOrigin'
-    : 'hidden';
   const teamCodes = workspace.profiles.codeProfile.teamCodes;
+  const spatialSkill = inputMode === 'typed' ? typedCoreSkill : visualSkill;
+  const spatialCourtOpen = tactical && captureDirection && spatialSkill !== undefined &&
+    ['serve', 'attack', 'reception', 'set', 'dig'].includes(spatialSkill);
+  const spatialCode = inputMode === 'typed' ? buffer :
+    `${visualSkill}:${visualPlayerNumber}:${visualEvaluation}:${hybridCode}`;
+  const spatialKey = JSON.stringify([inputMode, editingId, activeTeamId, spatialCode, captureCycle]);
+  const confirmedSpatial = spatialCourtOpen && spatialCapture?.key === spatialKey
+    ? spatialCapture.value : undefined;
+  const codePrefix = buffer.trim().charAt(0).toLocaleUpperCase();
+  const executingTeamId = inputMode === 'typed' && teamCodes
+    ? codePrefix === teamCodes.home.toLocaleUpperCase() ? teamA.id
+      : codePrefix === teamCodes.away.toLocaleUpperCase() ? teamB.id : activeTeamId
+    : activeTeamId;
   const tacticalInterpreter = useRef(new TacticalInputInterpreter()).current;
   const directionOptions = [
     ...new Set([
@@ -321,13 +296,6 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
     },
     [],
   );
-  useEffect(() => {
-    const core = decodedCapture?.coreCode;
-    if (core !== lastCoreCodeRef.current) {
-      lastCoreCodeRef.current = core;
-      setMiniSuppressed(false);
-    }
-  }, [decodedCapture]);
 
   function courtLocation(zoneId: string) {
     if (!zoneId) return undefined;
@@ -341,8 +309,8 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
 
   function metadata(): ScoutEventMetadata | undefined {
     if (!tactical) return undefined;
-    const origin = drawnOrigin ?? courtLocation(originZone);
-    const target = drawnTarget ?? courtLocation(targetZone);
+    const origin = confirmedSpatial ? undefined : drawnOrigin ?? courtLocation(originZone);
+    const target = confirmedSpatial ? undefined : drawnTarget ?? courtLocation(targetZone);
     const resolvedDirection =
       direction ||
       (origin && target && tacticalInput
@@ -354,7 +322,7 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
       ...(skillType.trim() ? { skillType: skillType.trim() } : {}),
       ...(resolvedDirection ? { direction: resolvedDirection } : {}),
       ...(receptionGrade ? { receptionGrade } : {}),
-      ...(drawnOrigin && drawnTarget
+      ...(!confirmedSpatial && drawnOrigin && drawnTarget
         ? { captureMethod: 'drawn' as const }
         : resolvedDirection && !direction
           ? { captureMethod: 'derived' as const }
@@ -372,7 +340,10 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
           }
         : {}),
     };
-    return Object.keys(captureDraft).length > 0 ? { captureDraft } : undefined;
+    return Object.keys(captureDraft).length > 0 || confirmedSpatial
+      ? { ...(Object.keys(captureDraft).length > 0 ? { captureDraft } : {}),
+          ...(confirmedSpatial ? { spatial: confirmedSpatial } : {}) }
+      : undefined;
   }
 
   function inlineMetadata(tokens: readonly string[]): ScoutEventMetadata | undefined {
@@ -419,6 +390,8 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
   }
 
   function clearTacticalCapture() {
+    setSpatialCapture(undefined);
+    setCaptureCycle((cycle) => cycle + 1);
     setOriginZone('');
     setTargetZone('');
     setSkillType('');
@@ -444,6 +417,7 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
     setBuffer('');
     setCandidateState('empty');
     setInputMode(mode);
+    clearTacticalCapture();
     const suggestion = workspace.tacticalRally.expectedNextAction;
     if (suggestion?.teamId && workspace.teams.some((team) => team.id === suggestion.teamId)) {
       setActiveTeamId(suggestion.teamId);
@@ -465,6 +439,7 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
       playerNumber,
       skill: visualSkill,
       evaluation: selectedVisualEvaluation,
+      ...(confirmedSpatial ? { spatial: confirmedSpatial } : {}),
       ...(visualSkill === 'reception' || visualSkill === 'block'
         ? contactLocation
           ? { contactLocation }
@@ -535,7 +510,15 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
     setBuffer(update.buffer);
     setCandidateState(update.state);
     enqueueCodes(update.committedCodes);
-    if (scheduleIdle && (update.state === 'complete' || update.state === 'core_complete')) {
+    if (update.buffer !== buffer) setSpatialCapture(undefined);
+    const nextSkill = inputController.decode(update.buffer)?.coreCode;
+    // Leave supported actions available for explicit spatial confirmation or typed submission.
+    const awaitingSpatial = tactical && captureDirection && nextSkill !== undefined &&
+      Object.entries(workspace.profiles.codeProfile.skills).some(([code, skill]) =>
+        ['serve', 'attack', 'reception', 'set', 'dig'].includes(skill) &&
+        Object.keys(workspace.profiles.codeProfile.evaluations).some((evaluation) => nextSkill.endsWith(`${code}${evaluation}`)),
+      );
+    if (scheduleIdle && !awaitingSpatial && (update.state === 'complete' || update.state === 'core_complete')) {
       idleTimerRef.current = setTimeout(() => {
         applyInputUpdate(inputController.idleCommit(), false);
       }, inputController.policy.idleMs);
@@ -580,11 +563,29 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
     skill: Skill,
     eventMetadata?: ScoutEventMetadata,
   ) {
+    const original = workspace.timeline.find(entry => entry.sourceEventId === sourceEventId)?.event;
+    const eventTeamId = original?.teamId ?? activeTeamId;
+    if (original && rawCode.startsWith('[VISUAL]')) {
+      const profile = workspace.profiles.codeProfile;
+      const player = workspace.players.find(p=>p.id===original.playerId);
+      const tokens: Record<string,string> = {
+        player: String(player?.number ?? '').padStart(2,'0'),
+        skill: Object.entries(profile.skills).find(([,value])=>value===original.skill)?.[0] ?? '',
+        evaluation: Object.entries(profile.evaluations).find(([,value])=>value===original.evaluation)?.[0] ?? '',
+        team: (original.teamId===workspace.teams[0].id ? profile.teamCodes?.home : profile.teamCodes?.away) ?? '',
+      };
+      rawCode = profile.grammar.map(field=>tokens[field] ?? '').join('');
+    }
+    setActiveTeamId(eventTeamId);
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     setInputMode('typed');
     inputController.clear();
     setEditingId(sourceEventId);
     setBuffer(rawCode.trim());
+    setSpatialCapture(eventMetadata?.spatial ? {
+      key: JSON.stringify(['typed', sourceEventId, eventTeamId, rawCode.trim(), captureCycle]),
+      value: eventMetadata.spatial,
+    } : undefined);
     setCandidateState('empty');
     setOriginZone(tacticalValue.originZoneId(eventMetadata, skill) ?? '');
     setTargetZone(tacticalValue.targetZoneId(eventMetadata, skill) ?? '');
@@ -622,13 +623,6 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
     }
     if (event.key === 'Escape') {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      if (miniCourtOpen) {
-        event.preventDefault();
-        setMiniSuppressed(true);
-        setDrawnOrigin(undefined);
-        setDrawnTarget(undefined);
-        return;
-      }
       if (!editingId) {
         setStream((current) => current.slice(0, Math.max(0, current.length - buffer.length)));
       }
@@ -636,12 +630,7 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
       setBuffer('');
       setCandidateState('empty');
       setEditingId(undefined);
-    }
-    if (miniCourtOpen && (event.key === 'r' || event.key === 'R')) {
-      event.preventDefault();
-      setDrawnOrigin(undefined);
-      setDrawnTarget(undefined);
-      return;
+      clearTacticalCapture();
     }
     if (event.ctrlKey && event.key.toLowerCase() === 'z') {
       event.preventDefault();
@@ -697,16 +686,6 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
       inputRef.current?.focus();
       return;
     }
-    if (matchesShortcut(event, shortcuts.selectOrigin)) {
-      event.preventDefault();
-      setCourtMode('origin');
-      return;
-    }
-    if (matchesShortcut(event, shortcuts.selectTarget)) {
-      event.preventDefault();
-      setCourtMode('target');
-      return;
-    }
     if (
       matchesShortcut(event, shortcuts.editLast) &&
       event.target === inputRef.current &&
@@ -736,7 +715,10 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
         workspace={workspace}
         activeTeamId={activeTeamId}
         {...(teamCodes ? { teamCodes } : {})}
-        onActiveTeamChange={setActiveTeamId}
+        onActiveTeamChange={(teamId) => {
+          setActiveTeamId(teamId);
+          setSpatialCapture(undefined);
+        }}
       />
       {setCompleted && !workspace.state.matchCompleted && (
         <NextSetLineupEditor
@@ -746,7 +728,7 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
           onConfirm={onNextSet}
         />
       )}
-      <main className="match-workspace">
+      <main className={`match-workspace${inputMode === 'visual' ? ' visual-workspace' : ''}`}>
         <section className="dual-court" aria-label="Lineups da partida">
           <CourtLineup
             workspace={workspace}
@@ -769,7 +751,13 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
             disabled={editingId !== undefined}
             onChange={changeInputMode}
           />
-          {inputMode !== 'typed' && (
+          {inputMode === 'visual' && <VolleyballVisualScout
+            key={`${workspace.state.metadata.id}:${workspace.events.length}`}
+            workspace={workspace} busy={busy} onRegister={onRegisterVisual}
+            onUndo={onUndo} onRedo={onRedo}
+            onEdit={entry => edit(entry.sourceEventId, entry.event.rawCode, entry.event.skill, entry.event.metadata)}
+          />}
+          {inputMode === 'hybrid' && (
             <VisualScoutForm
               mode={inputMode}
               teams={workspace.teams}
@@ -785,19 +773,20 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
               suggestion={workspace.tacticalRally.expectedNextAction?.skill}
               onTeamChange={(teamId) => {
                 setActiveTeamId(teamId);
+                setSpatialCapture(undefined);
                 const first = workspace.players.find(
                   (player) => player.teamId === teamId && player.active !== false,
                 );
                 setVisualPlayerNumber(String(first?.number ?? ''));
               }}
-              onPlayerChange={setVisualPlayerNumber}
-              onSkillChange={setVisualSkill}
-              onEvaluationChange={setVisualEvaluation}
-              onHybridCodeChange={setHybridCode}
+              onPlayerChange={(value) => { setVisualPlayerNumber(value); setSpatialCapture(undefined); }}
+              onSkillChange={(value) => { setVisualSkill(value); setSpatialCapture(undefined); }}
+              onEvaluationChange={(value) => { setVisualEvaluation(value); setSpatialCapture(undefined); }}
+              onHybridCodeChange={(value) => { setHybridCode(value); setSpatialCapture(undefined); }}
               onSubmit={(event) => void submitVisual(event)}
             />
           )}
-          {tactical && (
+          {tactical && inputMode !== 'visual' && (
             <details
               className="tactical-panel"
               open={inputMode !== 'typed' || editingId !== undefined || quickEditorOpen}
@@ -1001,72 +990,16 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
                   </>
                 )}
               </div>
-              {tacticalInput && (activeCaptureSkill !== 'attack' || inputMode !== 'typed') && (
-                <TacticalCourt
-                  profile={tacticalInput.zoneSystem}
-                  mode={courtMode}
-                  originZoneId={originZone}
-                  targetZoneId={targetZone}
-                  drawnOrigin={drawnOrigin}
-                  drawnTarget={drawnTarget}
-                  onModeChange={setCourtMode}
-                  onSelect={(zoneId) => {
-                    if (courtMode === 'origin') {
-                      setOriginZone(zoneId);
-                      setDirection('');
-                      setDrawnOrigin(undefined);
-                      setCourtMode('target');
-                    } else {
-                      setTargetZone(zoneId);
-                      const selectedOrigin = courtLocation(originZone);
-                      const selectedTarget = courtLocation(zoneId);
-                      setDirection(
-                        selectedOrigin && selectedTarget
-                          ? (directionResolver.resolve(
-                              { origin: selectedOrigin, target: selectedTarget },
-                              tacticalInput.zoneSystem,
-                            ).direction ?? '')
-                          : '',
-                      );
-                      setDrawnTarget(undefined);
-                    }
-                  }}
-                  onDraw={(origin, target) => {
-                    setOriginZone('');
-                    setTargetZone('');
-                    setDrawnOrigin(origin);
-                    setDrawnTarget(target);
-                  }}
-                />
-              )}
             </details>
           )}
-          {miniCourtOpen && tacticalInput && (
-            <MiniCourt
-              profile={tacticalInput.zoneSystem}
-              skill={typedCoreSkill ?? 'attack'}
-              captureMode={miniCourtMode ?? 'trajectory'}
-              step={miniCourtStep}
-              origin={drawnOrigin}
-              target={drawnTarget}
-              onOrigin={setDrawnOrigin}
-              onTarget={setDrawnTarget}
-              onConfirm={() => {
-                if (miniCourtStep !== 'readyToConfirm') return;
-                commitTypedBuffer();
-              }}
-              onCancel={() => {
-                setMiniSuppressed(true);
-                setDrawnOrigin(undefined);
-                setDrawnTarget(undefined);
-                inputRef.current?.focus();
-              }}
-              onReset={() => {
-                setDrawnOrigin(undefined);
-                setDrawnTarget(undefined);
-              }}
-              executingTeamSide={executingTeamSide}
-              opposingTeamSide={opposingTeamSide}
+          {spatialCourtOpen && inputMode !== 'visual' && (
+            <SpatialCourtInputV2
+              key={spatialKey}
+              skill={spatialSkill}
+              executingLabel={workspace.teams.find((team) => team.id === executingTeamId)?.name ?? 'Executor'}
+              isEnabled={!busy}
+              onConfirm={(value) => setSpatialCapture({ key: spatialKey, value })}
+              onCancel={() => setSpatialCapture(undefined)}
             />
           )}
           {inputMode === 'typed' && (
@@ -1078,7 +1011,10 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
               placeholder={teamCodes ? '*08A#' : '08A#'}
               onSubmit={(event) => void submit(event)}
               onChange={(event) => {
-                if (editingId) setBuffer(event.target.value);
+                if (editingId) {
+                  setBuffer(event.target.value);
+                  setSpatialCapture(undefined);
+                }
                 else updateContinuousStream(event.target.value);
               }}
               onKeyDown={handleKeyDown}
@@ -1092,12 +1028,15 @@ const miniCourtStep: MiniCourtStep = miniCourtOpen
               onToggle={() => setCaptureHelpEnabled((current) => !current)}
             />
           )}
-          {tactical && (
+          {tactical && inputMode !== 'visual' && (
             <label className="capture-direction-toggle">
               <input
                 type="checkbox"
                 checked={captureDirection}
-                onChange={(event) => setCaptureDirection(event.target.checked)}
+                onChange={(event) => {
+                  setCaptureDirection(event.target.checked);
+                  setSpatialCapture(undefined);
+                }}
               />
               Capturar direção das ações
             </label>

@@ -5,6 +5,7 @@ import type { CompletenessResult } from '../completeness/CompletenessResult';
 import type { TacticalCaptureDraft, TacticalMetadata } from '../tactical/TacticalMetadata';
 import type { CourtRotationPosition } from '../../match/lineup/SetLineup';
 import type { FormationState } from '../../match/tactical/TacticalState';
+import type { SpatialMetadata } from '../spatial/SpatialMetadata';
 
 export type RallyPhase = 'sideout' | 'breakpoint' | 'transition';
 export type ReceptionGrade = 'A' | 'B' | 'C' | 'ERROR';
@@ -16,6 +17,7 @@ export interface SubstitutionMetadata {
 }
 
 export interface ScoutEventMetadata {
+  readonly spatial?: SpatialMetadata;
   /** Canonical tactical metadata. Legacy flat fields below remain readable during V1 compatibility. */
   readonly schemaVersion?: '2.0.0';
   readonly tactical?: TacticalMetadata;

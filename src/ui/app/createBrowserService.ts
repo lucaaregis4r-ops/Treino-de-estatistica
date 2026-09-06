@@ -1,4 +1,9 @@
 import { ScoutTrainerService } from '../../application/ScoutTrainerService';
+import type {
+  AthleteRegistration,
+  TeamRegistration,
+} from '../../domain/match/entities/Registration';
+import { IndexedDbEntityRepository } from '../../infrastructure/persistence/repositories/IndexedDbEntityRepository';
 import { ScoutTrainerDatabase } from '../../infrastructure/persistence/indexeddb/ScoutTrainerDatabase';
 import { IndexedDbEventRepository } from '../../infrastructure/persistence/repositories/IndexedDbEventRepository';
 import { IndexedDbMatchRepository } from '../../infrastructure/persistence/repositories/IndexedDbMatchRepository';
@@ -18,6 +23,15 @@ import { HistoricalAnalyticsService } from '../../application/analytics/Historic
 
 const database = new ScoutTrainerDatabase();
 const profiles = createDefaultProfileRegistry();
+
+export const browserAthleteRegistrations = new IndexedDbEntityRepository<AthleteRegistration>(
+  database,
+  'athleteRegistrations',
+);
+export const browserTeamRegistrations = new IndexedDbEntityRepository<TeamRegistration>(
+  database,
+  'teamRegistrations',
+);
 
 export const browserScoutTrainerService = new ScoutTrainerService(
   new IndexedDbMatchRepository(database),
@@ -43,7 +57,9 @@ export const browserFreeLogService = new FreeLogService(
 
 export const browserDirectoryExporter = new BrowserDirectoryExporter();
 
-export const browserAnalyticsSnapshotRepository = new IndexedDbAnalyticsSnapshotRepository(database);
+export const browserAnalyticsSnapshotRepository = new IndexedDbAnalyticsSnapshotRepository(
+  database,
+);
 
 export const browserHistoricalAnalyticsService = new HistoricalAnalyticsService(
   browserAnalyticsSnapshotRepository,

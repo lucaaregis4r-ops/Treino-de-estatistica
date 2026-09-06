@@ -1,0 +1,38 @@
+.registration-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  border: 0;
+  padding: 1rem 0;
+}
+.registration-fields > label {
+  display: grid;
+  gap: 0.4rem;
+  flex: 1 1 180px;
+}
+.registration-fields > fieldset {
+  flex-basis: 100%;
+}
+.athlete-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 1rem 0.5rem 0;
+}
+.athlete-option input {
+  width: auto;
+}
+.registration-list {
+  list-style: none;
+  padding: 0;
+}
+.registration-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid #ccd2dc;
+}

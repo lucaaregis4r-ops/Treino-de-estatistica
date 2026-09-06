@@ -4,6 +4,7 @@ import type { ScoreSnapshot } from '../../domain/match/score/Score';
 import type { SetState } from '../../domain/match/state/SetState';
 import type { RallyPhase, ReceptionGrade } from '../../domain/scout/events/ScoutEvent';
 import type { SpatialAnalyticsProjection } from '../../domain/scout/spatial/SpatialProjection';
+import type { WinProbabilityReport } from '../analytics/WinProbabilityService';
 
 export interface AuditableMetric {
   readonly value: number | null;
@@ -239,4 +240,5 @@ export interface MatchReportModel {
   };
   /** Optional only for source compatibility with older report fixtures and consumers. */
   readonly spatial?: SpatialAnalyticsProjection;
+  readonly winProbability?: WinProbabilityReport;
 }

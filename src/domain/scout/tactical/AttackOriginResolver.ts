@@ -15,6 +15,7 @@ export class AttackOriginResolver {
   ): CanonicalScoutEventCandidate {
     if (
       candidate.skill !== 'attack' ||
+      candidate.metadata?.spatial !== undefined ||
       tacticalValue.originZoneId(candidate.metadata, candidate.skill)
     )
       return candidate;

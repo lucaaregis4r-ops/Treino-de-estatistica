@@ -983,6 +983,95 @@ describe('IndexedDB repositories', () => {
     expect(event?.completeness?.status).toBe('complete');
   });
 
+  it('roundtrips precise V2 spatial capture and corrections without rewriting legacy metadata', async () => {
+    const database = createDatabase();
+    const service = new ScoutTrainerService(
+      new IndexedDbMatchRepository(database),
+      new IndexedDbEventRepository(database),
+      new IndexedDbTeamRepository(database),
+      new IndexedDbPlayerRepository(database),
+      createDefaultProfileRegistry(),
+    );
+    const created = await service.createMatch({
+      teamAName: 'A',
+      teamBName: 'B',
+      teamAPlayers: [1, 2, 3, 4, 5, 6],
+      teamBPlayers: [7, 8, 9, 10, 11, 12],
+      complexityProfileId: 'basic',
+    });
+    if (!created.ok) throw created.error;
+    const matchId = created.value.state.metadata.id;
+    const teamId = created.value.teams[0].id;
+    const spatial = {
+      origin: { surface: 'serviceZone', x: 0.123456789012345, y: 0.987654321098765 },
+      destination: { surface: 'court', x: 0.876543210987654, y: 0.012345678901234 },
+    } as const;
+    const invalid = await service.registerScout(matchId, teamId, '01S+', {
+      spatial: { ...spatial, origin: { ...spatial.origin, x: Infinity } },
+    });
+    expect(invalid.ok).toBe(false);
+    const registered = await service.registerScout(matchId, teamId, '01S+', {
+      spatial,
+      skillType: 'float',
+      targetZone: 1,
+    });
+    if (!registered.ok) throw registered.error;
+    const source = registered.value.timeline.at(-1)!;
+    expect(source.event.metadata?.spatial).toEqual(spatial);
+    const corrected = await service.correctScout(matchId, source.sourceEventId, '01S+', {
+      rotation: 2,
+    });
+    if (!corrected.ok) throw corrected.error;
+    expect(corrected.value.timeline.at(-1)?.event.metadata).toMatchObject({
+      spatial,
+      skillType: 'float',
+      targetZone: 1,
+      rotation: 2,
+    });
+    const replacement = { ...spatial, origin: { ...spatial.origin, x: 0.333333333333333 } };
+    const moved = await service.correctScout(matchId, source.sourceEventId, '01S+', {
+      spatial: replacement,
+    });
+    if (!moved.ok) throw moved.error;
+    expect(moved.value.timeline.at(-1)?.event.metadata).toMatchObject({
+      spatial: replacement,
+      skillType: 'float',
+      rotation: 2,
+    });
+    const legacy = await service.registerScout(matchId, teamId, '02A+', { attackTempo: 'fast' });
+    if (!legacy.ok) throw legacy.error;
+    expect(legacy.value.timeline.at(-1)?.event.metadata?.spatial).toBeUndefined();
+    await database.close();
+    const reopened = new ScoutTrainerDatabase(database.name);
+    databases.push(reopened);
+    const history = await new IndexedDbEventRepository(reopened).listByMatch(matchId);
+    if (!history.ok) throw history.error;
+    const original = history.value.find(
+      (event) => event.type === 'scout_registered' && event.event.id === source.sourceEventId,
+    );
+    expect(original?.type === 'scout_registered' && original.event.metadata?.spatial).toEqual(
+      spatial,
+    );
+    const corrections = history.value.filter((event) => event.type === 'scout_corrected');
+    expect(corrections.at(-1)?.replacementEvent.metadata).toMatchObject({
+      spatial: replacement,
+      skillType: 'float',
+      rotation: 2,
+    });
+    const replayService = new ScoutTrainerService(
+      new IndexedDbMatchRepository(reopened),
+      new IndexedDbEventRepository(reopened),
+      new IndexedDbTeamRepository(reopened),
+      new IndexedDbPlayerRepository(reopened),
+      createDefaultProfileRegistry(),
+    );
+    const replayed = await replayService.loadMatch(matchId);
+    if (!replayed.ok) throw replayed.error;
+    expect(replayed.value.timeline.map((item) => item.event.metadata)).toEqual(
+      legacy.value.timeline.map((item) => item.event.metadata),
+    );
+  });
+
   it('produces identical contextual rally projections live and after replay', async () => {
     const database = createDatabase();
     const service = new ScoutTrainerService(

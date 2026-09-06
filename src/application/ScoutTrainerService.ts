@@ -813,7 +813,7 @@ export class ScoutTrainerService {
       rawCode: newRawCode,
       profiles: workspace.value.profiles,
       ...((metadata ?? target.event.metadata)
-        ? { metadata: metadata ?? target.event.metadata }
+        ? { metadata: { ...target.event.metadata, ...metadata } }
         : {}),
       context: {
         matchId,

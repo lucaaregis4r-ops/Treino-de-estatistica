@@ -6,9 +6,12 @@ import {
 } from '../../application/ScoutTrainerService';
 import type { MatchMetadata } from '../../domain/match/entities/MatchMetadata';
 import { HomeScreen } from '../screens/home/HomeScreen';
+import { MatchesScreen } from '../screens/matches/MatchesScreen';
+import { RegistrationsScreen } from '../screens/registrations/RegistrationsScreen';
 import { NewMatchScreen } from '../screens/match-setup/NewMatchScreen';
 import { ScoutScreen } from '../screens/scout/ScoutScreen';
 import { SummaryScreen } from '../screens/summary/SummaryScreen';
+import { MatchAnalyticsPanel } from '../screens/summary/MatchAnalyticsPanel';
 import { TrainingScreen } from '../screens/training/TrainingScreen';
 import {
   browserDirectoryExporter,
@@ -33,10 +36,13 @@ import type { DirectoryExportPort } from '../../application/ports/export/Directo
 import { ManualScreen } from '../screens/manual/ManualScreen';
 
 type Screen =
+  | 'matches'
+  | 'registrations'
   | 'home'
   | 'new-match'
   | 'scout'
   | 'summary'
+  | 'analysis'
   | 'training'
   | 'free-log'
   | 'profile-editor'
@@ -131,13 +137,13 @@ export function App({
     } else setMessage(result.error.message);
   }
 
-  async function openMatch(matchId: string) {
+  async function openMatch(matchId: string, summary = false) {
     setBusy(true);
     const result = await service.loadMatch(matchId);
     setBusy(false);
     if (result.ok) {
       setWorkspace(result.value);
-      setScreen('scout');
+      setScreen(summary ? 'summary' : 'scout');
     } else setMessage(result.error.message);
   }
 
@@ -345,10 +351,11 @@ export function App({
   }
 
   const matchId = workspace?.state.metadata.id;
+  const inMatchWorkspace = (screen === 'scout' || screen === 'summary' || screen === 'analysis') && Boolean(workspace);
 
   return (
     <div className="app-shell">
-      <header className="app-nav">
+      {!inMatchWorkspace && <header className="app-nav">
         <button className="brand" type="button" onClick={() => setScreen('home')}>
           <span>ST</span> Scout Trainer
         </button>
@@ -360,33 +367,50 @@ export function App({
           >
             Início
           </button>
-          <button type="button" onClick={() => setScreen('new-match')}>
-            Nova partida
+          <button
+            type="button"
+            aria-current={screen === 'matches' ? 'page' : undefined}
+            onClick={() => {
+              void refreshMatches();
+              setScreen('matches');
+            }}
+          >
+            Partidas
+          </button>
+          <button
+            type="button"
+            aria-current={
+              screen === 'registrations' || screen === 'profile-editor' ? 'page' : undefined
+            }
+            onClick={() => setScreen('registrations')}
+          >
+            Cadastros
           </button>
           <button type="button" onClick={() => void openTraining()}>
             Treino
           </button>
-          <button type="button" onClick={() => void openFreeLog()}>
-            Livre
-          </button>
-          <button type="button" onClick={() => setScreen('profile-editor')}>
-            Perfis
-          </button>
           <button type="button" onClick={openManual}>
             Manual
           </button>
-          {workspace && (
-            <button type="button" onClick={() => setScreen('scout')}>
-              Scout
-            </button>
-          )}
-          {workspace && (
-            <button type="button" onClick={() => setScreen('summary')}>
-              Resumo
-            </button>
-          )}
         </nav>
-      </header>
+      </header>}
+
+      {inMatchWorkspace && workspace && (
+        <header className="match-workspace-nav" aria-label="Navegação da partida">
+          <button className="button ghost" type="button" onClick={() => setScreen('matches')}>
+            ← Partidas
+          </button>
+          <div className="match-workspace-title">
+            <strong>{workspace.teams[0].name} × {workspace.teams[1].name}</strong>
+            <span>Set {workspace.state.currentSet} · {workspace.state.score.teamA}–{workspace.state.score.teamB}</span>
+          </div>
+          <nav className="match-workspace-tabs" aria-label="Seções da partida">
+            <button type="button" aria-current={screen === 'scout' ? 'page' : undefined} onClick={() => setScreen('scout')}>Registro</button>
+            <button type="button" aria-current={screen === 'summary' ? 'page' : undefined} onClick={() => setScreen('summary')}>Resumo</button>
+            <button type="button" aria-current={screen === 'analysis' ? 'page' : undefined} onClick={() => setScreen('analysis')}>Análise</button>
+          </nav>
+        </header>
+      )}
 
       {message && (
         <div className="app-message" role="status">
@@ -403,9 +427,24 @@ export function App({
           busy={busy}
           onNewMatch={() => setScreen('new-match')}
           onTraining={() => void openTraining()}
+          onAllMatches={() => {
+            void refreshMatches();
+            setScreen('matches');
+          }}
           onOpenMatch={openMatch}
           onImportBackup={importBackup}
         />
+      )}
+      {screen === 'matches' && (
+        <MatchesScreen
+          matches={matches}
+          busy={busy}
+          onNewMatch={() => setScreen('new-match')}
+          onOpenMatch={openMatch}
+        />
+      )}
+      {screen === 'registrations' && (
+        <RegistrationsScreen onProfiles={() => setScreen('profile-editor')} />
       )}
       {screen === 'new-match' && (
         <NewMatchScreen
@@ -419,7 +458,7 @@ export function App({
         <ScoutScreen
           workspace={workspace}
           busy={busy}
-          onBack={() => setScreen('home')}
+          onBack={() => setScreen('matches')}
           onSummary={() => setScreen('summary')}
           onRegister={(teamId, rawCode, metadata) =>
             runWorkspaceAction(() => service.registerScout(matchId, teamId, rawCode, metadata))
@@ -443,11 +482,12 @@ export function App({
           onExport={() => exportMatch('json')}
         />
       )}
+      {screen === 'analysis' && workspace && <main className="page-section analysis-page"><MatchAnalyticsPanel key={workspace.state.metadata.id} report={workspace.report}/></main>}
       {screen === 'summary' && workspace && (
         <SummaryScreen
           workspace={workspace}
           onBack={() => setScreen('scout')}
-          onHome={() => setScreen('home')}
+          onHome={() => setScreen('matches')}
           onExport={exportMatch}
           directoryExportSupported={directoryExporter.supported}
           connectedDirectory={connectedDirectory}
@@ -458,29 +498,36 @@ export function App({
         />
       )}
       {screen === 'training' && (
-        <TrainingScreen
-          profiles={trainingService.listProfiles()}
-          sessions={trainingSessions}
-          workspace={trainingWorkspace}
-          feedback={trainingFeedback}
-          busy={busy}
-          onBack={() => setScreen('home')}
-          onStart={startTraining}
-          onResume={resumeTraining}
-          onSubmit={submitTraining}
-          onContinue={continueTraining}
-          onReset={() => {
-            setTrainingWorkspace(undefined);
-            setTrainingFeedback(undefined);
-          }}
-          onManual={openManual}
-        />
+        <>
+          <div className="hero-actions">
+            <button className="button secondary" onClick={() => void openFreeLog()}>
+              Registro livre
+            </button>
+          </div>
+          <TrainingScreen
+            profiles={trainingService.listProfiles()}
+            sessions={trainingSessions}
+            workspace={trainingWorkspace}
+            feedback={trainingFeedback}
+            busy={busy}
+            onBack={() => setScreen('home')}
+            onStart={startTraining}
+            onResume={resumeTraining}
+            onSubmit={submitTraining}
+            onContinue={continueTraining}
+            onReset={() => {
+              setTrainingWorkspace(undefined);
+              setTrainingFeedback(undefined);
+            }}
+            onManual={openManual}
+          />
+        </>
       )}
       {screen === 'profile-editor' && (
         <ProfileEditorScreen
           profiles={codeProfiles}
           busy={busy}
-          onBack={() => setScreen('home')}
+          onBack={() => setScreen('registrations')}
           onSave={saveCodeProfile}
           onExport={exportCodeProfile}
         />

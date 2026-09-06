@@ -24,6 +24,37 @@ function locations(candidate: CanonicalScoutEventCandidate): readonly CourtLocat
 export class CourtCoordinateValidator {
   validate(candidate: CanonicalScoutEventCandidate): ValidationResult {
     const issues: ValidationIssue[] = [];
+    const spatial = candidate.metadata?.spatial;
+    if (spatial !== undefined) {
+      for (const endpoint of ['origin', 'destination'] as const) {
+        const point = spatial?.[endpoint];
+        const path = `metadata.spatial.${endpoint}`;
+        if (!point || typeof point !== 'object') {
+          issues.push({
+            code: 'missing_spatial_point',
+            message: 'Both spatial points are required.',
+            path,
+          });
+          continue;
+        }
+        if (point.surface !== 'court' && point.surface !== 'serviceZone') {
+          issues.push({
+            code: 'invalid_spatial_surface',
+            message: 'Unknown spatial surface.',
+            path: `${path}.surface`,
+          });
+        }
+        for (const axis of ['x', 'y'] as const) {
+          if (!Number.isFinite(point[axis]) || point[axis] < 0 || point[axis] > 1) {
+            issues.push({
+              code: 'invalid_spatial_coordinate',
+              message: 'Spatial coordinates must be finite numbers between 0 and 1.',
+              path: `${path}.${axis}`,
+            });
+          }
+        }
+      }
+    }
     locations(candidate).forEach((location, index) => {
       (['x', 'y'] as const).forEach((axis) => {
         if (!isNormalizedCourtCoordinate(location[axis])) {

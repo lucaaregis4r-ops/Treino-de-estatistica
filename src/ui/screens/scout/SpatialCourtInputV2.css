@@ -1,0 +1,126 @@
+.spatial-v2 {
+  width: 100%;
+  max-width: 480px;
+  margin: 16px auto;
+}
+
+.spatial-v2-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 7px;
+  padding: 0 3px;
+  color: #9aa9b5;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.spatial-v2-surface {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: manipulation;
+  border: 2px solid #fff4df;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #d87539, #b9572d);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 22%), inset 0 0 24px rgb(92 35 17 / 28%);
+}
+
+.spatial-v2-attack-line,
+.spatial-v2-net {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.spatial-v2-attack-line {
+  width: 2px;
+  background: #fff4df;
+  opacity: 0.9;
+}
+
+.spatial-v2-net {
+  left: 50%;
+  width: 4px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #713c27, 0 0 8px rgb(255 255 255 / 55%);
+}
+
+.spatial-v2-marker {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #183a51;
+  box-shadow: 0 0 0 2px rgb(255 214 92 / 80%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.spatial-v2-destination {
+  background: #ffe66b;
+  border-color: #183a51;
+}
+
+.spatial-v2-trajectory {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.spatial-v2-trajectory line {
+  stroke: #183a51;
+  stroke-width: 1.5;
+}
+
+.spatial-v2-instruction {
+  margin: 8px 0;
+  color: #c8d3da;
+  font-size: 13px;
+}
+
+.spatial-v2-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.spatial-v2-controls button {
+  padding: 6px 12px;
+  cursor: pointer;
+  border: 1px solid #8fb8c2;
+  border-radius: 5px;
+  background: #183a51;
+  color: #fff;
+  font: inherit;
+}
+
+.spatial-v2-controls button:hover:not(:disabled),
+.spatial-v2-controls button:focus-visible {
+  background: #245a70;
+}
+
+.spatial-v2-controls button:disabled {
+  cursor: not-allowed;
+  border-color: #53666f;
+  background: #3b454a;
+  color: #d0d8dc;
+  opacity: 1;
+}
+
+.spatial-v2-debug {
+  display: block;
+  margin-top: 6px;
+  color: #ffd65c;
+  font: 11px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
