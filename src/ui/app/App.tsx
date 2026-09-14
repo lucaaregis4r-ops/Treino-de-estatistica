@@ -14,6 +14,8 @@ import { SummaryScreen } from '../screens/summary/SummaryScreen';
 import { MatchAnalyticsPanel } from '../screens/summary/MatchAnalyticsPanel';
 import { TrainingScreen } from '../screens/training/TrainingScreen';
 import {
+  browserAnalysisConfigurationRepository,
+  browserReportChartConfigurationRepository,
   browserDirectoryExporter,
   browserFreeLogService,
   browserScoutTrainerService,
@@ -33,6 +35,10 @@ import { FreeLogScreen } from '../screens/free-log/FreeLogScreen';
 import { FreeLogService } from '../../application/FreeLogService';
 import type { FreeLogSession } from '../../domain/free-log/FreeLogSession';
 import type { DirectoryExportPort } from '../../application/ports/export/DirectoryExportPort';
+import type { AnalysisConfiguration } from '../../domain/analytics/AnalysisConfiguration';
+import type { AnalysisConfigurationRepository } from '../../application/ports/repositories/AnalysisConfigurationRepository';
+import type { ReportChartConfiguration } from '../../domain/reporting/ReportChartConfiguration';
+import type { ReportChartConfigurationRepository } from '../../application/ports/repositories/ReportChartConfigurationRepository';
 import { ManualScreen } from '../screens/manual/ManualScreen';
 
 type Screen =
@@ -54,6 +60,8 @@ interface AppProps {
   readonly profileEditorService?: ProfileEditorService;
   readonly freeLogService?: FreeLogService;
   readonly directoryExporter?: DirectoryExportPort;
+  readonly analysisConfigurationRepository?: AnalysisConfigurationRepository;
+  readonly reportChartConfigurationRepository?: ReportChartConfigurationRepository;
 }
 
 export function App({
@@ -62,6 +70,8 @@ export function App({
   profileEditorService = browserProfileEditorService,
   freeLogService = browserFreeLogService,
   directoryExporter = browserDirectoryExporter,
+  analysisConfigurationRepository = browserAnalysisConfigurationRepository,
+  reportChartConfigurationRepository = browserReportChartConfigurationRepository,
 }: AppProps) {
   const [screen, setScreen] = useState<Screen>('home');
   const [matches, setMatches] = useState<readonly MatchMetadata[]>([]);
@@ -78,6 +88,8 @@ export function App({
   const [freeLogSession, setFreeLogSession] = useState<FreeLogSession>();
   const [connectedDirectory, setConnectedDirectory] = useState<string>();
   const [manualReturnScreen, setManualReturnScreen] = useState<Screen>('home');
+  const [analysisConfigurations, setAnalysisConfigurations] = useState<readonly AnalysisConfiguration[]>([]);
+  const [reportChartConfigurations, setReportChartConfigurations] = useState<readonly ReportChartConfiguration[]>([]);
 
   function openManual() {
     setManualReturnScreen(screen === 'scout' || screen === 'summary' ? screen : 'home');
@@ -114,15 +126,81 @@ export function App({
     };
   }, [profileEditorService]);
 
+  useEffect(() => {
+    if (!workspace) {
+      setAnalysisConfigurations([]);
+      setReportChartConfigurations([]);
+      return;
+    }
+    let active = true;
+    void Promise.all([
+      analysisConfigurationRepository.listByMatchId(workspace.state.metadata.id),
+      reportChartConfigurationRepository.listByMatchId(workspace.state.metadata.id),
+    ]).then(([analysisResult, reportChartResult]) => {
+      if (!active) return;
+      if (analysisResult.ok) setAnalysisConfigurations(analysisResult.value);
+      else setMessage(analysisResult.error.message);
+      if (reportChartResult.ok) setReportChartConfigurations(reportChartResult.value);
+      else setMessage(reportChartResult.error.message);
+    });
+    return () => {
+      active = false;
+    };
+  }, [analysisConfigurationRepository, reportChartConfigurationRepository, workspace?.state.metadata.id]);
+
+  async function saveAnalysisConfiguration(configuration: AnalysisConfiguration) {
+    const result = await analysisConfigurationRepository.save(configuration);
+    if (result.ok) {
+      setAnalysisConfigurations((current) =>
+        [...current.filter((item) => item.id !== configuration.id), configuration].sort(
+          (left, right) => right.updatedAt - left.updatedAt,
+        ),
+      );
+      setMessage(`Análise "${configuration.name}" salva.`);
+    } else setMessage(result.error.message);
+  }
+
+  async function deleteAnalysisConfiguration(id: string) {
+    const result = await analysisConfigurationRepository.delete(id);
+    if (result.ok) setAnalysisConfigurations((current) => current.filter((item) => item.id !== id));
+    else setMessage(result.error.message);
+  }
+
+  async function saveReportChartConfiguration(configuration: ReportChartConfiguration) {
+    const result = await reportChartConfigurationRepository.save(configuration);
+    if (result.ok) {
+      setReportChartConfigurations((current) =>
+        [...current.filter((item) => item.id !== configuration.id), configuration].sort(
+          (left, right) => left.order - right.order,
+        ),
+      );
+      setMessage(`Gráfico "${configuration.title}" adicionado ao relatório.`);
+    } else setMessage(result.error.message);
+  }
+
+  async function deleteReportChartConfiguration(id: string) {
+    const result = await reportChartConfigurationRepository.delete(id);
+    if (result.ok) setReportChartConfigurations((current) => current.filter((item) => item.id !== id));
+    else setMessage(result.error.message);
+  }
+
   async function runWorkspaceAction(
     action: () => Promise<{ ok: boolean; value?: MatchWorkspace; error?: Error }>,
+    options?: { readonly rejectOnFailure?: boolean; readonly successMessage?: string },
   ) {
     setBusy(true);
     setMessage(undefined);
     const result = await action();
     setBusy(false);
-    if (result.ok && result.value) setWorkspace(result.value);
-    else setMessage(result.error?.message ?? 'Não foi possível concluir a operação.');
+    if (result.ok && result.value) {
+      setWorkspace(result.value);
+      if (options?.successMessage) setMessage(options.successMessage);
+    }
+    else {
+      const error = result.error ?? new Error('Não foi possível concluir a operação.');
+      setMessage(error.message);
+      if (options?.rejectOnFailure) throw error;
+    }
   }
 
   async function createMatch(input: CreateMatchInput) {
@@ -352,6 +430,14 @@ export function App({
 
   const matchId = workspace?.state.metadata.id;
   const inMatchWorkspace = (screen === 'scout' || screen === 'summary' || screen === 'analysis') && Boolean(workspace);
+  const matchTeamA = workspace?.teams[0];
+  const matchTeamB = workspace?.teams[1];
+  const matchTeamASets = workspace
+    ? workspace.state.sets.filter((set) => set.winnerTeamId === matchTeamA?.id).length
+    : 0;
+  const matchTeamBSets = workspace
+    ? workspace.state.sets.filter((set) => set.winnerTeamId === matchTeamB?.id).length
+    : 0;
 
   return (
     <div className="app-shell">
@@ -400,14 +486,25 @@ export function App({
           <button className="button ghost" type="button" onClick={() => setScreen('matches')}>
             ← Partidas
           </button>
-          <div className="match-workspace-title">
-            <strong>{workspace.teams[0].name} × {workspace.teams[1].name}</strong>
-            <span>Set {workspace.state.currentSet} · {workspace.state.score.teamA}–{workspace.state.score.teamB}</span>
+          <div className="match-workspace-title" aria-label="Placar da partida">
+            <strong>{workspace.state.metadata.name}</strong>
+            <span className="match-workspace-teams">
+              {matchTeamA?.name} × {matchTeamB?.name}
+            </span>
+            <span className="match-workspace-score">
+              <b>{workspace.state.score.teamA}</b>
+              <i>×</i>
+              <b>{workspace.state.score.teamB}</b>
+              <small>
+                SET {workspace.state.currentSet} · Sets {matchTeamASets} : {matchTeamBSets}
+              </small>
+            </span>
           </div>
           <nav className="match-workspace-tabs" aria-label="Seções da partida">
             <button type="button" aria-current={screen === 'scout' ? 'page' : undefined} onClick={() => setScreen('scout')}>Registro</button>
             <button type="button" aria-current={screen === 'summary' ? 'page' : undefined} onClick={() => setScreen('summary')}>Resumo</button>
             <button type="button" aria-current={screen === 'analysis' ? 'page' : undefined} onClick={() => setScreen('analysis')}>Análise</button>
+            <button type="button" onClick={openManual}>Manual</button>
           </nav>
         </header>
       )}
@@ -458,35 +555,57 @@ export function App({
         <ScoutScreen
           workspace={workspace}
           busy={busy}
-          onBack={() => setScreen('matches')}
-          onSummary={() => setScreen('summary')}
           onRegister={(teamId, rawCode, metadata) =>
-            runWorkspaceAction(() => service.registerScout(matchId, teamId, rawCode, metadata))
+            runWorkspaceAction(() => service.registerScout(matchId, teamId, rawCode, metadata), {
+              rejectOnFailure: true,
+              successMessage: 'Ação registrada.',
+            })
           }
           onRegisterVisual={(draft) =>
-            runWorkspaceAction(() => service.registerVisualScout(matchId, draft))
+            runWorkspaceAction(() => service.registerVisualScout(matchId, draft), {
+              rejectOnFailure: true,
+              successMessage: 'Ação registrada.',
+            })
           }
           onRegisterHybrid={(teamId, rawCode, draft) =>
-            runWorkspaceAction(() => service.registerHybridScout(matchId, teamId, rawCode, draft))
+            runWorkspaceAction(() => service.registerHybridScout(matchId, teamId, rawCode, draft), {
+              rejectOnFailure: true,
+              successMessage: 'Ação registrada.',
+            })
           }
           onCorrect={(sourceId, rawCode, metadata) =>
-            runWorkspaceAction(() => service.correctScout(matchId, sourceId, rawCode, metadata))
+            runWorkspaceAction(() => service.correctScout(matchId, sourceId, rawCode, metadata), {
+              rejectOnFailure: true,
+              successMessage: 'Ação corrigida.',
+            })
           }
-          onUndo={() => runWorkspaceAction(() => service.undo(matchId))}
-          onRedo={() => runWorkspaceAction(() => service.redo(matchId))}
-          onPoint={(teamId) => runWorkspaceAction(() => service.awardPoint(matchId, teamId))}
+          onUndo={() => runWorkspaceAction(() => service.undo(matchId), { successMessage: 'Última ação desfeita.' })}
+          onRedo={() => runWorkspaceAction(() => service.redo(matchId), { successMessage: 'Ação refeita.' })}
+          onScoreAdjust={(teamId, delta) =>
+            runWorkspaceAction(() => service.adjustScore(matchId, teamId, delta), {
+              rejectOnFailure: true,
+              successMessage: 'Placar ajustado.',
+            })
+          }
+          onAdjustContext={(input) => runWorkspaceAction(() => service.adjustMatchContext(matchId, input), {
+            rejectOnFailure: true, successMessage: 'Rotação, saque e placar ajustados.',
+          })}
           onSubstitute={(teamId, slotId, playerInId) =>
-            runWorkspaceAction(() => service.substitute(matchId, teamId, slotId, playerInId))
+            runWorkspaceAction(() => service.substitute(matchId, teamId, slotId, playerInId), {
+              rejectOnFailure: true,
+              successMessage: 'Troca aplicada.',
+            })
           }
           onNextSet={(input) => runWorkspaceAction(() => service.startNextSet(matchId, input))}
           onExport={() => exportMatch('json')}
         />
       )}
-      {screen === 'analysis' && workspace && <main className="page-section analysis-page"><MatchAnalyticsPanel key={workspace.state.metadata.id} report={workspace.report}/></main>}
+      {screen === 'analysis' && workspace && <main className="page-section analysis-page"><MatchAnalyticsPanel key={workspace.state.metadata.id} report={workspace.report} matchId={workspace.state.metadata.id} analysisConfigurations={analysisConfigurations} onSaveAnalysisConfiguration={saveAnalysisConfiguration} onDeleteAnalysisConfiguration={deleteAnalysisConfiguration} reportChartConfigurations={reportChartConfigurations} onSaveReportChartConfiguration={saveReportChartConfiguration} onDeleteReportChartConfiguration={deleteReportChartConfiguration}/></main>}
       {screen === 'summary' && workspace && (
         <SummaryScreen
           workspace={workspace}
           onBack={() => setScreen('scout')}
+          onAnalysis={() => setScreen('analysis')}
           onHome={() => setScreen('matches')}
           onExport={exportMatch}
           directoryExportSupported={directoryExporter.supported}

@@ -2,7 +2,7 @@
 
 Aplicação desktop para treinamento e registro estatístico de partidas de voleibol. O projeto foi criado para praticar a velocidade, a lógica e a consistência do trabalho de scout em um ambiente local e educacional.
 
-## Versão atual: 0.3.0
+## Versão atual: 0.4.0
 
 A versão 0.3.0 amplia o scout digitado com um registro visual de voleibol e uma área de análise baseada no estado da partida.
 
@@ -24,6 +24,15 @@ A versão 0.3.0 amplia o scout digitado com um registro visual de voleibol e uma
 - Probabilidade estimada de vitória da partida e do set a partir do placar.
 - Gráfico de evolução da probabilidade por ponto/rally e impacto das mudanças de placar.
 - Migração do banco local IndexedDB para a versão 6.
+
+### Registro gestual mobile-first (V0.4)
+
+- Touch, mouse e caneta usando Pointer Events.
+- Sequência de rally guiada pelo contexto, com levantamento implícito.
+- Rotação sugere atletas para saque, recepção e ataque.
+- Inferência de ataque defendido, erro, ponto, free ball e block-out.
+- Área espacial externa para registrar bolas fora sem coordenadas inválidas.
+- PWA e armazenamento local preservados.
 
 As probabilidades são estimativas baseadas no estado do placar. Elas servem para leitura do momento da partida e poderão ser calibradas futuramente com um histórico maior de jogos.
 

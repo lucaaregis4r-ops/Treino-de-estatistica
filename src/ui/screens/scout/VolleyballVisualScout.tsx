@@ -1,23 +1,17 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { ProjectedScoutEvent } from '../../../domain/match/events/ScoutTimeline';
 import type { MatchWorkspace } from '../../../application/ScoutTrainerService';
 import type { Skill } from '../../../domain/scout/entities/Skill';
+import type { ScoutCoverage } from '../../../domain/scout/events/ScoutEvent';
 import type { SpatialMetadata } from '../../../domain/scout/spatial/SpatialMetadata';
 import type { VisualScoutDraft } from '../../../domain/scout/mapper/VisualScoutDraft';
 import { SpatialCourtInputV2 } from './SpatialCourtInputV2';
 import './VolleyballVisualScout.css';
 import { visualSuggestion } from './visualSuggestion';
 import { visualCourtPlayers } from './visualCourtPlayers';
+import { evaluationLabel, SKILL_LABELS } from './presentationLabels';
 
-const labels: Record<Skill, string> = {
-  serve: 'Saque',
-  reception: 'Recepção',
-  set: 'Levantamento',
-  attack: 'Ataque',
-  block: 'Bloqueio',
-  dig: 'Defesa',
-  free_ball: 'Bola de graça',
-};
+const labels = SKILL_LABELS;
 
 export function VolleyballVisualScout({
   workspace,
@@ -26,6 +20,7 @@ export function VolleyballVisualScout({
   onEdit,
   onUndo,
   onRedo,
+  coverage,
 }: {
   workspace: MatchWorkspace;
   busy: boolean;
@@ -33,6 +28,7 @@ export function VolleyballVisualScout({
   onEdit?: (entry: ProjectedScoutEvent) => void;
   onUndo?: () => Promise<void>;
   onRedo?: () => Promise<void>;
+  coverage?: ScoutCoverage;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const submittingRef = useRef(false);
@@ -46,6 +42,7 @@ export function VolleyballVisualScout({
   const [spatial, setSpatial] = useState<SpatialMetadata>();
   const [cycle, setCycle] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const profile = workspace.profiles.codeProfile;
   const players = workspace.players.filter((p) => p.teamId === teamId && p.active !== false);
   const liberos = players.filter(p => workspace.state.metadata?.liberoPlayerIds?.includes(p.id) || p.registeredRole==='libero');
@@ -58,7 +55,6 @@ export function VolleyballVisualScout({
   const bench = lineup ? players.filter(p => !courtPlayers.some(c => c.player?.id === p.id)) : players;
   const recent = (workspace.timeline ?? []).slice(-5).reverse();
   const missing = [
-    playerNumber === undefined && 'atleta',
     !skill && 'ação',
     !evaluation && 'qualidade',
     !spatial && 'origem e destino',
@@ -69,26 +65,41 @@ export function VolleyballVisualScout({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (disabled || submittingRef.current || missing.length || !skill || playerNumber === undefined || !spatial) return;
+    if (disabled || submittingRef.current || missing.length || !skill || !spatial) return;
     submittingRef.current = true;
     setSubmitting(true);
+    setSubmitError('');
     try {
       await onRegister({
         teamId,
-        playerNumber,
+        ...(playerNumber !== undefined ? { playerNumber } : {}),
+        ...(coverage ? { coverage } : {}),
         skill,
         evaluation,
         spatial,
         ...(detail ? { skillType: detail } : {}),
       });
+    } catch {
+      setSubmitError('Não foi possível registrar a ação. O rascunho foi preservado; tente novamente.');
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
     }
   }
 
+  function handleQualityShortcut(event: KeyboardEvent<HTMLFormElement>) {
+    const target = event.target as HTMLElement;
+    if (target.closest('input,select,textarea,[data-native-keys]') || event.nativeEvent.isComposing) return;
+    if ((event.key !== '#' && event.key !== '=') || event.repeat) return;
+    const nextEvaluation = Object.entries(profile.evaluations).find(([symbol]) => symbol === event.key)?.[1];
+    if (!nextEvaluation) return;
+    event.preventDefault();
+    setEvaluation((current) => current === nextEvaluation ? '' : nextEvaluation);
+  }
+
   return (
     <form ref={formRef} tabIndex={-1} className="volley-visual" onSubmit={(event) => void submit(event)} onKeyDown={event => {
+      handleQualityShortcut(event);
       const target = event.target as HTMLElement;
       if (target.closest('input,select,textarea,[data-native-keys]') || event.nativeEvent.isComposing) return;
       if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
@@ -102,7 +113,7 @@ export function VolleyballVisualScout({
           <p className="eyebrow">Scout visual · Voleibol</p>
           <h2>Registro visual</h2>
         </div>
-        <span className="volley-live">{suggestion.skill ? `Sugestão: ${labels[suggestion.skill]}${suggestion.playerNumber !== undefined ? ` · #${suggestion.playerNumber}` : ''}` : `Set ${workspace.state.currentSet}`}</span>
+        <span className="volley-live">{suggestion.skill ? `Sugestão: ${SKILL_LABELS[suggestion.skill]}${suggestion.playerNumber !== undefined ? ` · #${suggestion.playerNumber}` : ''}` : `Set ${workspace.state.currentSet}`}</span>
       </header>
       <div className="volley-score" aria-label="Placar da partida" aria-live="polite">
         <strong>{workspace.teams[0].name}</strong>
@@ -141,7 +152,7 @@ export function VolleyballVisualScout({
                   setDetail('');
                 }}
               >
-                {labels[value]}
+                {SKILL_LABELS[value]}
               </button>
             ))}
           </section>
@@ -154,7 +165,14 @@ export function VolleyballVisualScout({
               key={cycle}
               isEnabled
               onConfirm={setSpatial}
-              onCancel={() => setSpatial(undefined)}
+              onReset={() => setSpatial(undefined)}
+              onCancel={() => {
+                setSpatial(undefined);
+                setPlayerNumber(undefined);
+                setSkill(undefined);
+                setEvaluation('');
+                setDetail('');
+              }}
             />
           </div>
           <section className="volley-quality" aria-label="Qualidade">
@@ -163,11 +181,12 @@ export function VolleyballVisualScout({
               <button
                 type="button"
                 key={symbol}
-                aria-label={`Qualidade ${symbol}`}
+                aria-label={`Qualidade ${symbol} · ${evaluationLabel(skill ?? 'attack', value)}`}
                 aria-pressed={evaluation === value}
-                onClick={() => setEvaluation(value)}
+                onClick={() => setEvaluation((current) => current === value ? '' : value)}
               >
-                {symbol}
+                <strong>{symbol}</strong>
+                <span>{evaluationLabel(skill ?? 'attack', value)}</span>
               </button>
             ))}
           </section>
@@ -176,6 +195,13 @@ export function VolleyballVisualScout({
           <h3>
             Atleta <small>{players.length} disponíveis</small>
           </h3>
+          <button
+            type="button"
+            aria-pressed={playerNumber === undefined}
+            onClick={() => setPlayerNumber(undefined)}
+          >
+            Sem atleta identificado
+          </button>
           {liberos.length>0 && <div className="volley-libero-controls"><label><input type="checkbox" checked={automaticLibero} onChange={e=>setAutomaticLibero(e.target.checked)}/>Líbero automático</label>{liberos.length>1 && <select aria-label="Líbero em quadra" value={liberoId} onChange={e=>setChosenLibero(e.target.value)}>{liberos.map(p=><option key={p.id} value={p.id}>#{p.number} {p.name}</option>)}</select>}</div>}
           {lineup && <div className="volley-rotation" aria-label="Atletas na rotação atual">{courtPlayers.map(({position,slot,player}) => {
             const setter = player && (setterId ? player.id === setterId : (slot?.activeRole ?? slot?.tacticalRole) === 'setter');
@@ -219,7 +245,7 @@ export function VolleyballVisualScout({
           <p aria-live="polite">
             {missing.length
               ? `Selecione: ${missing.join(', ')}.`
-              : `#${playerNumber} · ${labels[skill!]} · Trajetória pronta`}
+              : `${playerNumber === undefined ? 'Sem atleta identificado' : `#${playerNumber}`} · ${SKILL_LABELS[skill!]} · Trajetória pronta`}
           </p>
           <button
             className="button primary"
@@ -229,6 +255,7 @@ export function VolleyballVisualScout({
             Registrar ação <kbd>Enter</kbd>
           </button>
         </footer>
+        {submitError && <p className="capture-status capture-status-error" role="alert">{submitError}</p>}
         <small className="volley-shortcuts">Enter: registrar · Esc: refazer trajetória</small>
         <section className="volley-recent" aria-label="Cinco últimas ações" data-native-keys>
           <header><h3>Últimas 5 ações</h3><div>{onUndo && <button type="button" onClick={()=>void onUndo()}>Desfazer</button>}{onRedo && <button type="button" onClick={()=>void onRedo()}>Refazer</button>}</div></header>
@@ -236,7 +263,7 @@ export function VolleyballVisualScout({
             const player = workspace.players.find(p=>p.id===entry.event.playerId);
             const team = workspace.teams.find(t=>t.id===entry.event.teamId);
             const quality = Object.entries(profile.evaluations).find(([,value])=>value===entry.event.evaluation)?.[0] ?? entry.event.evaluation;
-            return <li key={entry.sourceEventId}><span>{team?.name} · #{player?.number ?? '—'}</span><strong>{labels[entry.event.skill]} {quality}</strong><small>Set {entry.event.setNumber}</small>{onEdit && <button type="button" title="Abrir correção por código" onClick={()=>onEdit(entry)}>Corrigir</button>}</li>;
+            return <li key={entry.sourceEventId}><span>{team?.name} · {player ? `#${player.number}` : 'Sem atleta identificado'}</span><strong>{labels[entry.event.skill]} {quality}</strong><small>Set {entry.event.setNumber}</small>{onEdit && <button type="button" title="Abrir correção por código" onClick={()=>onEdit(entry)}>Corrigir</button>}</li>;
           })}</ol>}
         </section>
       </fieldset>

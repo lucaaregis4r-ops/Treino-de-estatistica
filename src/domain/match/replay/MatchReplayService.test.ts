@@ -74,6 +74,27 @@ describe('MatchReplayService', () => {
     expect(redone.currentRally).toEqual(applied.currentRally);
   });
 
+  it('undoes an independent score adjustment without changing serving or rally state', () => {
+    const factory = new MatchEventFactory({ createId: () => crypto.randomUUID(), now: () => 1 });
+    const adjustment = factory.scoreAdjustment({
+      matchId: metadata.id,
+      setNumber: 1,
+      teamId: 'b',
+      delta: 1,
+      sequence: 1,
+    });
+    const undo = factory.undo(metadata.id, adjustment.id, 2);
+    const replay = new MatchReplayService();
+
+    const adjusted = replay.replay(metadata, [adjustment]);
+    const undone = replay.replay(metadata, [adjustment, undo]);
+
+    expect(adjusted.score).toEqual({ teamA: 0, teamB: 1 });
+    expect(adjusted.servingTeamId).toBe(metadata.initialServingTeamId);
+    expect(adjusted.currentRally).toEqual(undone.currentRally);
+    expect(undone.score).toEqual({ teamA: 0, teamB: 0 });
+  });
+
   it('produces the same state for the same log regardless of storage order', () => {
     const factory = new MatchEventFactory({ createId: () => crypto.randomUUID(), now: () => 1 });
     const events = factory.pointCorrection({
@@ -183,6 +204,88 @@ describe('MatchReplayService', () => {
     expect(replay.replay(metadata, events)).toMatchObject({
       score: { teamA: 1, teamB: 1 },
       servingTeamId: 'a',
+    });
+  });
+
+  it('restores the previous score and serving state when a correction is undone', () => {
+    const original: ScoutEvent = {
+      id: 'scout_original',
+      matchId: 'match',
+      rallyId: 'rally_original',
+      sequence: 2,
+      timestamp: 2,
+      teamId: 'a',
+      skill: 'attack',
+      outcome: 'positive',
+      setNumber: 1,
+      scoreBefore: { teamA: 0, teamB: 0 },
+      rawCode: '01A+',
+      codeProfileId: 'default_compact_v1',
+      codeProfileVersion: '1.0.0',
+      complexityProfileId: 'basic',
+    };
+    const replacement: ScoutEvent = {
+      ...original,
+      id: 'scout_replacement',
+      sequence: 6,
+      outcome: 'point',
+      rawCode: '01A#',
+    };
+    const correction: MatchEvent = {
+      type: 'scout_corrected',
+      id: 'correction_undo_target',
+      matchId: 'match',
+      sequence: 7,
+      timestamp: 7,
+      targetEventId: original.id,
+      previousRawCode: original.rawCode,
+      newRawCode: replacement.rawCode,
+      replacementEvent: replacement,
+    };
+    const undo: MatchEvent = {
+      type: 'scout_undone',
+      id: 'undo_correction',
+      matchId: 'match',
+      sequence: 9,
+      timestamp: 9,
+      targetHistoryEventId: correction.id,
+    };
+    const events: MatchEvent[] = [
+      {
+        type: 'rally_started',
+        id: 'start_original',
+        matchId: 'match',
+        rallyId: original.rallyId,
+        targetScoutEventId: original.id,
+        sourceHistoryEventId: original.id,
+        sequence: 1,
+        timestamp: 1,
+      },
+      { type: 'scout_registered', event: original },
+      correction,
+      {
+        type: 'rally_result',
+        id: 'result_corrected',
+        matchId: 'match',
+        rallyId: replacement.rallyId,
+        winnerTeamId: 'a',
+        previousServingTeamId: 'a',
+        targetScoutEventId: original.id,
+        sourceHistoryEventId: correction.id,
+        sequence: 8,
+        timestamp: 8,
+      },
+    ];
+    const replay = new MatchReplayService();
+
+    expect(replay.replay(metadata, events)).toMatchObject({
+      score: { teamA: 1, teamB: 0 },
+      servingTeamId: 'a',
+    });
+    expect(replay.replay(metadata, [...events, undo])).toMatchObject({
+      score: { teamA: 0, teamB: 0 },
+      servingTeamId: 'a',
+      currentRally: { status: 'active' },
     });
   });
 });

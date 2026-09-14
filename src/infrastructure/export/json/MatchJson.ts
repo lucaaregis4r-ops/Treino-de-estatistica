@@ -4,6 +4,14 @@ import type { Player } from '../../../domain/match/entities/Player';
 import type { Team } from '../../../domain/match/entities/Team';
 import type { MatchMetadata } from '../../../domain/match/entities/MatchMetadata';
 import type { MatchEvent } from '../../../domain/match/events/MatchEvent';
+import {
+  ANALYSIS_CONFIGURATION_SCHEMA_VERSION,
+  type AnalysisConfiguration,
+} from '../../../domain/analytics/AnalysisConfiguration';
+import {
+  REPORT_CHART_CONFIGURATION_SCHEMA_VERSION,
+  type ReportChartConfiguration,
+} from '../../../domain/reporting/ReportChartConfiguration';
 import type { CodeProfile, CompetitionProfile, ComplexityProfile } from '../../../profiles/types';
 import { ProfileValidator } from '../../../profiles/ProfileValidator';
 import { isSkill } from '../../../domain/scout/entities/Skill';
@@ -24,6 +32,8 @@ export interface MatchExport {
   readonly players: readonly Player[];
   readonly profiles: MatchProfileSnapshot;
   readonly events: readonly MatchEvent[];
+  readonly analysisConfigurations?: readonly AnalysisConfiguration[];
+  readonly reportChartConfigurations?: readonly ReportChartConfiguration[];
 }
 
 export class JsonMatchExporter {
@@ -54,6 +64,7 @@ const PLAYER_ROLES = new Set([
   'custom',
 ]);
 const FORMATION_STATES = new Set(['normal', 'five_one_inversion', 'unknown', 'custom']);
+const SCOUT_COVERAGE_MODES = new Set(['both', 'team_a', 'team_b']);
 
 function validCompleteness(value: unknown): boolean {
   return (
@@ -77,6 +88,17 @@ function validCourtCoordinates(value: unknown): boolean {
     if (!validCourtCoordinates(nested)) return false;
   }
   return true;
+}
+
+function validScoutCoverage(value: unknown, teamIds: ReadonlySet<string>): boolean {
+  return (
+    value === undefined ||
+    (isRecord(value) &&
+      typeof value.mode === 'string' &&
+      SCOUT_COVERAGE_MODES.has(value.mode) &&
+      Array.isArray(value.observedTeamIds) &&
+      value.observedTeamIds.every((teamId) => isText(teamId) && teamIds.has(teamId)))
+  );
 }
 
 function validScoutEvent(
@@ -119,8 +141,93 @@ function validScoutEvent(
     (value.formationState === undefined ||
       (typeof value.formationState === 'string' && FORMATION_STATES.has(value.formationState))) &&
     (value.metadata === undefined ||
-      (isRecord(value.metadata) && validCourtCoordinates(value.metadata))) &&
+      (isRecord(value.metadata) &&
+        validCourtCoordinates(value.metadata) &&
+        validScoutCoverage(value.metadata.coverage, teamIds))) &&
     validCompleteness(value.completeness)
+  );
+}
+
+function validAnalysisConfiguration(
+  value: unknown,
+  matchId: string,
+  teamIds: ReadonlySet<string>,
+): value is AnalysisConfiguration {
+  if (!isRecord(value) || !isRecord(value.filters) || !isRecord(value.chart)) return false;
+  const filters = value.filters;
+  const chart = value.chart;
+  return (
+    isText(value.id) &&
+    value.matchId === matchId &&
+    value.schemaVersion === ANALYSIS_CONFIGURATION_SCHEMA_VERSION &&
+    isText(value.name) &&
+    isFiniteNumber(value.updatedAt) &&
+    isText(filters.teamId) &&
+    teamIds.has(filters.teamId) &&
+    isText(filters.skill) &&
+    (filters.skill === 'all' || isSkill(filters.skill)) &&
+    (filters.evaluations === null ||
+      (Array.isArray(filters.evaluations) && filters.evaluations.every(isText))) &&
+    isText(filters.playerId) &&
+    isText(filters.setNumber) &&
+    isText(filters.rotation) &&
+    (filters.coordinate === 'origin' || filters.coordinate === 'target') &&
+    (filters.origin === undefined || isText(filters.origin)) &&
+    (filters.destination === undefined || isText(filters.destination)) &&
+    (chart.viewMode === 'points' || chart.viewMode === 'plays' || chart.viewMode === 'heatmap') &&
+    isFiniteNumber(chart.radius) &&
+    chart.radius >= 0 &&
+    chart.radius <= 1 &&
+    isFiniteNumber(chart.intensity) &&
+    chart.intensity >= 0
+  );
+}
+
+function validReportChartConfiguration(
+  value: unknown,
+  matchId: string,
+  teamIds: ReadonlySet<string>,
+): value is ReportChartConfiguration {
+  if (!isRecord(value) || !isRecord(value.filters) || !isRecord(value.parameters) || !isRecord(value.sample)) {
+    return false;
+  }
+  const filters = value.filters;
+  const sample = value.sample;
+  const coverage = value.coverage;
+  const validType = [
+    'win_probability',
+    'team_performance',
+    'rotation_performance',
+    'setter_distribution',
+    'attack_evenness',
+    'setter_repetition',
+  ].includes(String(value.type));
+  return (
+    isText(value.id) &&
+    value.matchId === matchId &&
+    value.schemaVersion === REPORT_CHART_CONFIGURATION_SCHEMA_VERSION &&
+    validType &&
+    isText(value.title) &&
+    (filters.teamId === undefined || (isText(filters.teamId) && teamIds.has(filters.teamId))) &&
+    (filters.playerId === undefined || isText(filters.playerId)) &&
+    (filters.setterPosition === undefined ||
+      (isFiniteNumber(filters.setterPosition) && filters.setterPosition >= 1 && filters.setterPosition <= 6)) &&
+    isFiniteNumber(value.order) &&
+    value.order >= 0 &&
+    isFiniteNumber(sample.totalActions) &&
+    sample.totalActions >= 0 &&
+    isFiniteNumber(sample.identifiedActions) &&
+    sample.identifiedActions >= 0 &&
+    isFiniteNumber(sample.unidentifiedActions) &&
+    sample.unidentifiedActions >= 0 &&
+    (coverage === undefined ||
+      (isRecord(coverage) &&
+        Array.isArray(coverage.modes) &&
+        coverage.modes.every(isText) &&
+        isFiniteNumber(coverage.identifiedActions) &&
+        coverage.identifiedActions >= 0 &&
+        isFiniteNumber(coverage.unidentifiedActions) &&
+        coverage.unidentifiedActions >= 0))
   );
 }
 
@@ -128,6 +235,7 @@ const MATCH_EVENT_TYPES = new Set([
   'rally_started',
   'rally_ended',
   'score_changed',
+  'score_adjustment',
   'set_started',
   'serving_team_changed',
   'scout_registered',
@@ -279,6 +387,29 @@ function validateMatchExport(
       )
         return false;
     }
+    if (item.type === 'score_adjustment') {
+      if (
+        !Number.isSafeInteger(item.setNumber) ||
+        (item.setNumber as number) < 1 ||
+        !isText(item.teamId) ||
+        !teamIds.has(item.teamId) ||
+        !Number.isSafeInteger(item.delta) ||
+        item.delta === 0 ||
+        (item.reason !== undefined && typeof item.reason !== 'string')
+      )
+        return false;
+    }
+    if (item.type === 'set_started' && item.courtOrientation !== undefined) {
+      if (
+        !isRecord(item.courtOrientation) ||
+        !isText(item.courtOrientation.leftTeamId) ||
+        !teamIds.has(item.courtOrientation.leftTeamId) ||
+        !isText(item.courtOrientation.rightTeamId) ||
+        !teamIds.has(item.courtOrientation.rightTeamId) ||
+        item.courtOrientation.leftTeamId === item.courtOrientation.rightTeamId
+      )
+        return false;
+    }
     if (item.type === 'substitution_made') {
       if (
         !isText(item.teamId) ||
@@ -304,6 +435,22 @@ function validateMatchExport(
         return false;
     }
   }
+  if (
+    value.analysisConfigurations !== undefined &&
+    (!Array.isArray(value.analysisConfigurations) ||
+      value.analysisConfigurations.some(
+        (configuration) => !validAnalysisConfiguration(configuration, match.id as string, teamIds),
+      ))
+  )
+    return false;
+  if (
+    value.reportChartConfigurations !== undefined &&
+    (!Array.isArray(value.reportChartConfigurations) ||
+      value.reportChartConfigurations.some(
+        (configuration) => !validReportChartConfiguration(configuration, match.id as string, teamIds),
+      ))
+  )
+    return false;
   return true;
 }
 

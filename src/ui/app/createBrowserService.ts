@@ -20,9 +20,20 @@ import { IndexedDbFreeLogSessionRepository } from '../../infrastructure/persiste
 import { BrowserDirectoryExporter } from '../../infrastructure/export/filesystem/BrowserDirectoryExporter';
 import { IndexedDbAnalyticsSnapshotRepository } from '../../infrastructure/persistence/repositories/IndexedDbAnalyticsSnapshotRepository';
 import { HistoricalAnalyticsService } from '../../application/analytics/HistoricalAnalyticsService';
+import { IndexedDbAnalysisConfigurationRepository } from '../../infrastructure/persistence/repositories/IndexedDbAnalysisConfigurationRepository';
+import { IndexedDbReportChartConfigurationRepository } from '../../infrastructure/persistence/repositories/IndexedDbReportChartConfigurationRepository';
 
 const database = new ScoutTrainerDatabase();
 const profiles = createDefaultProfileRegistry();
+export const browserAnalysisConfigurationRepository = new IndexedDbAnalysisConfigurationRepository(
+  database,
+);
+export const browserAnalyticsSnapshotRepository = new IndexedDbAnalyticsSnapshotRepository(
+  database,
+);
+export const browserReportChartConfigurationRepository = new IndexedDbReportChartConfigurationRepository(
+  database,
+);
 
 export const browserAthleteRegistrations = new IndexedDbEntityRepository<AthleteRegistration>(
   database,
@@ -39,6 +50,10 @@ export const browserScoutTrainerService = new ScoutTrainerService(
   new IndexedDbTeamRepository(database),
   new IndexedDbPlayerRepository(database),
   profiles,
+  undefined,
+  browserAnalysisConfigurationRepository,
+  browserAnalyticsSnapshotRepository,
+  browserReportChartConfigurationRepository,
 ).enableBackupRestore(new IndexedDbMatchBackupRepository(database));
 
 export const browserTrainingService = new TrainingService(
@@ -56,10 +71,6 @@ export const browserFreeLogService = new FreeLogService(
 );
 
 export const browserDirectoryExporter = new BrowserDirectoryExporter();
-
-export const browserAnalyticsSnapshotRepository = new IndexedDbAnalyticsSnapshotRepository(
-  database,
-);
 
 export const browserHistoricalAnalyticsService = new HistoricalAnalyticsService(
   browserAnalyticsSnapshotRepository,

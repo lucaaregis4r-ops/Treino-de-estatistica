@@ -20,7 +20,7 @@ it('requires a complete play, clears reset coordinates and submits the precise d
   expect(onRegister).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: /07 Ana/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Ataque' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Qualidade #' }));
+  fireEvent.click(screen.getByRole('button', { name: /Qualidade #/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Largada' }));
   expect(submit).toBeDisabled();
   const surface = screen.getByRole('button', { name: 'Quadra espacial clicável' });
@@ -28,7 +28,7 @@ it('requires a complete play, clears reset coordinates and submits the precise d
   fireEvent.click(surface, { clientX: 273, clientY: 341 });
   fireEvent.click(surface, { clientX: 812, clientY: 112 });
   expect(submit).toBeEnabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Refazer' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Refazer trajetória' }));
   expect(submit).toBeDisabled();
   expect(screen.queryByLabelText('Origem')).not.toBeInTheDocument();
   fireEvent.click(surface, { clientX: 273, clientY: 341 });

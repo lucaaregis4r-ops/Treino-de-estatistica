@@ -11,13 +11,24 @@ export type RallyPhase = 'sideout' | 'breakpoint' | 'transition';
 export type ReceptionGrade = 'A' | 'B' | 'C' | 'ERROR';
 export type ScoutInputMode = 'typed' | 'visual' | 'hybrid';
 
+export type ScoutCoverageMode = 'both' | 'team_a' | 'team_b';
+
+export interface ScoutCoverage {
+  readonly mode: ScoutCoverageMode;
+  readonly observedTeamIds: readonly string[];
+}
+
 export interface SubstitutionMetadata {
   readonly playerOutId: string;
   readonly playerInId: string;
 }
 
 export interface ScoutEventMetadata {
+  readonly coverage?: ScoutCoverage;
   readonly spatial?: SpatialMetadata;
+  /** Derived terminal semantics kept alongside the canonical point/error outcome. */
+  readonly terminalCause?: 'attack_out' | 'block_out';
+  readonly blockTouch?: boolean;
   /** Canonical tactical metadata. Legacy flat fields below remain readable during V1 compatibility. */
   readonly schemaVersion?: '2.0.0';
   readonly tactical?: TacticalMetadata;

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scout-trainer-v2';
+const CACHE_NAME = 'scout-trainer-v3-gesture';
 const APP_SHELL = [
   './',
   './manifest.webmanifest',

@@ -18,6 +18,14 @@ function metadataFor(
   draft: VisualScoutDraft,
   profile: CodeProfile,
 ): ScoutEventMetadata | undefined {
+  const attackOutMetadata: Pick<ScoutEventMetadata, 'terminalCause' | 'blockTouch'> =
+    draft.skill === 'attack' && draft.spatial?.destination.surface === 'outZone'
+      ? draft.evaluation === 'excellent'
+        ? { terminalCause: 'block_out', blockTouch: true }
+        : draft.evaluation === 'error'
+          ? { terminalCause: 'attack_out', blockTouch: false }
+          : {}
+      : {};
   const captureDraft: TacticalCaptureDraft = {
     ...(draft.skill === 'reception' && draft.contactLocation
       ? { origin: draft.contactLocation }
@@ -41,9 +49,17 @@ function metadataFor(
       ? { captureMethod: draft.captureMethod ?? ('selected' as const) }
       : {}),
   };
-  return Object.keys(captureDraft).length > 0 || draft.spatial !== undefined
+  return Object.keys(captureDraft).length > 0 ||
+    draft.spatial !== undefined ||
+    Object.keys(attackOutMetadata).length > 0 ||
+    draft.coverage !== undefined
     ? normalizeTacticalMetadata(
-        { captureDraft, ...(draft.spatial !== undefined ? { spatial: draft.spatial } : {}) },
+        {
+          captureDraft,
+          ...(draft.spatial !== undefined ? { spatial: draft.spatial } : {}),
+          ...(draft.coverage !== undefined ? { coverage: draft.coverage } : {}),
+          ...attackOutMetadata,
+        },
         draft.skill,
         profile.tacticalInput?.zoneSystem,
       )
@@ -52,7 +68,11 @@ function metadataFor(
 
 export class VisualScoutMapper {
   map(draft: VisualScoutDraft, profile: CodeProfile): CanonicalScoutEventCandidate {
-    const description = `[VISUAL] ${draft.teamId} #${String(draft.playerNumber).padStart(2, '0')} ${draft.skill} ${draft.evaluation}`;
+    const playerLabel = draft.playerNumber === undefined
+      ? 'Sem atleta identificado'
+      : `#${String(draft.playerNumber).padStart(2, '0')}`;
+    const normalizedPlayer = draft.playerNumber === undefined ? 'unidentified' : draft.playerNumber;
+    const description = `[VISUAL] ${draft.teamId} ${playerLabel} ${draft.skill} ${draft.evaluation}`;
     const metadata = metadataFor(draft, profile);
     return {
       playerNumber: draft.playerNumber,
@@ -60,7 +80,7 @@ export class VisualScoutMapper {
       evaluation: draft.evaluation,
       outcome: outcomeFor(draft, profile),
       rawCode: description,
-      normalizedCode: `[VISUAL:${draft.teamId}:${draft.playerNumber}:${draft.skill}:${draft.evaluation}]`,
+      normalizedCode: `[VISUAL:${draft.teamId}:${normalizedPlayer}:${draft.skill}:${draft.evaluation}]`,
       ...(metadata ? { metadata } : {}),
     };
   }

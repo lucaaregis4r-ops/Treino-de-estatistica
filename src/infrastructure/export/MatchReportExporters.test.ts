@@ -4,6 +4,7 @@ import type {
   MatchReportModel,
 } from '../../application/reporting/MatchReportModel';
 import { DEFAULT_INDOOR_SCORING_RULES } from '../../domain/match/rules/SetScoringRules';
+import { createReportChartConfiguration } from '../../domain/reporting/ReportChartConfiguration';
 import { StatisticsCsvExporter } from './csv/StatisticsCsvExporter';
 import { MatchPdfRenderer } from './pdf/MatchPdfRenderer';
 
@@ -258,6 +259,25 @@ describe('Match report exporters', () => {
     expect(pdf).toContain('20.0% [2/10]');
     expect(pdf).toMatch(/xref[\s\S]+startxref[\s\S]+%%EOF$/);
     expect([...pdf].every((character) => character.charCodeAt(0) < 128)).toBe(true);
+  });
+
+  it('renders only the report charts selected by the analyst', () => {
+    const pdf = new MatchPdfRenderer().render(report, [
+      createReportChartConfiguration({
+        id: 'chart_1',
+        matchId: 'match_1',
+        type: 'rotation_performance',
+        title: 'Rotação de saque',
+        filters: { teamId: 'team_a' },
+        order: 0,
+        sample: { totalActions: 150, identifiedActions: 120, unidentifiedActions: 30 },
+      }),
+    ]);
+
+    expect(pdf).toContain('/Type /Pages /Count 3');
+    expect(pdf).toContain('Rotacao de saque');
+    expect(pdf).toContain('Sideout');
+    expect(pdf).not.toContain('3. ATAQUE POR POSICAO DO LEVANTADOR');
   });
 
   it('exports the same auditable report values to statistics CSV', () => {

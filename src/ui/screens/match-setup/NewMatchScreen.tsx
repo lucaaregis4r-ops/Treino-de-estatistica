@@ -66,6 +66,19 @@ const defaultLineup = (firstNumber: number): LineupPositionInput[] =>
     playerNumber: firstNumber + index,
   }));
 
+function hasValidLineup(
+  players: readonly PlayerRegistrationInput[],
+  lineup: readonly LineupPositionInput[],
+): boolean {
+  const playerNumbers = new Set(players.map((player) => player.number));
+  return (
+    lineup.length === 6 &&
+    new Set(lineup.map((entry) => entry.position)).size === 6 &&
+    new Set(lineup.map((entry) => entry.playerNumber)).size === 6 &&
+    lineup.every((entry) => playerNumbers.has(entry.playerNumber))
+  );
+}
+
 interface NewMatchScreenProps {
   readonly busy: boolean;
   readonly onCancel: () => void;
@@ -120,7 +133,7 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
     useState<CreateMatchInput['complexityProfileId']>('basic');
   const [codeProfileId, setCodeProfileId] = useState('data_volley_basic_v1');
 
-  function useRegisteredTeam(id: string, side: 'A' | 'B') {
+  function applyRegisteredTeam(id: string, side: 'A' | 'B') {
     const team = registeredTeams.find((item) => item.id === id);
     if (!team) return;
     const roster = team.athleteIds.flatMap((athleteId) => {
@@ -169,13 +182,15 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
           ? { ...player, libero: true, registeredRole: player.registeredRole ?? 'libero' }
           : player,
       );
+    const teamAInput = withLibero(playerRegistrations(teamAPlayers), teamALibero);
+    const teamBInput = withLibero(playerRegistrations(teamBPlayers), teamBLibero);
     await onCreate({
       teamAName,
       teamBName,
-      teamAPlayers: withLibero(playerRegistrations(teamAPlayers), teamALibero),
-      teamBPlayers: withLibero(playerRegistrations(teamBPlayers), teamBLibero),
-      teamALineup,
-      teamBLineup,
+      teamAPlayers: teamAInput,
+      teamBPlayers: teamBInput,
+      ...(hasValidLineup(teamAInput, teamALineup) ? { teamALineup } : {}),
+      ...(hasValidLineup(teamBInput, teamBLineup) ? { teamBLineup } : {}),
       initialServingTeam,
       complexityProfileId,
       codeProfileId,
@@ -193,16 +208,21 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
           Voltar
         </button>
       </div>
-      {registrationError && <p role="alert">{registrationError}</p>}
+      {registrationError && (
+        <p id="new-match-error" role="alert">
+          {registrationError}
+        </p>
+      )}
       <form className="setup-form" onSubmit={(event) => void submit(event)}>
         <div className="team-form-card">
           <span className="team-marker">A</span>
-          <label>
+          <label htmlFor="team-a-registered">
             Usar equipe cadastrada
             <select
+              id="team-a-registered"
               disabled={busy}
               defaultValue=""
-              onChange={(e) => useRegisteredTeam(e.target.value, 'A')}
+              onChange={(e) => applyRegisteredTeam(e.target.value, 'A')}
             >
               <option value="">Preencher manualmente</option>
               {registeredTeams.map((team) => (
@@ -212,21 +232,22 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
               ))}
             </select>
           </label>
-          <label>
+          <label htmlFor="team-a-name">
             Nome da equipe
             <input
+              id="team-a-name"
               value={teamAName}
               onChange={(event) => setTeamAName(event.target.value)}
               required
             />
           </label>
-          <label>
+          <label htmlFor="team-a-players">
             Atletas (camisa e nome)
             <textarea
+              id="team-a-players"
               value={teamAPlayers}
               onChange={(event) => setTeamAPlayers(event.target.value)}
               aria-describedby="players-help"
-              required
             />
           </label>
         </div>
@@ -235,12 +256,13 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
         </div>
         <div className="team-form-card team-b">
           <span className="team-marker">B</span>
-          <label>
+          <label htmlFor="team-b-registered">
             Usar equipe cadastrada
             <select
+              id="team-b-registered"
               disabled={busy}
               defaultValue=""
-              onChange={(e) => useRegisteredTeam(e.target.value, 'B')}
+              onChange={(e) => applyRegisteredTeam(e.target.value, 'B')}
             >
               <option value="">Preencher manualmente</option>
               {registeredTeams.map((team) => (
@@ -250,25 +272,28 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
               ))}
             </select>
           </label>
-          <label>
+          <label htmlFor="team-b-name">
             Nome da equipe
             <input
+              id="team-b-name"
               value={teamBName}
               onChange={(event) => setTeamBName(event.target.value)}
               required
             />
           </label>
-          <label>
+          <label htmlFor="team-b-players">
             Atletas (camisa e nome)
             <textarea
+              id="team-b-players"
               value={teamBPlayers}
               onChange={(event) => setTeamBPlayers(event.target.value)}
-              required
+              aria-describedby="players-help"
             />
           </label>
         </div>
         <p id="players-help" className="form-help">
-          Separe por vírgula ou linha: <code>8 Ana Souza</code>. Para reservas, a função pode ser
+          Separe por vírgula ou linha: <code>8 Ana Souza</code>. O elenco pode ficar vazio para uma
+          equipe não observada. Para reservas, a função pode ser
           informada após <code>|</code>: <code>14 Rafael | levantador</code>. A posição de rotação e
           a função ativa continuam pertencendo à escalação do set.
         </p>
@@ -417,7 +442,7 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles }: NewMa
             ))}
           </select>
         </label>
-        <button className="button primary submit-match" disabled={busy}>
+        <button className="button primary submit-match" type="submit" disabled={busy}>
           {busy ? 'Criando…' : 'Criar e iniciar scout'}
         </button>
       </form>

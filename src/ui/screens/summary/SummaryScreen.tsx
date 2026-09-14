@@ -8,6 +8,7 @@ import type {
 interface SummaryScreenProps {
   readonly workspace: MatchWorkspace;
   readonly onBack: () => void;
+  readonly onAnalysis: () => void;
   readonly onHome: () => void;
   readonly onExport: (format: 'json' | 'csv' | 'txt' | 'pdf') => Promise<void>;
   readonly directoryExportSupported: boolean;
@@ -21,6 +22,7 @@ interface SummaryScreenProps {
 export function SummaryScreen({
   workspace,
   onBack,
+  onAnalysis,
   onHome,
   onExport,
   directoryExportSupported,
@@ -48,9 +50,14 @@ export function SummaryScreen({
           <p className="eyebrow">Resumo estatístico</p>
           <h1 id="summary-title">{workspace.state.metadata.name}</h1>
         </div>
-        <button className="button ghost" type="button" onClick={onBack}>
-          Voltar ao scout
-        </button>
+        <div className="summary-heading-actions">
+          <button className="button secondary" type="button" onClick={onAnalysis}>
+            Abrir análise
+          </button>
+          <button className="button ghost" type="button" onClick={onBack}>
+            Voltar ao scout
+          </button>
+        </div>
       </div>
       <div className="summary-score">
         <strong>{teamA.name}</strong>
@@ -204,18 +211,23 @@ export function SummaryScreen({
         )}
       </section>
       <div className="summary-actions">
-        <button className="button primary" type="button" onClick={() => void onExport('pdf')}>
-          Exportar PDF
-        </button>
-        <button className="button primary" type="button" onClick={() => void onExport('json')}>
-          Exportar JSON
-        </button>
-        <button className="button secondary" type="button" onClick={() => void onExport('csv')}>
-          Exportar CSV
-        </button>
-        <button className="button secondary" type="button" onClick={() => void onExport('txt')}>
-          Exportar TXT
-        </button>
+        <details className="summary-export-menu">
+          <summary className="button primary">Exportar</summary>
+          <div className="summary-export-options" aria-label="Formatos de exportação">
+            <button className="button primary" type="button" disabled={busy} onClick={() => void onExport('pdf')}>
+              Exportar PDF
+            </button>
+            <button className="button primary" type="button" disabled={busy} onClick={() => void onExport('json')}>
+              Exportar JSON
+            </button>
+            <button className="button secondary" type="button" disabled={busy} onClick={() => void onExport('csv')}>
+              Exportar CSV
+            </button>
+            <button className="button secondary" type="button" disabled={busy} onClick={() => void onExport('txt')}>
+              Exportar TXT
+            </button>
+          </div>
+        </details>
         <button className="button secondary" type="button" onClick={onHome}>
           Voltar ao início
         </button>

@@ -106,6 +106,12 @@ describe('canonical court geometry and spatial projection', () => {
     expect(spatialDensityAt([point], 'serviceZone', 0.4, 0.5)).toBe(0);
   });
 
+  it('keeps outZone samples representable without plotting them on the court heatmap', () => {
+    const outZone = { surface: 'outZone' as const, x: 0.95, y: 0.5 };
+    expect(spatialDensityAt([outZone], 'outZone', 0.95, 0.5)).toBeGreaterThan(0);
+    expect(spatialDensityAt([outZone], 'court', 0.95, 0.5)).toBe(0);
+  });
+
   it('prioritizes V2 endpoints and projects reception destinations and external serve routes', () => {
     const origin = { surface: 'court' as const, x: 0.23, y: 0.46 };
     const destination = { surface: 'court' as const, x: 0.43, y: 0.25 };

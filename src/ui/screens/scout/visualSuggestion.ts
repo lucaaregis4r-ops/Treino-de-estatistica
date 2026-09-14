@@ -1,5 +1,8 @@
 import type { MatchWorkspace } from '../../../application/ScoutTrainerService';
 import type { Skill } from '../../../domain/scout/entities/Skill';
+import { GesturePlayerSuggestionResolver } from '../../../domain/rally/gesture/GesturePlayerSuggestion';
+
+const playerSuggestionResolver = new GesturePlayerSuggestionResolver();
 
 export function visualSuggestion(workspace: MatchWorkspace): {
   teamId: string;
@@ -7,13 +10,15 @@ export function visualSuggestion(workspace: MatchWorkspace): {
   playerNumber?: number;
 } {
   const next = workspace.tacticalRally?.expectedNextAction;
-  const teamId = next?.teamId ?? workspace.state.servingTeamId ?? workspace.teams[0].id;
+  const preliminaryTeamId = next?.teamId ?? workspace.state.servingTeamId ?? workspace.teams[0].id;
   const skill = next?.skill === 'set' ? 'attack' : next?.skill;
-  if (skill !== 'serve') return { teamId, skill };
-  const lineup = workspace.currentLineups?.find((lineup) => lineup.teamId === teamId);
-  const slot = lineup && lineup.slots[lineup.positions[1]];
+  const teamId = skill === 'serve'
+    ? workspace.state.servingTeamId ?? preliminaryTeamId
+    : preliminaryTeamId;
+  const lineup = workspace.currentLineups?.find((candidate) => candidate.teamId === teamId);
+  const suggestion = skill ? playerSuggestionResolver.resolve(lineup, skill) : undefined;
   const player = workspace.players.find(
-    (player) => player.id === slot?.playerId && player.active !== false,
+    (candidate) => candidate.id === suggestion?.automatic && candidate.active !== false,
   );
-  return { teamId, skill, playerNumber: player?.number };
+  return { teamId, skill, ...(player ? { playerNumber: player.number } : {}) };
 }

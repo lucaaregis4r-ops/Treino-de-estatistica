@@ -1,16 +1,9 @@
 import type { ProjectedScoutEvent } from '../../../domain/match/events/ScoutTimeline';
+import type { Team } from '../../../domain/match/entities/Team';
+import type { Player } from '../../../domain/match/entities/Player';
 import type { ScoutEventMetadata } from '../../../domain/scout/events/ScoutEvent';
 import type { Skill } from '../../../domain/scout/entities/Skill';
-
-const skillLabels: Readonly<Record<string, string>> = {
-  serve: 'Saque',
-  reception: 'Recepção',
-  set: 'Levantamento',
-  attack: 'Ataque',
-  block: 'Bloqueio',
-  dig: 'Defesa',
-  free_ball: 'Free ball',
-};
+import { SKILL_LABELS } from './presentationLabels';
 
 const outcomeLabels: Readonly<Record<string, string>> = {
   ace: 'ace',
@@ -41,6 +34,8 @@ const completenessFieldLabels: Readonly<Record<string, string>> = {
 
 interface EventTimelineProps {
   readonly timeline: readonly ProjectedScoutEvent[];
+  readonly teams: readonly Team[];
+  readonly players: readonly Player[];
   readonly historyLimit: number;
   readonly pageSize: number;
   readonly busy: boolean;
@@ -57,6 +52,8 @@ interface EventTimelineProps {
 
 export function EventTimeline({
   timeline,
+  teams,
+  players,
   historyLimit,
   pageSize,
   busy,
@@ -70,6 +67,18 @@ export function EventTimeline({
       <div className="history-heading">
         <h2 id="event-timeline-title">Últimos eventos</h2>
         <div className="history-actions">
+          {timeline.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const item = timeline.at(-1);
+                if (item) onEdit(item.sourceEventId, item.event.rawCode, item.event.skill, item.event.metadata);
+              }}
+              disabled={busy}
+            >
+              Corrigir último rally
+            </button>
+          )}
           <button type="button" onClick={() => void onUndo()} disabled={busy}>
             Desfazer
           </button>
@@ -96,16 +105,29 @@ export function EventTimeline({
                   <span className="event-sequence">
                     {String(item.event.sequence).padStart(2, '0')}
                   </span>
-                  <code>{item.event.rawCode.trim()}</code>
+                  <code title={item.event.rawCode.trim()}>
+                    {item.event.rawCode.trim().startsWith('[VISUAL]') ? 'Visual' : item.event.rawCode.trim()}
+                  </code>
                   <span className="event-meaning">
-                    <strong>{skillLabels[item.event.skill]}</strong>
+                    <strong>{SKILL_LABELS[item.event.skill]}</strong>
                     {item.event.outcome
                       ? (outcomeLabels[item.event.outcome] ?? item.event.outcome)
                       : ''}
                   </span>
                   <span className="event-context">
-                    {item.event.setterPosition ? `L P${item.event.setterPosition}` : ''}
-                    {item.event.formationState === 'five_one_inversion' ? ' · inversão' : ''}
+                    {(() => {
+                      const player = item.event.playerId
+                        ? players.find((candidate) => candidate.id === item.event.playerId)
+                        : undefined;
+                      return [
+                        teams.find((team) => team.id === item.event.teamId)?.name ?? 'Equipe não identificada',
+                        player
+                          ? `#${String(player.number).padStart(2, '0')} ${player.name ?? ''}`
+                          : 'Sem atleta identificado',
+                        item.event.setterPosition ? `L P${item.event.setterPosition}` : '',
+                        item.event.formationState === 'five_one_inversion' ? 'inversão' : '',
+                      ].filter(Boolean).join(' · ');
+                    })()}
                   </span>
                   <span className="event-flags">
                     {item.corrected && <span className="corrected-badge">corrigido</span>}
@@ -125,6 +147,7 @@ export function EventTimeline({
                   </span>
                   <button
                     type="button"
+                    disabled={busy}
                     onClick={() =>
                       onEdit(
                         item.sourceEventId,

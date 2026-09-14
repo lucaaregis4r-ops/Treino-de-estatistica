@@ -36,10 +36,12 @@ export class EventFactory {
       return failure(new ValidationError('Scout event candidate is invalid.', validation.issues));
     }
 
-    const playerId = this.rosterResolver.resolve(
-      { teamId: context.teamId, players: context.roster },
-      candidate.playerNumber,
-    )?.id;
+    const playerId = candidate.playerNumber === undefined
+      ? undefined
+      : this.rosterResolver.resolve(
+          { teamId: context.teamId, players: context.roster },
+          candidate.playerNumber,
+        )?.id;
     const lineupContext =
       context.lineupContext ??
       (playerId ? playerLineupContext(context.lineup, playerId) : undefined);

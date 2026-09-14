@@ -109,6 +109,45 @@ describe('MatchReducer', () => {
     });
   });
 
+  it('applies a manual score adjustment without changing rally, serve, or rotation', () => {
+    const initial = createInitialMatchState(metadata);
+    const adjusted = reduceMatch(initial, {
+      type: 'score_adjustment',
+      id: 'adjustment_1',
+      matchId: metadata.id,
+      setNumber: 1,
+      teamId: metadata.teamBId,
+      delta: 1,
+      sequence: 1,
+      timestamp: 1,
+    });
+
+    expect(adjusted.score).toEqual({ teamA: 0, teamB: 1 });
+    expect(adjusted.servingTeamId).toBe(initial.servingTeamId);
+    expect(adjusted.currentRally).toEqual(initial.currentRally);
+    expect(adjusted.lineups).toEqual(initial.lineups);
+  });
+
+  it('alternates physical court sides when a new set starts', () => {
+    const state = replayMatch(metadata, [
+      {
+        type: 'set_started',
+        id: 'set_2',
+        matchId: metadata.id,
+        setNumber: 2,
+        initialScore: { teamA: 0, teamB: 0 },
+        servingTeamId: metadata.teamBId,
+        sequence: 1,
+        timestamp: 1,
+      },
+    ]);
+
+    expect(state.courtOrientation).toEqual({
+      leftTeamId: metadata.teamBId,
+      rightTeamId: metadata.teamAId,
+    });
+  });
+
   it('is deterministic even when storage returns events out of order', () => {
     expect(replayMatch(metadata, [...events].reverse())).toEqual(replayMatch(metadata, events));
   });

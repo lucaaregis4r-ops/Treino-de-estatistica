@@ -9,7 +9,7 @@
   justify-content: space-between;
   margin-bottom: 7px;
   padding: 0 3px;
-  color: #9aa9b5;
+  color: var(--st-muted);
   font-size: 11px;
   letter-spacing: 0.08em;
 }
@@ -21,10 +21,14 @@
   overflow: hidden;
   cursor: crosshair;
   touch-action: manipulation;
-  border: 2px solid #fff4df;
-  border-radius: 3px;
-  background: linear-gradient(135deg, #d87539, #b9572d);
-  box-shadow: 0 8px 20px rgb(0 0 0 / 22%), inset 0 0 24px rgb(92 35 17 / 28%);
+  overscroll-behavior: contain;
+  border: 2px solid var(--st-court-line);
+  border-radius: 0;
+  background: var(--st-court);
+}
+
+.spatial-v2-surface.spatial-v2-out-zone {
+  overflow: visible;
 }
 
 .spatial-v2-attack-line,
@@ -38,15 +42,15 @@
 
 .spatial-v2-attack-line {
   width: 2px;
-  background: #fff4df;
+  background: var(--st-court-line);
   opacity: 0.9;
 }
 
 .spatial-v2-net {
   left: 50%;
   width: 4px;
-  background: #fff;
-  box-shadow: 0 0 0 1px #713c27, 0 0 8px rgb(255 255 255 / 55%);
+  background: var(--st-court-line);
+  box-shadow: 0 0 0 1px var(--st-court-marker);
 }
 
 .spatial-v2-marker {
@@ -55,17 +59,17 @@
   height: 14px;
   box-sizing: border-box;
   transform: translate(-50%, -50%);
-  border: 2px solid #fff;
+  border: 2px solid var(--st-court);
   border-radius: 50%;
-  background: #183a51;
-  box-shadow: 0 0 0 2px rgb(255 214 92 / 80%);
+  background: var(--st-court-marker);
+  box-shadow: 0 0 0 2px var(--st-accent);
   pointer-events: none;
   z-index: 2;
 }
 
 .spatial-v2-destination {
-  background: #ffe66b;
-  border-color: #183a51;
+  background: var(--st-accent);
+  border-color: var(--st-court-marker);
 }
 
 .spatial-v2-trajectory {
@@ -79,13 +83,13 @@
 }
 
 .spatial-v2-trajectory line {
-  stroke: #183a51;
+  stroke: var(--st-court-marker);
   stroke-width: 1.5;
 }
 
 .spatial-v2-instruction {
   margin: 8px 0;
-  color: #c8d3da;
+  color: var(--st-muted);
   font-size: 13px;
 }
 
@@ -96,31 +100,32 @@
 }
 
 .spatial-v2-controls button {
+  min-height: 44px;
   padding: 6px 12px;
   cursor: pointer;
-  border: 1px solid #8fb8c2;
-  border-radius: 5px;
-  background: #183a51;
-  color: #fff;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-control);
+  background: var(--st-surface-raised);
+  color: var(--st-text);
   font: inherit;
 }
 
 .spatial-v2-controls button:hover:not(:disabled),
 .spatial-v2-controls button:focus-visible {
-  background: #245a70;
+  background: var(--st-court-marker);
 }
 
 .spatial-v2-controls button:disabled {
   cursor: not-allowed;
-  border-color: #53666f;
-  background: #3b454a;
-  color: #d0d8dc;
+  border-color: var(--st-border);
+  background: var(--st-surface);
+  color: var(--st-muted);
   opacity: 1;
 }
 
 .spatial-v2-debug {
   display: block;
   margin-top: 6px;
-  color: #ffd65c;
+  color: var(--st-warning);
   font: 11px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
 }

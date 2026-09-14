@@ -2,6 +2,7 @@ import type { ScoreSnapshot } from '../score/Score';
 import type { ScoutEvent } from '../../scout/events/ScoutEvent';
 import type { CourtRotationPosition, SetLineup } from '../lineup/SetLineup';
 import type { PlayerRole } from '../roles/PlayerRole';
+import type { CourtOrientation } from '../state/CourtOrientation';
 
 interface MatchSystemEvent {
   readonly id: string;
@@ -38,12 +39,21 @@ export interface SetStartedEvent extends MatchSystemEvent {
   readonly setNumber: number;
   readonly initialScore: ScoreSnapshot;
   readonly servingTeamId?: string;
+  readonly courtOrientation?: CourtOrientation;
 }
 
 export interface ScoreChangedEvent extends MatchSystemEvent {
   readonly type: 'score_changed';
   readonly setNumber: number;
   readonly score: ScoreSnapshot;
+}
+
+export interface ScoreAdjustmentEvent extends MatchSystemEvent {
+  readonly type: 'score_adjustment';
+  readonly setNumber: number;
+  readonly teamId: string;
+  readonly delta: number;
+  readonly reason?: string;
 }
 
 export interface ServingTeamChangedEvent extends MatchSystemEvent {
@@ -118,6 +128,7 @@ export type MatchEvent =
   | ScoutRedoneEvent
   | SetStartedEvent
   | ScoreChangedEvent
+  | ScoreAdjustmentEvent
   | ServingTeamChangedEvent
   | RallyStartedEvent
   | RallyEndedEvent

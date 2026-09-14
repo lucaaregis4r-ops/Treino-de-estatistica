@@ -2,6 +2,33 @@
 
 Todas as mudanças relevantes do Scout Trainer são registradas neste arquivo.
 
+## [Não lançado] — Registro rápido — 2026-09-14
+
+- Números e nomes mais legíveis no Gestual, ação/equipe em destaque e opção explícita de registrar ao soltar a trajetória.
+- Bola de graça registra seu próprio contato espacial e prepara a defesa adversária no Gestual, sem corrigir indevidamente o ataque anterior.
+- Ajuste conjunto de rotação via P1, equipe sacadora e placar, com escrita atômica usando os eventos existentes; retomada pelo saque somente quando solicitada.
+- Falhas de gravação mantêm rascunho/escolhas; ausência de atleta e confirmação manual preservadas. Guia em `docs/REGISTRO_RAPIDO.md`.
+
+## [Não lançado] — Interface local — 2026-09-13
+
+- Navegação Início/Partidas e espaço Registro/Resumo/Análise organizados com tokens compartilhados, seleções explícitas e controles de teclado/toque.
+- Registro gestual redimensionado para manter os comandos operacionais visíveis em 1366×640, preservando a quadra 2:1 e as coordenadas capturadas.
+- Detalhes da partida e ferramentas de correção com entradas maiores, conteúdo no fluxo da página e fechamento por Escape com retorno de foco.
+- Seletor gestual segue a rotação real: Rede P4/P3/P2 e Fundo P5/P6/P1, sugestão distinta da seleção, nome ao passar o cursor e ao selecionar, um botão de líbero e acesso às reservas.
+- Análises organizadas em abas, filtros salvos e seleção persistente de gráficos para o relatório, usando a persistência e os exporters existentes.
+- Evidências e limites da verificação U7 em `docs/scout-trainer-interface-0.4/ENTREGA.md`; suíte global ainda não está limpa. Sem mudança automática de versão, métricas ou regras esportivas nesta revisão.
+
+## [0.4.0] - 2026-09-10
+
+### Registro gestual mobile-first
+
+- Registro por gesto com Pointer Events para touch, mouse e caneta.
+- Rally guiado pelo contexto, sem exigir levantamento explícito.
+- Sugestões de atletas baseadas na rotação atual.
+- Inferência de ataques defendidos, ataques para fora, free ball e block-out.
+- Área `outZone` preservada para futuras visualizações específicas.
+- PWA/local-first mantido, com modo gestual disponível dentro da partida.
+
 ## [0.3.0] - 2026-09-06
 
 ### Gestão e navegação

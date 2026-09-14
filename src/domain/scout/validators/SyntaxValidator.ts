@@ -5,7 +5,10 @@ export class SyntaxValidator {
   validate(candidate: CanonicalScoutEventCandidate): ValidationResult {
     const issues: ValidationIssue[] = [];
 
-    if (candidate.playerNumber < 1 || candidate.playerNumber > 99) {
+    if (
+      candidate.playerNumber !== undefined &&
+      (candidate.playerNumber < 1 || candidate.playerNumber > 99)
+    ) {
       issues.push({
         code: 'invalid_player_number',
         message: 'Player number must be between 1 and 99.',

@@ -43,7 +43,7 @@ const SKILL_GUIDES = [
   },
   {
     code: 'F',
-    name: 'Free ball',
+    name: 'Bola de graça',
     syntax: '07F+ o6 t3',
     explanation:
       'Use para bola devolvida sem ataque. Origem e destino são opcionais e só entram quando observados.',

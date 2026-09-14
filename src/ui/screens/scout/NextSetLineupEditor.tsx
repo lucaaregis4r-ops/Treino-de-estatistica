@@ -60,6 +60,8 @@ function lineupInput(
 
 export function NextSetLineupEditor({ workspace, busy, onConfirm }: NextSetLineupEditorProps) {
   const [teamA, teamB] = workspace.teams;
+  const observesTeamA = workspace.coverage.mode !== 'team_b';
+  const observesTeamB = workspace.coverage.mode !== 'team_a';
   const [teamASelection, setTeamASelection] = useState(() => initialSelection(workspace, teamA.id));
   const [teamBSelection, setTeamBSelection] = useState(() => initialSelection(workspace, teamB.id));
   const [servingTeamId, setServingTeamId] = useState(workspace.state.servingTeamId ?? teamA.id);
@@ -113,19 +115,17 @@ export function NextSetLineupEditor({ workspace, busy, onConfirm }: NextSetLineu
     const teamAPlayers = Object.values(teamASelection);
     const teamBPlayers = Object.values(teamBSelection);
     if (
-      teamAPlayers.some((playerId) => !playerId) ||
-      teamBPlayers.some((playerId) => !playerId) ||
-      new Set(teamAPlayers).size !== 6 ||
-      new Set(teamBPlayers).size !== 6
+      (observesTeamA && (teamAPlayers.some((playerId) => !playerId) || new Set(teamAPlayers).size !== 6)) ||
+      (observesTeamB && (teamBPlayers.some((playerId) => !playerId) || new Set(teamBPlayers).size !== 6))
     ) {
-      setError('Escolha seis atletas diferentes para cada equipe.');
+      setError('Escolha seis atletas diferentes para cada equipe observada.');
       return;
     }
     setError('');
     await onConfirm({
       servingTeamId,
-      teamALineup: lineupInput(workspace, teamA.id, teamASelection),
-      teamBLineup: lineupInput(workspace, teamB.id, teamBSelection),
+      ...(observesTeamA ? { teamALineup: lineupInput(workspace, teamA.id, teamASelection) } : {}),
+      ...(observesTeamB ? { teamBLineup: lineupInput(workspace, teamB.id, teamBSelection) } : {}),
     });
   }
 
@@ -141,8 +141,14 @@ export function NextSetLineupEditor({ workspace, busy, onConfirm }: NextSetLineu
       </div>
       <form onSubmit={(event) => void submit(event)}>
         <div className="next-set-teams">
-          {teamEditor(teamA.id, teamA.name, teamASelection, setTeamASelection)}
-          {teamEditor(teamB.id, teamB.name, teamBSelection, setTeamBSelection)}
+          <div>
+            {teamEditor(teamA.id, teamA.name, teamASelection, setTeamASelection)}
+            {!observesTeamA && <small>Equipe não observada · escalação opcional</small>}
+          </div>
+          <div>
+            {teamEditor(teamB.id, teamB.name, teamBSelection, setTeamBSelection)}
+            {!observesTeamB && <small>Equipe não observada · escalação opcional</small>}
+          </div>
         </div>
         <div className="next-set-actions">
           <label>

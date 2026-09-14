@@ -2,7 +2,11 @@ import type { MatchMetadata } from '../../domain/match/entities/MatchMetadata';
 import type { CourtRotationPosition } from '../../domain/match/lineup/SetLineup';
 import type { ScoreSnapshot } from '../../domain/match/score/Score';
 import type { SetState } from '../../domain/match/state/SetState';
-import type { RallyPhase, ReceptionGrade } from '../../domain/scout/events/ScoutEvent';
+import type {
+  RallyPhase,
+  ReceptionGrade,
+  ScoutCoverageMode,
+} from '../../domain/scout/events/ScoutEvent';
 import type { SpatialAnalyticsProjection } from '../../domain/scout/spatial/SpatialProjection';
 import type { WinProbabilityReport } from '../analytics/WinProbabilityService';
 
@@ -207,10 +211,20 @@ export interface TeamSummaryReport {
   readonly blocks: number;
   readonly aces: number;
   readonly errors: number;
+  readonly identifiedActions?: number;
+  readonly unidentifiedActions?: number;
+}
+
+export interface ReportCoverage {
+  readonly modes: readonly ScoutCoverageMode[];
+  readonly observedTeamIds: readonly string[];
+  readonly identifiedActions: number;
+  readonly unidentifiedActions: number;
 }
 
 export interface MatchReportModel {
   readonly metadata: MatchMetadata;
+  readonly coverage?: ReportCoverage;
   readonly eventCount: number;
   readonly durationMs: number;
   readonly score: ScoreSnapshot;

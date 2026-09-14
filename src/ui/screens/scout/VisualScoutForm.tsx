@@ -3,6 +3,7 @@ import type { Player } from '../../../domain/match/entities/Player';
 import type { Team } from '../../../domain/match/entities/Team';
 import type { Skill } from '../../../domain/scout/entities/Skill';
 import type { ScoutInputMode } from '../../../domain/scout/events/ScoutEvent';
+import { evaluationLabel, SKILL_LABELS } from './presentationLabels';
 
 interface VisualScoutFormProps {
   readonly mode: Exclude<ScoutInputMode, 'typed'>;
@@ -17,6 +18,8 @@ interface VisualScoutFormProps {
   readonly hybridCode: string;
   readonly busy: boolean;
   readonly suggestion?: string;
+  readonly statusMessage?: string;
+  readonly errorMessage?: string;
   readonly onTeamChange: (teamId: string) => void;
   readonly onPlayerChange: (playerNumber: string) => void;
   readonly onSkillChange: (skill: Skill) => void;
@@ -24,16 +27,6 @@ interface VisualScoutFormProps {
   readonly onHybridCodeChange: (code: string) => void;
   readonly onSubmit: FormEventHandler<HTMLFormElement>;
 }
-
-const SKILL_LABELS: Readonly<Record<Skill, string>> = {
-  serve: 'Saque',
-  reception: 'Recepção',
-  set: 'Levantamento observado',
-  attack: 'Ataque',
-  block: 'Bloqueio',
-  dig: 'Defesa',
-  free_ball: 'Bola de graça',
-};
 
 export function VisualScoutForm({
   mode,
@@ -48,6 +41,8 @@ export function VisualScoutForm({
   hybridCode,
   busy,
   suggestion,
+  statusMessage,
+  errorMessage,
   onTeamChange,
   onPlayerChange,
   onSkillChange,
@@ -96,8 +91,8 @@ export function VisualScoutForm({
           <select
             value={playerNumber}
             onChange={(event) => onPlayerChange(event.target.value)}
-            required
           >
+            <option value="">Sem atleta identificado</option>
             {teamPlayers.map((player) => (
               <option key={player.id} value={player.number}>
                 #{String(player.number).padStart(2, '0')}{' '}
@@ -129,7 +124,7 @@ export function VisualScoutForm({
           >
             {evaluations.map((value) => (
               <option key={value} value={value}>
-                {value}
+                {evaluationLabel(skill, value)}
               </option>
             ))}
           </select>
@@ -138,7 +133,13 @@ export function VisualScoutForm({
       <p className="capture-help-note">
         Coordenadas e detalhes são opcionais. O levantamento normal continua implícito.
       </p>
-      <button className="button primary" type="submit" disabled={busy || !playerNumber}>
+      {statusMessage && <p className="capture-status" role="status">{statusMessage}</p>}
+      {errorMessage && <p className="capture-status capture-status-error" role="alert">{errorMessage}</p>}
+      <button
+        className="button primary"
+        type="submit"
+        disabled={busy || (mode === 'hybrid' && !hybridCode.trim())}
+      >
         Confirmar um evento
       </button>
     </form>

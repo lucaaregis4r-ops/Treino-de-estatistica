@@ -1,5 +1,6 @@
 import type { CourtLocation } from './TacticalMetadata';
 import type { ZoneDefinition, ZoneSystemProfile } from './ZoneSystemProfile';
+import type { SpatialPoint } from '../spatial/SpatialMetadata';
 
 export type CourtOrientation = 'canonical' | 'rotated_180';
 export type CourtDisplaySide = 'origin' | 'target';
@@ -10,6 +11,12 @@ export interface CourtRectangle {
   readonly width: number;
   readonly height: number;
 }
+
+export type SpatialFrame = {
+  readonly frame: CourtRectangle;
+  readonly court: CourtRectangle;
+  readonly serviceZone?: CourtRectangle;
+};
 
 function clamp(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -24,6 +31,43 @@ export function normalizedCourtPoint(
     x: rectangle.width > 0 ? clamp((clientX - rectangle.left) / rectangle.width) : 0,
     y: rectangle.height > 0 ? clamp((clientY - rectangle.top) / rectangle.height) : 0,
   };
+}
+
+/** Maps a visual frame coordinate to one normalized spatial surface. */
+export function framePointToSpatialPoint(
+  clientX: number,
+  clientY: number,
+  spatialFrame: SpatialFrame,
+): SpatialPoint {
+  const framePoint = normalizedSpatialCoordinate(clientX, clientY, spatialFrame.frame);
+  const service = spatialFrame.serviceZone;
+  if (service && contains(service, clientX, clientY)) {
+    return { surface: 'serviceZone', ...normalizedSpatialCoordinate(clientX, clientY, service) };
+  }
+  if (contains(spatialFrame.court, clientX, clientY)) {
+    return { surface: 'court', ...normalizedSpatialCoordinate(clientX, clientY, spatialFrame.court) };
+  }
+  return { surface: 'outZone', ...framePoint };
+}
+
+function normalizedSpatialCoordinate(
+  clientX: number,
+  clientY: number,
+  rectangle: CourtRectangle,
+): { readonly x: number; readonly y: number } {
+  const point = normalizedCourtPoint(clientX, clientY, rectangle);
+  return { x: point.x ?? 0, y: point.y ?? 0 };
+}
+
+function contains(rectangle: CourtRectangle, clientX: number, clientY: number): boolean {
+  return (
+    rectangle.width > 0 &&
+    rectangle.height > 0 &&
+    clientX >= rectangle.left &&
+    clientX <= rectangle.left + rectangle.width &&
+    clientY >= rectangle.top &&
+    clientY <= rectangle.top + rectangle.height
+  );
 }
 
 export function isNormalizedCourtCoordinate(value: number | undefined): boolean {

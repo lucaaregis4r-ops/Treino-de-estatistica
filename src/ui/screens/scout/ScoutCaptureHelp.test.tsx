@@ -13,7 +13,7 @@ describe('ScoutCaptureHelp', () => {
     ['08A#', 'Ataque', 'Ponto', 'Bloqueadores'],
     ['08B#', 'Bloqueio', 'Ponto', 'Bloqueadores'],
     ['08D+', 'Defesa', 'Positiva', 'Zona da defesa'],
-    ['08F+', 'Free ball', 'Controlada', 'Destino'],
+    ['08F+', 'Bola de graça', 'Controlada', 'Destino'],
   ])('explains and complements %s', (rawCode, skill, evaluation, complement) => {
     render(
       <ScoutCaptureHelp

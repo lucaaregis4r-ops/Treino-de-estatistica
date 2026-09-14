@@ -3,6 +3,7 @@ import type { Skill } from '../../../domain/scout/entities/Skill';
 import { ScoutCodeFramer } from '../../../domain/scout/input/ScoutCodeFramer';
 import type { CodeProfile, TacticalInputField } from '../../../profiles/types';
 import { ATTACK_COMBINATION_EXAMPLES } from './attackCombinationOptions';
+import { EVALUATION_LABELS, SKILL_LABELS } from './presentationLabels';
 
 interface ScoutCaptureHelpProps {
   readonly enabled: boolean;
@@ -83,68 +84,6 @@ const HELP_BY_SKILL: Readonly<Record<Skill, readonly HelpItem[]>> = {
       examples: 'DD diagonal · DP paralela · DG paragonal',
     },
   ],
-};
-
-const SKILL_LABELS: Readonly<Record<Skill, string>> = {
-  serve: 'Saque',
-  reception: 'Recepção',
-  set: 'Levantamento',
-  attack: 'Ataque',
-  block: 'Bloqueio',
-  dig: 'Defesa',
-  free_ball: 'Free ball',
-};
-
-const EVALUATION_LABELS: Readonly<Partial<Record<Skill, Readonly<Record<string, string>>>>> = {
-  serve: {
-    '#': 'Ace',
-    '+': 'Positivo',
-    '!': 'Limita',
-    '-': 'Sem pressão',
-    '/': 'Muito negativo',
-    '=': 'Erro',
-  },
-  reception: {
-    '#': 'Perfeita',
-    '+': 'Positiva',
-    '!': 'Limitada',
-    '-': 'Negativa',
-    '/': 'Overpass',
-    '=': 'Erro',
-  },
-  set: { '#': '0–1 bloqueador', '+': 'Jogável', '=': 'Erro' },
-  attack: {
-    '#': 'Ponto',
-    '+': 'Positivo',
-    '!': 'Coberto',
-    '-': 'Defendido',
-    '/': 'Abafado pelo bloqueio',
-    '=': 'Erro',
-  },
-  block: {
-    '#': 'Ponto',
-    '+': 'Positivo',
-    '!': 'Cobertura',
-    '-': 'Sem efeito',
-    '/': 'Violação',
-    '=': 'Erro',
-  },
-  dig: {
-    '#': 'Perfeita',
-    '+': 'Positiva',
-    '!': 'Limitada',
-    '-': 'Devolvida',
-    '/': 'Muito negativa',
-    '=': 'Erro',
-  },
-  free_ball: {
-    '#': 'Alvo perfeito',
-    '+': 'Controlada',
-    '!': 'Neutra',
-    '-': 'Fácil',
-    '/': 'Muito negativa',
-    '=': 'Erro',
-  },
 };
 
 const framer = new ScoutCodeFramer();

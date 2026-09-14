@@ -90,6 +90,8 @@ export function TeamPerformanceChart({ report }: TeamPerformanceChartProps) {
           <thead>
             <tr>
               <th>Equipe</th>
+              <th>Ações identificadas</th>
+              <th>Sem atleta identificado</th>
               {METRICS.map(([, label]) => (
                 <th key={label}>{label}</th>
               ))}
@@ -99,6 +101,8 @@ export function TeamPerformanceChart({ report }: TeamPerformanceChartProps) {
             {report.teamSummary.map((row) => (
               <tr key={row.teamId}>
                 <th scope="row">{teamName(row.teamId)}</th>
+                <td>{row.identifiedActions ?? '—'}</td>
+                <td>{row.unidentifiedActions ?? '—'}</td>
                 {METRICS.map(([key]) => (
                   <td key={key}>
                     {formatPercent(row[key].value)}{' '}

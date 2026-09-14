@@ -56,9 +56,10 @@ export function FreeLogScreen({
           partida será aplicado.
         </p>
         <div className="free-log-create">
-          <label>
+          <label htmlFor="free-log-name">
             Nome da sessão
             <input
+              id="free-log-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Treino de recepção"

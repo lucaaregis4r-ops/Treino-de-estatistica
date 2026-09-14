@@ -91,4 +91,55 @@ describe('VisualScoutMapper', () => {
     );
     expect(candidate.metadata).toBeUndefined();
   });
+
+  it('preserva uma ação sem atleta identificado sem criar jogador fictício', () => {
+    const candidate = mapper.map(
+      {
+        teamId: 'a',
+        skill: 'attack',
+        evaluation: 'excellent',
+        coverage: { mode: 'team_a', observedTeamIds: ['a'] },
+      },
+      defaultCompactV1,
+    );
+
+    expect(candidate.playerNumber).toBeUndefined();
+    expect(candidate.rawCode).toContain('Sem atleta identificado');
+    expect(candidate.metadata?.coverage).toEqual({ mode: 'team_a', observedTeamIds: ['a'] });
+  });
+
+  it.each([
+    {
+      evaluation: 'error',
+      outcome: 'error',
+      terminalCause: 'attack_out',
+      blockTouch: false,
+    },
+    {
+      evaluation: 'excellent',
+      outcome: 'point',
+      terminalCause: 'block_out',
+      blockTouch: true,
+    },
+  ] as const)(
+    'persiste a semântica terminal $terminalCause sem alterar o resultado canônico',
+    ({ evaluation, outcome, terminalCause, blockTouch }) => {
+      const candidate = mapper.map(
+        {
+          teamId: 'a',
+          playerNumber: 7,
+          skill: 'attack',
+          evaluation,
+          spatial: {
+            origin: { surface: 'court', x: 0.35, y: 0.25 },
+            destination: { surface: 'outZone', x: 0.9, y: 0.5 },
+          },
+        },
+        defaultCompactV1,
+      );
+
+      expect(candidate.outcome).toBe(outcome);
+      expect(candidate.metadata).toMatchObject({ terminalCause, blockTouch });
+    },
+  );
 });

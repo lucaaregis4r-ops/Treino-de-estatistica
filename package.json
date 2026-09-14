@@ -1,7 +1,7 @@
 {
   "name": "scout-trainer",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Registro, treinamento e análise de scout de voleibol.",
   "author": "Lucas Novo",
   "type": "module",
@@ -32,7 +32,7 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "latest",
-    "electron": "^37.2.6",
+    "electron": "^37.10.3",
     "electron-builder": "^26.0.12",
     "eslint": "latest",
     "eslint-plugin-react-hooks": "latest",

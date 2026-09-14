@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import type { MatchReportModel } from '../../../application/reporting/MatchReportModel';
+import {
+  createAnalysisConfiguration,
+  type AnalysisConfiguration,
+} from '../../../domain/analytics/AnalysisConfiguration';
+import { createEntityId } from '../../../core/ids/entityId';
 import { SKILLS, type Skill } from '../../../domain/scout/entities/Skill';
 import type {
   SpatialLocation,
@@ -7,30 +12,29 @@ import type {
 } from '../../../domain/scout/spatial/SpatialProjection';
 import './SpatialAnalyticsPanel.css';
 import { HeatmapLayer } from './HeatmapLayer';
+import { SKILL_LABELS } from '../scout/presentationLabels';
 
 interface SpatialAnalyticsPanelProps {
   readonly report: MatchReportModel;
   readonly teamId: string;
+  readonly matchId?: string;
+  readonly analysisConfigurations?: readonly AnalysisConfiguration[];
+  readonly onSaveAnalysisConfiguration?: (configuration: AnalysisConfiguration) => Promise<void>;
+  readonly onDeleteAnalysisConfiguration?: (id: string) => Promise<void>;
 }
 
 type Coordinate = 'origin' | 'target';
 type ViewMode = 'points' | 'plays' | 'heatmap';
-
-const SKILL_LABELS: Readonly<Record<Skill, string>> = {
-  serve: 'Saque',
-  reception: 'Recepção',
-  set: 'Levantamento',
-  attack: 'Ataque',
-  block: 'Bloqueio',
-  dig: 'Defesa',
-  free_ball: 'Free ball',
-};
 
 function pointFor(sample: SpatialSample, coordinate: Coordinate): SpatialLocation | undefined {
   const point = sample[coordinate];
   return point?.surface === 'court' && point.x !== undefined && point.y !== undefined
     ? point
     : undefined;
+}
+
+function currentTimestamp(): number {
+  return Date.now();
 }
 
 function PointCourt({
@@ -131,7 +135,15 @@ function TrajectoryCourt({ samples }: { readonly samples: readonly SpatialSample
   );
 }
 
-export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelProps) {
+export function SpatialAnalyticsPanel({
+  report,
+  teamId,
+  matchId,
+  analysisConfigurations = [],
+  onSaveAnalysisConfiguration,
+  onDeleteAnalysisConfiguration,
+}: SpatialAnalyticsPanelProps) {
+  const analysisMatchId = matchId ?? report.metadata?.id ?? '';
   const [skill, setSkill] = useState<Skill | 'all'>('attack');
   const [evaluations, setEvaluations] = useState<readonly string[] | null>(null);
   const [coordinate, setCoordinate] = useState<Coordinate>('origin');
@@ -141,8 +153,52 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
   const [rotation, setRotation] = useState('all');
   const [radius, setRadius] = useState(0.16);
   const [intensity, setIntensity] = useState(1);
+  const [analysisName, setAnalysisName] = useState('');
+  const [selectedConfigurationId, setSelectedConfigurationId] = useState('');
+  const effectiveTeamId = teamId;
+  const selectedConfiguration = analysisConfigurations.find(
+    (configuration) => configuration.id === selectedConfigurationId,
+  );
+  const visibleConfigurations = analysisConfigurations.filter(
+    (configuration) =>
+      configuration.matchId === analysisMatchId && configuration.filters.teamId === effectiveTeamId,
+  );
+  function applyConfiguration(configuration: AnalysisConfiguration) {
+    setSelectedConfigurationId(configuration.id);
+    setAnalysisName(configuration.name);
+    setSkill(configuration.filters.skill);
+    setEvaluations(configuration.filters.evaluations ? [...configuration.filters.evaluations] : null);
+    setCoordinate(configuration.filters.coordinate);
+    setPlayerId(configuration.filters.playerId);
+    setSetNumber(configuration.filters.setNumber);
+    setRotation(configuration.filters.rotation);
+    setViewMode(configuration.chart.viewMode);
+    setRadius(configuration.chart.radius);
+    setIntensity(configuration.chart.intensity);
+  }
+  async function saveConfiguration() {
+    if (!onSaveAnalysisConfiguration || !analysisName.trim()) return;
+    const configuration = createAnalysisConfiguration({
+      id: selectedConfiguration?.id ?? createEntityId(),
+      matchId: analysisMatchId,
+      name: analysisName,
+      updatedAt: currentTimestamp(),
+      filters: {
+        teamId: effectiveTeamId,
+        skill: selectedSkill,
+        evaluations,
+        playerId,
+        setNumber,
+        rotation,
+        coordinate,
+      },
+      chart: { viewMode, radius, intensity },
+    });
+    await onSaveAnalysisConfiguration(configuration);
+    setSelectedConfigurationId(configuration.id);
+  }
   const samples = (report.spatial?.samples ?? []).filter(
-    (sample) => sample.teamId === teamId && sample.source === 'spatial',
+    (sample) => sample.teamId === effectiveTeamId && sample.source === 'spatial',
   );
   const availableSkills = SKILLS.filter((value) =>
     samples.some((sample) => sample.skill === value),
@@ -191,6 +247,21 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
   const filteredPlays = filteredSamples.filter(
     (sample) => pointFor(sample, 'origin') && pointFor(sample, 'target'),
   );
+  const selectedCoordinateLabel = coordinate === 'origin' ? 'origem' : 'destino';
+  const registeredCoordinateCount = filteredSamples.filter((sample) => Boolean(pointFor(sample, coordinate))).length;
+  const isSavedConfigurationCurrent = selectedConfiguration
+    ? selectedConfiguration.matchId === analysisMatchId &&
+      selectedConfiguration.filters.teamId === effectiveTeamId &&
+      selectedConfiguration.filters.skill === selectedSkill &&
+      JSON.stringify(selectedConfiguration.filters.evaluations) === JSON.stringify(evaluations) &&
+      selectedConfiguration.filters.playerId === playerId &&
+      selectedConfiguration.filters.setNumber === setNumber &&
+      selectedConfiguration.filters.rotation === rotation &&
+      selectedConfiguration.filters.coordinate === coordinate &&
+      selectedConfiguration.chart.viewMode === viewMode &&
+      selectedConfiguration.chart.radius === radius &&
+      selectedConfiguration.chart.intensity === intensity
+    : true;
   const players = [
     ...new Set(
       samples.map((sample) => sample.playerId).filter((value): value is string => Boolean(value)),
@@ -228,10 +299,61 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
           <p className="eyebrow">Análise espacial</p>
           <h3 id="spatial-points-title">Distribuição em quadra</h3>
         </div>
-        <span className="spatial-points-count">
-          {viewMode === 'plays' ? filteredPlays.length : filteredPoints.length} ações
-        </span>
+        <div className="spatial-points-count">
+          <strong>{filteredSamples.length} ações no recorte</strong>
+          <span>{registeredCoordinateCount} com {selectedCoordinateLabel} registrado</span>
+        </div>
       </div>
+
+      {onSaveAnalysisConfiguration && (
+        <section className="analysis-configurations" aria-label="Análises salvas">
+          <label>
+            Análise salva
+            <select
+              value={selectedConfigurationId}
+              onChange={(event) => {
+                const configuration = analysisConfigurations.find(
+                  (item) => item.id === event.target.value,
+                );
+                if (configuration) applyConfiguration(configuration);
+                else setSelectedConfigurationId('');
+              }}
+            >
+              <option value="">Configuração atual</option>
+              {visibleConfigurations.map((configuration) => (
+                <option key={configuration.id} value={configuration.id}>
+                  {configuration.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Nome
+            <input
+              value={analysisName}
+              onChange={(event) => setAnalysisName(event.target.value)}
+              placeholder="Ex.: Ataques da Equipe A"
+            />
+          </label>
+          <button type="button" onClick={() => void saveConfiguration()} disabled={!analysisName.trim()}>
+            Salvar análise
+          </button>
+          {selectedConfiguration && !isSavedConfigurationCurrent && (
+            <small role="status">Alterações não salvas</small>
+          )}
+          {selectedConfiguration && onDeleteAnalysisConfiguration && (
+            <button
+              type="button"
+              onClick={() => {
+                void onDeleteAnalysisConfiguration(selectedConfiguration.id);
+                setSelectedConfigurationId('');
+              }}
+            >
+              Excluir
+            </button>
+          )}
+        </section>
+      )}
 
       <div className="spatial-points-filters">
         <label>
@@ -303,17 +425,20 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
           </select>
         </label>
         {positions.length > 0 && (
-          <label>
-            P do levantador
-            <select value={rotation} onChange={(e) => setRotation(e.target.value)}>
-              <option value="all">Todos</option>
-              {positions.map((p) => (
-                <option key={p} value={p}>
-                  P{p}
-                </option>
-              ))}
-            </select>
-          </label>
+          <details className="analysis-more-filters">
+            <summary>Mais filtros</summary>
+            <label>
+              P do levantador
+              <select value={rotation} onChange={(e) => setRotation(e.target.value)}>
+                <option value="all">Todos</option>
+                {positions.map((p) => (
+                  <option key={p} value={p}>
+                    P{p}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </details>
         )}
       </div>
       <div className="analysis-toolbar">
@@ -321,8 +446,8 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
           {(
             [
               ['points', 'Pontos'],
-              ['heatmap', 'Heatmap'],
-              ['plays', 'Jogadas'],
+              ['heatmap', 'Mapa de calor'],
+              ['plays', 'Trajetórias'],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -357,7 +482,7 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
       </div>
       {viewMode === 'heatmap' && (
         <details className="analysis-adjustments">
-          <summary>Ajustes do heatmap</summary>
+          <summary>Ajustar mapa de calor</summary>
           <label>
             Raio
             <input
@@ -380,7 +505,9 @@ export function SpatialAnalyticsPanel({ report, teamId }: SpatialAnalyticsPanelP
               onChange={(e) => setIntensity(Number(e.target.value))}
             />
           </label>
-          <small>Densidade: menor → maior</small>
+          <div className="analysis-heat-legend" aria-label="Legenda de intensidade do mapa de calor">
+            <span>Menor concentração</span><i aria-hidden="true" /><span>Maior concentração</span>
+          </div>
         </details>
       )}
 

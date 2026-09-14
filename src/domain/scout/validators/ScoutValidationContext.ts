@@ -25,4 +25,5 @@ export interface ScoutValidationContext {
   readonly setterPosition?: CourtRotationPosition;
   readonly formationState?: FormationState;
   readonly enforceRegisteredPlayers?: boolean;
+  readonly allowUnidentifiedPlayer?: boolean;
 }

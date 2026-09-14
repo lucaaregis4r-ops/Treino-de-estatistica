@@ -18,6 +18,7 @@ export class ProfileValidator {
     const missingFields = [...fields].filter(
       (field) =>
         captureRequirementFor(profile, field) === 'blocking' &&
+        !(field === 'player' && context.allowUnidentifiedPlayer) &&
         !hasScoutField(field, candidate, context),
     );
     const issues: ValidationIssue[] = missingFields.map((field) => ({

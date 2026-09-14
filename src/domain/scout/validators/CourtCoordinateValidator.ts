@@ -37,7 +37,7 @@ export class CourtCoordinateValidator {
           });
           continue;
         }
-        if (point.surface !== 'court' && point.surface !== 'serviceZone') {
+        if (point.surface !== 'court' && point.surface !== 'serviceZone' && point.surface !== 'outZone') {
           issues.push({
             code: 'invalid_spatial_surface',
             message: 'Unknown spatial surface.',

@@ -14,6 +14,7 @@ import { DEFAULT_INDOOR_SCORING_RULES } from '../rules/SetScoringRules';
 import { ActiveSetterResolver } from '../tactical/ActiveSetterResolver';
 import { TacticalPatternDetector } from '../tactical/TacticalPatternDetector';
 import type { DerivedTacticalState, SubstitutionWindow } from '../tactical/TacticalState';
+import { swapCourtOrientation } from '../state/CourtOrientation';
 
 const rotationEngine = new RotationEngine();
 const activeSetterResolver = new ActiveSetterResolver();
@@ -94,6 +95,7 @@ export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState
         ...base,
         currentSet: event.setNumber,
         score: { ...event.initialScore },
+        courtOrientation: event.courtOrientation ?? swapCourtOrientation(previous.courtOrientation),
         ...(event.servingTeamId ? { servingTeamId: event.servingTeamId } : {}),
         sets: updateSet(sets, event.setNumber, () => ({
           setNumber: event.setNumber,
@@ -113,6 +115,18 @@ export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState
           score: { ...event.score },
         })),
       };
+    case 'score_adjustment': {
+      const score = {
+        teamA: previous.score.teamA + (event.teamId === previous.metadata.teamAId ? event.delta : 0),
+        teamB: previous.score.teamB + (event.teamId === previous.metadata.teamBId ? event.delta : 0),
+      };
+      return {
+        ...base,
+        currentSet: event.setNumber,
+        score,
+        sets: updateSet(previous.sets, event.setNumber, (set) => ({ ...set, score })),
+      };
+    }
     case 'serving_team_changed':
       return { ...base, servingTeamId: event.servingTeamId };
     case 'set_lineup_confirmed': {

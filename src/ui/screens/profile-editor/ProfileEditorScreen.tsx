@@ -57,32 +57,35 @@ export function ProfileEditorScreen({
       <div className="profile-editor-layout">
         <form className="profile-editor-form" onSubmit={(event) => void submit(event)}>
           <div className="profile-editor-basics">
-            <label>
+            <label htmlFor="profile-id">
               ID
               <input
+                id="profile-id"
                 value={id}
                 onChange={(event) => setId(event.target.value)}
                 pattern="[a-z0-9_-]+"
                 required
               />
             </label>
-            <label>
+            <label htmlFor="profile-version">
               Versão
               <input
+                id="profile-version"
                 value={version}
                 onChange={(event) => setVersion(event.target.value)}
                 placeholder="1.0.0"
                 required
               />
             </label>
-            <label>
+            <label htmlFor="profile-name">
               Nome
-              <input value={name} onChange={(event) => setName(event.target.value)} required />
+              <input id="profile-name" value={name} onChange={(event) => setName(event.target.value)} required />
             </label>
           </div>
-          <label>
+          <label htmlFor="profile-grammar">
             Campos obrigatórios / gramática
             <input
+              id="profile-grammar"
               value={grammar}
               onChange={(event) => setGrammar(event.target.value)}
               aria-describedby="grammar-help"
@@ -94,33 +97,37 @@ export function ProfileEditorScreen({
             CodeProfile, sem código TypeScript.
           </small>
           <div className="mapping-editors">
-            <label>
+            <label htmlFor="profile-skills">
               Fundamentos (JSON)
               <textarea
+                id="profile-skills"
                 value={skillsJson}
                 onChange={(event) => setSkillsJson(event.target.value)}
                 spellCheck={false}
               />
             </label>
-            <label>
+            <label htmlFor="profile-evaluations">
               Avaliações (JSON)
               <textarea
+                id="profile-evaluations"
                 value={evaluationsJson}
                 onChange={(event) => setEvaluationsJson(event.target.value)}
                 spellCheck={false}
               />
             </label>
-            <label>
+            <label htmlFor="profile-aliases">
               Aliases (JSON)
               <textarea
+                id="profile-aliases"
                 value={aliasesJson}
                 onChange={(event) => setAliasesJson(event.target.value)}
                 spellCheck={false}
               />
             </label>
-            <label>
+            <label htmlFor="profile-tactical-input">
               Entrada tática (JSON opcional)
               <textarea
+                id="profile-tactical-input"
                 value={tacticalInputJson}
                 onChange={(event) => setTacticalInputJson(event.target.value)}
                 placeholder='{"fields": { ... }, "zoneSystem": { ... }, "shortcuts": { ... }}'
@@ -128,7 +135,7 @@ export function ProfileEditorScreen({
               />
             </label>
           </div>
-          <button className="button primary" disabled={busy}>
+          <button className="button primary" type="submit" disabled={busy}>
             {busy ? 'Salvando…' : 'Validar e salvar perfil'}
           </button>
         </form>

@@ -580,12 +580,14 @@ describe('usable MVP flow', () => {
       />,
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Cadastros' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Perfis' }));
     expect(await screen.findByRole('heading', { name: 'Editor de perfis' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Validar e salvar perfil' }));
     expect(await screen.findByText('Perfil Meu perfil salvo e ativado.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Nova partida' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Partidas' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Nova partida' }));
     const language = await screen.findByLabelText('Linguagem de código');
     fireEvent.change(language, { target: { value: 'meu_profile' } });
     expect(language).toHaveValue('meu_profile');

@@ -7,7 +7,10 @@ import {
 } from '../../domain/match/lineup/SetLineup';
 import type { MatchState } from '../../domain/match/state/MatchState';
 import type { TacticalRallyProjection } from '../../domain/rally/context/TacticalRallyProjection';
-import type { ScoutEvent } from '../../domain/scout/events/ScoutEvent';
+import type {
+  ScoutCoverageMode,
+  ScoutEvent,
+} from '../../domain/scout/events/ScoutEvent';
 import { tacticalValue } from '../../domain/scout/tactical/TacticalMetadataAdapter';
 import type { StatisticsScope } from '../../domain/statistics/definitions/MetricDefinition';
 import { receptionGrade, scopedEvents } from '../../domain/statistics/queries/scoutEventQueries';
@@ -22,6 +25,7 @@ import type {
   SetterPositionDirectionReport,
   AdvancedAuditableMetric,
   AttackEvennessReport,
+  ReportCoverage,
 } from '../reporting/MatchReportModel';
 import type { ExpectedRateReference } from '../../domain/statistics/metrics/advanced/expectedSideout';
 import type { AttackEvennessReference } from '../../domain/statistics/metrics/advanced/attackEvenness';
@@ -96,13 +100,6 @@ function attackEfficiency(events: readonly ScoutEvent[]): AuditableMetric {
   const errors = outcome(events, 'error');
   const blocked = outcome(events, 'blocked');
   return auditable(points - errors - blocked, events.length);
-}
-
-function combineMetrics(metrics: readonly AuditableMetric[]): AuditableMetric {
-  return auditable(
-    metrics.reduce((sum, metric) => sum + metric.numerator, 0),
-    metrics.reduce((sum, metric) => sum + metric.denominator, 0),
-  );
 }
 
 function uniqueSets(playerId: string, input: MatchAnalyticsInput): number {
@@ -506,9 +503,16 @@ export class MatchAnalyticsService {
     const sideout = input.teams.flatMap((team) => rateReports(input, team.id, 'sideout'));
     const breakpoint = input.teams.flatMap((team) => rateReports(input, team.id, 'breakpoint'));
     const teamSummary = input.teams.map((team) => {
-      const teamAttacks = attacks.filter((row) => row.teamId === team.id);
-      const teamServes = serves.filter((row) => row.teamId === team.id);
-      const teamReceptions = receptions.filter((row) => row.teamId === team.id);
+      const teamEvents = input.events.filter((event) => event.teamId === team.id);
+      const teamAttacks = teamEvents.filter((event) => event.skill === 'attack');
+      const teamServes = teamEvents.filter((event) => event.skill === 'serve');
+      const teamReceptions = teamEvents.filter((event) => event.skill === 'reception');
+      const teamBlocks = teamEvents.filter((event) => event.skill === 'block');
+      const identifiedActions = teamEvents.filter((event) => event.playerId !== undefined).length;
+      const unidentifiedActions = teamEvents.length - identifiedActions;
+      const receptionGrades = teamReceptions.map(receptionGrade);
+      const receptionPositive = receptionGrades.filter((grade) => grade === 'A' || grade === 'B').length;
+      const receptionExcellent = receptionGrades.filter((grade) => grade === 'A').length;
       const overallSideout =
         sideout.find(
           (row) => row.teamId === team.id && !row.playerId && !row.setNumber && !row.rotation,
@@ -519,21 +523,40 @@ export class MatchAnalyticsService {
         )?.rate ?? auditable(0, 0);
       return {
         teamId: team.id,
-        attackEfficiency: combineMetrics(teamAttacks.map((row) => row.efficiency)),
-        serveEfficiency: combineMetrics(teamServes.map((row) => row.efficiency)),
-        receptionPositive: combineMetrics(teamReceptions.map((row) => row.positiveRate)),
-        receptionExcellent: combineMetrics(teamReceptions.map((row) => row.excellentRate)),
+        attackEfficiency: attackEfficiency(teamAttacks),
+        serveEfficiency: auditable(
+          outcome(teamServes, 'ace') - outcome(teamServes, 'error'),
+          teamServes.length,
+        ),
+        receptionPositive: auditable(receptionPositive, teamReceptions.length),
+        receptionExcellent: auditable(receptionExcellent, teamReceptions.length),
         sideout: overallSideout,
         breakpoint: overallBreakpoint,
-        blocks: blocks
-          .filter((row) => row.teamId === team.id)
-          .reduce((sum, row) => sum + row.points, 0),
-        aces: teamServes.reduce((sum, row) => sum + row.aces, 0),
+        blocks: outcome(teamBlocks, 'point'),
+        aces: outcome(teamServes, 'ace'),
         errors:
-          teamAttacks.reduce((sum, row) => sum + row.errors, 0) +
-          teamServes.reduce((sum, row) => sum + row.errors, 0),
+          outcome(teamAttacks, 'error') + outcome(teamServes, 'error'),
+        identifiedActions,
+        unidentifiedActions,
       };
     });
+    const eventCoverages = input.events
+      .map((event) => event.metadata?.coverage)
+      .filter((coverage): coverage is NonNullable<typeof coverage> => coverage !== undefined);
+    const coverageModes = Array.from(
+      new Set<ScoutCoverageMode>(eventCoverages.map((coverage) => coverage.mode)),
+    );
+    const observedTeamIds = Array.from(
+      new Set(
+        eventCoverages.flatMap((coverage) => coverage.observedTeamIds),
+      ),
+    );
+    const coverage: ReportCoverage = {
+      modes: coverageModes.length > 0 ? coverageModes : ['both'],
+      observedTeamIds: observedTeamIds.length > 0 ? observedTeamIds : input.teams.map((team) => team.id),
+      identifiedActions: input.events.filter((event) => event.playerId !== undefined).length,
+      unidentifiedActions: input.events.filter((event) => event.playerId === undefined).length,
+    };
     const expectedSideout = input.teams.flatMap((team) => {
       const references = input.expectedSideoutReferences?.[team.id];
       const scopes = [
@@ -631,6 +654,7 @@ export class MatchAnalyticsService {
 
     return Object.freeze({
       metadata: input.state.metadata,
+      coverage,
       eventCount: input.events.length,
       durationMs: timestamps.length > 1 ? Math.max(...timestamps) - Math.min(...timestamps) : 0,
       score: input.state.score,

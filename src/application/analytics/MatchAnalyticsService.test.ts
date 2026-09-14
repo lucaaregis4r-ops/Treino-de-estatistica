@@ -294,4 +294,38 @@ describe('MatchAnalyticsService', () => {
 
     expect(selected.map((event) => event.id)).toEqual(['attack_4']);
   });
+
+  it('includes unidentified actions in team totals and excludes them from player rows', () => {
+    const input = completeRotationInput();
+    const source = input.events.find((event) => event.skill === 'attack');
+    if (!source) throw new Error('Expected an attack event.');
+    const report = service.build({
+      ...input,
+      events: [
+        ...input.events,
+        {
+          ...source,
+          id: 'unidentified_attack',
+          sequence: 100,
+          playerId: undefined,
+          metadata: { coverage: { mode: 'team_a', observedTeamIds: ['team_a'] } },
+        },
+      ],
+    });
+    const team = report.teamSummary.find((row) => row.teamId === 'team_a');
+    const attacker = report.attack.find((row) => row.playerId === 'attacker_a');
+
+    expect(team).toMatchObject({
+      attackEfficiency: { numerator: 7, denominator: 7 },
+      identifiedActions: 18,
+      unidentifiedActions: 1,
+    });
+    expect(attacker).toMatchObject({ volume: 6, points: 6 });
+    expect(report.coverage).toEqual({
+      modes: ['team_a'],
+      observedTeamIds: ['team_a'],
+      identifiedActions: 18,
+      unidentifiedActions: 1,
+    });
+  });
 });

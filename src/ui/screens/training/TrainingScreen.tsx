@@ -37,8 +37,11 @@ export function TrainingScreen({
   const [selectedProfile, setSelectedProfile] = useState(profiles[0]?.id ?? '');
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const feedbackActionRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (workspace && !feedback) inputRef.current?.focus();
+    if (!workspace) return;
+    if (feedback) feedbackActionRef.current?.focus();
+    else inputRef.current?.focus();
   }, [workspace, feedback]);
 
   async function submit(event: FormEvent) {
@@ -256,7 +259,12 @@ export function TrainingScreen({
               </ul>
             )}
             <div className="training-feedback-actions">
-              <button className="button primary" type="button" onClick={() => void onContinue()}>
+              <button
+                ref={feedbackActionRef}
+                className="button primary"
+                type="button"
+                onClick={() => void onContinue()}
+              >
                 {feedback.correct ? 'Próximo exercício' : 'Tentar novamente'}
               </button>
               <button className="button ghost" type="button" onClick={onManual}>

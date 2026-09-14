@@ -6,7 +6,8 @@ import type { SpatialMetadata } from '../spatial/SpatialMetadata';
 
 export interface VisualScoutDraft {
   readonly teamId: string;
-  readonly playerNumber: number;
+  readonly playerNumber?: number;
+  readonly coverage?: import('../events/ScoutEvent').ScoutCoverage;
   readonly skill: Skill;
   readonly evaluation: string;
   readonly spatial?: SpatialMetadata;

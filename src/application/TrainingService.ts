@@ -360,7 +360,9 @@ export class TrainingService {
           scoreBefore: { teamA: 0, teamB: 0 },
           sequence: index + 1,
           previousSequence: index,
-          roster: [...new Set(expectedEvents.map((event) => event.playerNumber))].map((number) => ({
+          roster: [...new Set(expectedEvents.flatMap((event) =>
+            event.playerNumber === undefined ? [] : [event.playerNumber],
+          ))].map((number) => ({
             id: `training_player_${number}`,
             teamId: 'training_team',
             number,

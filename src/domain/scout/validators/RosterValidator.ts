@@ -9,6 +9,18 @@ export class RosterValidator {
     candidate: CanonicalScoutEventCandidate,
     context: ScoutValidationContext,
   ): ValidationResult {
+    if (candidate.playerNumber === undefined) {
+      return context.allowUnidentifiedPlayer
+        ? validationResult([])
+        : validationResult(
+            [{
+              code: 'player_required',
+              message: 'An athlete must be identified for this scout event.',
+              path: 'playerNumber',
+            }],
+            'error',
+          );
+    }
     const registered = this.resolver.resolve(
       { teamId: context.teamId, players: context.roster },
       candidate.playerNumber,

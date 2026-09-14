@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MatchReportModel } from '../../../application/reporting/MatchReportModel';
 import type { SpatialSample } from '../../../domain/scout/spatial/SpatialProjection';
@@ -34,7 +34,7 @@ describe('spatial points analytics', () => {
     fireEvent.change(screen.getByLabelText('Set'),{target:{value:'2'}});
     fireEvent.change(screen.getByLabelText('P do levantador'),{target:{value:'3'}});
     expect(container.querySelectorAll('.spatial-point')).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button',{name:'Jogadas'}));
+    fireEvent.click(screen.getByRole('button',{name:'Trajetórias'}));
     expect(container.querySelectorAll('.spatial-play-line')).toHaveLength(1);
     fireEvent.click(screen.getByLabelText('#'));
     expect(container.querySelectorAll('.spatial-play-line')).toHaveLength(0);
@@ -50,11 +50,11 @@ describe('spatial points analytics', () => {
         teamId="a"
       />,
     );
-    expect(screen.getByText('2 ações')).toBeInTheDocument();
+    expect(screen.getByText('2 ações no recorte')).toBeInTheDocument();
     expect(container.querySelector('.spatial-point')).toHaveAttribute('cx', '54.6');
     expect(container.querySelector('.spatial-point')).toHaveAttribute('cy', '68.10000000000001');
     fireEvent.click(screen.getByLabelText('+'));
-    expect(screen.getByText('1 ações')).toBeInTheDocument();
+    expect(screen.getByText('1 ações no recorte')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Destino'));
     expect(container.querySelector('.spatial-point')).toHaveAttribute('cx', '162.4');
     expect(container.querySelector('.spatial-point')).toHaveAttribute('cy', '22.400000000000002');
@@ -64,5 +64,34 @@ describe('spatial points analytics', () => {
     render(<SpatialAnalyticsPanel report={report([sample])} teamId="a" />);
     fireEvent.click(screen.getByLabelText('#'));
     expect(screen.getByText('Nenhuma ação corresponde aos filtros selecionados.')).toBeInTheDocument();
+  });
+
+  it('saves the selected filters and chart configuration as a named analysis', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SpatialAnalyticsPanel
+        report={report([sample])}
+        teamId="a"
+        matchId="match_1"
+        onSaveAnalysisConfiguration={onSave}
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Ex.: Ataques da Equipe A'), {
+      target: { value: 'Saque no destino' },
+    });
+    fireEvent.click(screen.getByLabelText('Destino'));
+    fireEvent.click(screen.getByRole('button', { name: 'Mapa de calor' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar análise' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        matchId: 'match_1',
+        name: 'Saque no destino',
+        filters: expect.objectContaining({ coordinate: 'target' }),
+        chart: expect.objectContaining({ viewMode: 'heatmap' }),
+      }),
+    );
   });
 });

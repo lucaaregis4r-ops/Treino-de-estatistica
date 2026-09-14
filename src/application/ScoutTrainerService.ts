@@ -24,14 +24,22 @@ import {
 import { type MatchEvent } from '../domain/match/events/MatchEvent';
 import { MatchEventFactory } from '../domain/match/events/MatchEventFactory';
 import type { MatchState } from '../domain/match/state/MatchState';
+import { swapCourtOrientation } from '../domain/match/state/CourtOrientation';
 import { JsonMatchExporter } from '../infrastructure/export/json/MatchJson';
 import { JsonMatchImporter } from '../infrastructure/export/json/MatchJson';
 import type { MatchBackupRepository } from './ports/backup/MatchBackupRepository';
+import type { AnalysisConfigurationRepository } from './ports/repositories/AnalysisConfigurationRepository';
+import type { AnalyticsSnapshotRepository } from './ports/repositories/AnalyticsSnapshotRepository';
+import type { ReportChartConfigurationRepository } from './ports/repositories/ReportChartConfigurationRepository';
 import { CsvMatchExporter } from '../infrastructure/export/csv/MatchCsv';
 import { TxtMatchExporter } from '../infrastructure/export/txt/MatchTxt';
 import type { ProfileRegistry } from '../profiles/ProfileRegistry';
 import { ProfileResolver, type ResolvedProfileContext } from '../profiles/ProfileResolver';
-import type { ScoutEvent, ScoutEventMetadata } from '../domain/scout/events/ScoutEvent';
+import type {
+  ScoutCoverage,
+  ScoutEvent,
+  ScoutEventMetadata,
+} from '../domain/scout/events/ScoutEvent';
 import type { ScoutValidationContext } from '../domain/scout/validators/ScoutValidationContext';
 import type { VisualScoutDraft } from '../domain/scout/mapper/VisualScoutDraft';
 import { VisualScoutMapper } from '../domain/scout/mapper/VisualScoutMapper';
@@ -77,6 +85,13 @@ export interface PlayerRegistrationInput {
   readonly active?: boolean;
   readonly libero?: boolean;
   readonly registeredRole?: PlayerRole;
+}
+
+export interface MatchContextAdjustmentInput {
+  readonly servingTeamId: string;
+  readonly positionOneByTeam: Readonly<Record<string, string>>;
+  readonly score: { readonly teamA: number; readonly teamB: number };
+  readonly resumeFromServe?: boolean;
 }
 
 export interface LineupPositionInput {
@@ -129,6 +144,7 @@ export interface MatchWorkspace {
   readonly currentLineups: readonly SetLineup[];
   readonly tacticalRally: TacticalRallyProjection;
   readonly report: MatchReportModel;
+  readonly coverage: ScoutCoverage;
 }
 
 type ServiceError = RepositoryError | ValidationError | ParseError | ProfileError | ImportError;
@@ -181,10 +197,17 @@ export class ScoutTrainerService {
     private readonly players: PlayerRepository,
     private readonly profileRegistry: ProfileRegistry,
     private readonly dependencies = DEFAULT_DEPENDENCIES,
+    private readonly analysisConfigurations?: AnalysisConfigurationRepository,
+    private readonly analyticsSnapshots?: AnalyticsSnapshotRepository,
+    private readonly reportCharts?: ReportChartConfigurationRepository,
   ) {
     this.resolver = new ProfileResolver(profileRegistry);
     this.openMatch = new OpenMatchUseCase(matches, events);
     this.matchEventFactory = new MatchEventFactory(dependencies);
+  }
+
+  private async invalidateAnalytics(matchId: string): Promise<void> {
+    await this.analyticsSnapshots?.deleteByMatchId(matchId);
   }
 
   enableBackupRestore(repository: MatchBackupRepository): this {
@@ -404,6 +427,12 @@ export class ScoutTrainerService {
     const effectiveScouts = effectiveEvents.flatMap((event) =>
       event.type === 'scout_registered' ? [event.event] : [],
     );
+    const coverage = [...effectiveScouts]
+      .reverse()
+      .find((event) => event.metadata?.coverage)?.metadata?.coverage ?? {
+      mode: 'both' as const,
+      observedTeamIds: [loadedTeamA.id, loadedTeamB.id],
+    };
     const tacticalRally = this.rallyContextResolver.project(state.value.metadata, events.value);
     const metricIds = profiles.value.competitionProfile?.metricIds ?? BASIC_METRIC_IDS;
     const statistics = [loadedTeamA, loadedTeamB].map((team) => ({
@@ -482,6 +511,7 @@ export class ScoutTrainerService {
       currentLineups,
       tacticalRally,
       report,
+      coverage,
     });
   }
 
@@ -614,6 +644,7 @@ export class ScoutTrainerService {
       lineup: workspace.value.currentLineups.find((lineup) => lineup.teamId === teamId),
       ...this.scoutTacticalContext(workspace.value.state, teamId),
       enforceRegisteredPlayers: true,
+      allowUnidentifiedPlayer: true,
     };
     const registered = createEvent(workspace.value, context);
     if (!registered.ok) return failure(registered.error);
@@ -642,6 +673,7 @@ export class ScoutTrainerService {
     );
     const persisted = await this.events.appendMany(eventsToPersist);
     if (!persisted.ok) return failure(persisted.error);
+    await this.invalidateAnalytics(matchId);
     return this.loadMatch(matchId);
   }
 
@@ -667,7 +699,90 @@ export class ScoutTrainerService {
       startsRally,
     });
     const persisted = await this.events.appendMany(events);
-    return persisted.ok ? this.loadMatch(matchId) : failure(persisted.error);
+    if (!persisted.ok) return failure(persisted.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async adjustScore(
+    matchId: string,
+    teamId: string,
+    delta: number,
+    reason?: string,
+  ): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (!workspace.value.teams.some((team) => team.id === teamId)) {
+      return failure(new ValidationError('Score adjustment team was not found.', []));
+    }
+    if (!Number.isSafeInteger(delta) || delta === 0) {
+      return failure(new ValidationError('Score adjustment must be a non-zero integer.', []));
+    }
+    const currentScore = teamId === workspace.value.teams[0].id
+      ? workspace.value.state.score.teamA
+      : workspace.value.state.score.teamB;
+    if (currentScore + delta < 0) {
+      return failure(new ValidationError('Score cannot be negative.', []));
+    }
+    const event = this.matchEventFactory.scoreAdjustment({
+      matchId,
+      setNumber: workspace.value.state.currentSet,
+      teamId,
+      delta,
+      ...(reason?.trim() ? { reason: reason.trim() } : {}),
+      sequence: workspace.value.state.lastSequence + 1,
+    });
+    const persisted = await this.events.append(event);
+    if (!persisted.ok) return failure(persisted.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  /** Operator correction: append existing auditable events, never rewrite prior contacts. */
+  async adjustMatchContext(matchId: string, input: MatchContextAdjustmentInput): Promise<Result<MatchWorkspace, ServiceError>> {
+    const loaded = await this.loadMatch(matchId);
+    if (!loaded.ok) return loaded;
+    const { state, teams, currentLineups } = loaded.value;
+    if (state.matchCompleted || state.sets.some((set) => set.setNumber === state.currentSet && set.completed)) {
+      return failure(new ValidationError('Ajuste disponível somente no set em andamento.', []));
+    }
+    if (!teams.some((team) => team.id === input.servingTeamId) ||
+      ![input.score.teamA, input.score.teamB].every((score) => Number.isSafeInteger(score) && score >= 0) ||
+      Object.keys(input.positionOneByTeam).some((id) => !teams.some((team) => team.id === id))) {
+      return failure(new ValidationError('Confira a equipe sacadora e o placar informado.', []));
+    }
+    const changes: MatchEvent[] = [];
+    const identity = () => ({ id: this.dependencies.createId(), matchId,
+      timestamp: this.dependencies.now(), sequence: state.lastSequence + changes.length + 1 });
+    for (const team of teams) {
+      const selected = input.positionOneByTeam[team.id];
+      if (!selected) continue;
+      const lineup = currentLineups.find((item) => item.teamId === team.id);
+      const offset = lineup ? ROTATION_POSITIONS.findIndex((position) =>
+        lineup.slots[lineup.positions[position]]?.playerId === selected) : -1;
+      if (!lineup || offset < 0) return failure(new ValidationError('O atleta de P1 precisa estar na escalação atual.', []));
+      if (offset === 0) continue;
+      const positions = Object.fromEntries(ROTATION_POSITIONS.map((position, index) =>
+        [position, lineup.positions[ROTATION_POSITIONS[(index + offset) % 6]]])) as SetLineup['positions'];
+      changes.push({ ...identity(), type: 'set_lineup_confirmed', lineup: { ...lineup, positions } });
+    }
+    for (const [index, team] of teams.entries()) {
+      const key = index === 0 ? 'teamA' : 'teamB';
+      const delta = input.score[key] - state.score[key];
+      if (delta) changes.push({ ...identity(), type: 'score_adjustment', setNumber: state.currentSet,
+        teamId: team.id, delta, reason: 'Ajuste rápido do scout' });
+    }
+    if (input.servingTeamId !== state.servingTeamId) {
+      changes.push({ ...identity(), type: 'serving_team_changed', servingTeamId: input.servingTeamId });
+    }
+    if (input.resumeFromServe && state.currentRally.status === 'active' && state.currentRally.rallyId) {
+      changes.push({ ...identity(), type: 'rally_ended', rallyId: state.currentRally.rallyId });
+    }
+    if (!changes.length) return loaded;
+    const saved = await this.events.appendMany(changes);
+    if (!saved.ok) return failure(saved.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
   }
 
   async startNextSet(
@@ -703,6 +818,7 @@ export class ScoutTrainerService {
         setNumber,
         initialScore: { teamA: 0, teamB: 0 },
         servingTeamId: input.servingTeamId ?? workspace.value.teams[0].id,
+        courtOrientation: swapCourtOrientation(workspace.value.state.courtOrientation),
         sequence: ++sequence,
         timestamp: this.dependencies.now(),
       },
@@ -743,7 +859,9 @@ export class ScoutTrainerService {
       })),
     );
     const persisted = await this.events.appendMany(events);
-    return persisted.ok ? this.loadMatch(matchId) : failure(persisted.error);
+    if (!persisted.ok) return failure(persisted.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
   }
 
   async substitute(
@@ -794,7 +912,9 @@ export class ScoutTrainerService {
       timestamp: this.dependencies.now(),
     };
     const persisted = await this.events.append(event);
-    return persisted.ok ? this.loadMatch(matchId) : failure(persisted.error);
+    if (!persisted.ok) return failure(persisted.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
   }
 
   async correctScout(
@@ -832,6 +952,7 @@ export class ScoutTrainerService {
         ...(target.event.setterPosition ? { setterPosition: target.event.setterPosition } : {}),
         ...(target.event.formationState ? { formationState: target.event.formationState } : {}),
         enforceRegisteredPlayers: true,
+        allowUnidentifiedPlayer: true,
       },
     });
     if (!registered.ok) return failure(registered.error);
@@ -861,7 +982,9 @@ export class ScoutTrainerService {
       }),
     ];
     const persisted = await this.events.appendMany(events);
-    return persisted.ok ? this.loadMatch(matchId) : failure(persisted.error);
+    if (!persisted.ok) return failure(persisted.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
   }
 
   async undo(matchId: string): Promise<Result<MatchWorkspace, ServiceError>> {
@@ -877,7 +1000,9 @@ export class ScoutTrainerService {
       workspace.value.state.lastSequence + 1,
     );
     const persisted = await this.events.append(event);
-    return persisted.ok ? this.loadMatch(matchId) : failure(persisted.error);
+    if (!persisted.ok) return failure(persisted.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
   }
 
   async redo(matchId: string): Promise<Result<MatchWorkspace, ServiceError>> {
@@ -893,12 +1018,22 @@ export class ScoutTrainerService {
       workspace.value.state.lastSequence + 1,
     );
     const persisted = await this.events.append(event);
-    return persisted.ok ? this.loadMatch(matchId) : failure(persisted.error);
+    if (!persisted.ok) return failure(persisted.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
   }
 
   async exportJson(matchId: string): Promise<Result<string, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
+    const configurations = this.analysisConfigurations
+      ? await this.analysisConfigurations.listByMatchId(matchId)
+      : undefined;
+    if (configurations && !configurations.ok) return failure(configurations.error);
+    const reportCharts = this.reportCharts
+      ? await this.reportCharts.listByMatchId(matchId)
+      : undefined;
+    if (reportCharts && !reportCharts.ok) return failure(reportCharts.error);
     return success(
       new JsonMatchExporter().export({
         match: workspace.value.state.metadata,
@@ -912,6 +1047,8 @@ export class ScoutTrainerService {
             : {}),
         },
         events: workspace.value.events,
+        ...(configurations ? { analysisConfigurations: configurations.value } : {}),
+        ...(reportCharts ? { reportChartConfigurations: reportCharts.value } : {}),
       }),
     );
   }
@@ -935,12 +1072,24 @@ export class ScoutTrainerService {
   async exportPdf(matchId: string): Promise<Result<string, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
-    return success(new MatchPdfRenderer().render(workspace.value.report));
+    const reportCharts = this.reportCharts
+      ? await this.reportCharts.listByMatchId(matchId)
+      : undefined;
+    if (reportCharts && !reportCharts.ok) return failure(reportCharts.error);
+    return success(new MatchPdfRenderer().render(workspace.value.report, reportCharts?.value));
   }
 
   async exportBundle(matchId: string): Promise<Result<MatchExportBundle, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
+    const configurations = this.analysisConfigurations
+      ? await this.analysisConfigurations.listByMatchId(matchId)
+      : undefined;
+    if (configurations && !configurations.ok) return failure(configurations.error);
+    const reportCharts = this.reportCharts
+      ? await this.reportCharts.listByMatchId(matchId)
+      : undefined;
+    if (reportCharts && !reportCharts.ok) return failure(reportCharts.error);
     const json = new JsonMatchExporter().export({
       match: workspace.value.state.metadata,
       teams: workspace.value.teams,
@@ -953,6 +1102,8 @@ export class ScoutTrainerService {
           : {}),
       },
       events: workspace.value.events,
+      ...(configurations ? { analysisConfigurations: configurations.value } : {}),
+      ...(reportCharts ? { reportChartConfigurations: reportCharts.value } : {}),
     });
     const effectiveEvents = workspace.value.timeline.map((item) => item.event);
     const timestamp = localExportTimestamp(this.dependencies.now());
@@ -971,7 +1122,7 @@ export class ScoutTrainerService {
         'eventos.csv': new CsvMatchExporter().export(effectiveEvents),
         'scout.txt': new TxtMatchExporter().export(effectiveEvents),
         'estatisticas.csv': new StatisticsCsvExporter().export(workspace.value.report),
-        'relatorio.pdf': new MatchPdfRenderer().render(workspace.value.report),
+        'relatorio.pdf': new MatchPdfRenderer().render(workspace.value.report, reportCharts?.value),
       }),
     });
   }

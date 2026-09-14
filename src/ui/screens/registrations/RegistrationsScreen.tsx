@@ -102,11 +102,12 @@ export function RegistrationsScreen({ onProfiles }: { readonly onProfiles: () =>
   }
 
   return (
-    <section className="page-section registrations-screen">
-      <h1>Cadastros</h1>
+    <section className="page-section registrations-screen" aria-labelledby="registrations-title">
+      <h1 id="registrations-title">Cadastros</h1>
       <nav className="hero-actions" aria-label="Cadastros">
         <button
           className="button secondary"
+          type="button"
           aria-pressed={tab === 'athletes'}
           onClick={() => setTab('athletes')}
         >
@@ -114,32 +115,39 @@ export function RegistrationsScreen({ onProfiles }: { readonly onProfiles: () =>
         </button>
         <button
           className="button secondary"
+          type="button"
           aria-pressed={tab === 'teams'}
           onClick={() => setTab('teams')}
         >
           Equipes
         </button>
-        <button className="button secondary" onClick={onProfiles}>
+        <button className="button secondary" type="button" onClick={onProfiles}>
           Perfis
         </button>
       </nav>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p id="registrations-error" className="form-error" role="alert">
+          {error}
+        </p>
+      )}
       {tab === 'athletes' ? (
         <>
           <h2>{athlete.id ? 'Editar atleta' : 'Cadastrar atleta'}</h2>
-          <form onSubmit={(event) => void saveAthlete(event)}>
+          <form aria-describedby={error ? 'registrations-error' : undefined} onSubmit={(event) => void saveAthlete(event)}>
             <fieldset disabled={busy} className="registration-fields">
-              <label>
+              <label htmlFor="athlete-name">
                 Nome
                 <input
+                  id="athlete-name"
                   required
                   value={athlete.name ?? ''}
                   onChange={(e) => setAthlete({ ...athlete, name: e.target.value })}
                 />
               </label>
-              <label>
+              <label htmlFor="athlete-number">
                 Camisa (opcional)
                 <input
+                  id="athlete-number"
                   type="number"
                   min="1"
                   max="99"
@@ -152,9 +160,10 @@ export function RegistrationsScreen({ onProfiles }: { readonly onProfiles: () =>
                   }
                 />
               </label>
-              <label>
+              <label htmlFor="athlete-position">
                 Posição
                 <select
+                  id="athlete-position"
                   value={athlete.position ?? ''}
                   onChange={(e) =>
                     setAthlete({
@@ -171,7 +180,7 @@ export function RegistrationsScreen({ onProfiles }: { readonly onProfiles: () =>
                   ))}
                 </select>
               </label>
-              <button className="button primary">Salvar atleta</button>
+              <button className="button primary" type="submit">Salvar atleta</button>
               {athlete.id && (
                 <button
                   className="button secondary"
@@ -197,6 +206,7 @@ export function RegistrationsScreen({ onProfiles }: { readonly onProfiles: () =>
                 <div className="hero-actions">
                   <button
                     className="button secondary"
+                    type="button"
                     disabled={busy}
                     onClick={() => setAthlete(item)}
                   >
@@ -204,6 +214,7 @@ export function RegistrationsScreen({ onProfiles }: { readonly onProfiles: () =>
                   </button>
                   <button
                     className="button secondary"
+                    type="button"
                     disabled={busy}
                     onClick={() => void saveAthlete(undefined, { ...item, active: !item.active })}
                   >
@@ -218,26 +229,29 @@ export function RegistrationsScreen({ onProfiles }: { readonly onProfiles: () =>
       ) : (
         <>
           <h2>{team.id ? 'Editar equipe' : 'Cadastrar equipe'}</h2>
-          <form onSubmit={(event) => void saveTeam(event)}>
+          <form aria-describedby={error ? 'registrations-error' : undefined} onSubmit={(event) => void saveTeam(event)}>
             <fieldset disabled={busy} className="registration-fields">
-              <label>
+              <label htmlFor="team-name">
                 Nome da equipe
                 <input
+                  id="team-name"
                   required
                   value={team.name ?? ''}
                   onChange={(e) => setTeam({ ...team, name: e.target.value })}
                 />
               </label>
-              <label>
+              <label htmlFor="team-short-name">
                 Sigla
                 <input
+                  id="team-short-name"
                   value={team.shortName ?? ''}
                   onChange={(e) => setTeam({ ...team, shortName: e.target.value })}
                 />
               </label>
-              <label>
+              <label htmlFor="team-category">
                 Categoria
                 <input
+                  id="team-category"
                   value={team.category ?? ''}
                   onChange={(e) => setTeam({ ...team, category: e.target.value })}
                 />
@@ -264,7 +278,7 @@ export function RegistrationsScreen({ onProfiles }: { readonly onProfiles: () =>
                 ))}
                 {!athletes.length && <p>Cadastre atletas na aba Atletas.</p>}
               </fieldset>
-              <button className="button primary">Salvar equipe</button>
+              <button className="button primary" type="submit">Salvar equipe</button>
               {team.id && (
                 <button
                   className="button secondary"
@@ -293,7 +307,7 @@ export function RegistrationsScreen({ onProfiles }: { readonly onProfiles: () =>
                       .join(', ') || 'Nenhum atleta'}
                   </p>
                 </div>
-                <button className="button secondary" disabled={busy} onClick={() => setTeam(item)}>
+                <button className="button secondary" type="button" disabled={busy} onClick={() => setTeam(item)}>
                   Editar
                 </button>
               </li>

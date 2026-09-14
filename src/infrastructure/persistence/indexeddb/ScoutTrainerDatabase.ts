@@ -3,7 +3,7 @@ import { isSkill } from '../../../domain/scout/entities/Skill';
 import type { ScoutEvent } from '../../../domain/scout/events/ScoutEvent';
 import { normalizeTacticalMetadata } from '../../../domain/scout/tactical/TacticalMetadataAdapter';
 
-export const DATABASE_VERSION = 6;
+export const DATABASE_VERSION = 8;
 
 export const STORE_NAMES = {
   athleteRegistrations: 'athleteRegistrations',
@@ -21,6 +21,8 @@ export const STORE_NAMES = {
   settings: 'settings',
   freeLogSessions: 'freeLogSessions',
   analyticsSnapshots: 'analyticsSnapshots',
+  analysisConfigurations: 'analysisConfigurations',
+  reportChartConfigurations: 'reportChartConfigurations',
 } as const;
 
 export type StoreName = (typeof STORE_NAMES)[keyof typeof STORE_NAMES];
@@ -107,6 +109,20 @@ function migrateToVersion5(database: IDBDatabase): void {
   }
 }
 
+function migrateToVersion7(database: IDBDatabase): void {
+  if (!database.objectStoreNames.contains(STORE_NAMES.analysisConfigurations)) {
+    const store = createStore(database, STORE_NAMES.analysisConfigurations, 'id');
+    store.createIndex('matchId', 'matchId');
+  }
+}
+
+function migrateToVersion8(database: IDBDatabase): void {
+  if (!database.objectStoreNames.contains(STORE_NAMES.reportChartConfigurations)) {
+    const store = createStore(database, STORE_NAMES.reportChartConfigurations, 'id');
+    store.createIndex('matchId', 'matchId');
+  }
+}
+
 export class ScoutTrainerDatabase {
   private databasePromise?: Promise<IDBDatabase>;
 
@@ -126,6 +142,8 @@ export class ScoutTrainerDatabase {
           createStore(database, STORE_NAMES.athleteRegistrations, 'id');
           createStore(database, STORE_NAMES.teamRegistrations, 'id');
         }
+        if (event.oldVersion < 7) migrateToVersion7(database);
+        if (event.oldVersion < 8) migrateToVersion8(database);
       };
 
       request.onsuccess = () => {

@@ -2,7 +2,169 @@
 
 ## Current phase
 
-Evolution V3 — Correção Macro 20 · Correção concluída
+Scout Trainer 0.4 — Refinamento Codex · M1 concluída em 12/09/2026; próxima: M2.
+
+## Refinamento Codex 0.4 — acompanhamento vigente
+
+Plano: `docs/SCOUT_TRAINER_0.4_PLANO_REFINAMENTO_CODEX.md`. Este arquivo é a fonte
+efetiva de progresso; as seções históricas abaixo não certificam o checkout atual.
+Na primeira solicitação foi executada somente M0, apesar do exemplo de prompt M0 + M1
+incluído no plano. M1 foi executada na solicitação seguinte e está registrada abaixo.
+
+| Etapa | Entrega | Estado |
+| --- | --- | --- |
+| M0 | Reconhecimento curto e mapa local | Concluída em 11/09/2026 |
+| M1 | Interface reorganizada e consistente | Concluída em 12/09/2026 |
+| M2 | Seleção clara e registro fluido | Próxima; não iniciada |
+| M3 | Sem atleta e scout de uma equipe | Pendente |
+| M4 | Trocas rápidas na tabela de rotação | Pendente |
+| M5 | Análises e filtros salvos | Pendente |
+| M6 | Seleção persistente de gráficos no relatório | Pendente |
+| M7 | Validação integrada e fechamento da 0.4 | Pendente |
+
+### M0 — ponto de partida verificado
+
+- Instruções locais lidas em ` AGENTS.md` (nome real com espaço inicial). Git com
+  muitas modificações anteriores e arquivos gestuais ainda não rastreados; preservados.
+  M0 altera somente este acompanhamento, sem instalar dependências ou mudar o banco.
+- `package.json` declara **0.3.0**, enquanto o trabalho local é evolução da **0.4**.
+  O rodapé do PDF ainda usa 0.2. A harmonização de versão/documentação fica para o
+  fechamento, sem publicar release. O antigo “Next phase” não orienta esta rodada.
+- `ScoutTrainerDatabase.ts` declara **DATABASE_VERSION = 6**. Há stores de eventos,
+  partidas, equipes, atletas, perfis, treino, `settings`, `freeLogSessions`,
+  `analyticsSnapshots` e cadastros `athleteRegistrations`/`teamRegistrations`.
+  Versão confirmada no código de abertura/migração, não em um banco real do usuário.
+- **Existente:** gesto de arraste com Pointer Capture, preview, cancelamento e
+  coordenadas normalizadas. `GestureCourtInput` e `SpatialCourtInputV2` importam
+  `SpatialCourtSurface`. Não há necessidade de recriar a quadra.
+- **Existente:** `ScoutScreen.commitCurrentGesture` usa `onRegisterVisual` e
+  `ScoutTrainerService.registerVisualScout` → `VisualScoutMapper` →
+  `ValidateAndCreateScoutEventUseCase` → `EventFactory` → log de eventos/replay.
+  Há proteção de envio em andamento, limpeza após sucesso, erro preservando o
+  rascunho, saque sugerido por P1 e contexto de posição/rotação no evento.
+  `GestureScoutController` existe, mas não é o caminho chamado pela tela.
+- **Parcial (M1–M2):** `gestureMode` é uma opção local sobre `inputMode='visual'`;
+  `ScoutInputMode` persistido continua `typed | visual | hybrid`. O seletor pode
+  marcar Visual e Gestual simultaneamente. Há tema CSS e layout gestual em colunas,
+  mas `ScoreHeader` e `GestureScoreCard` coexistem. Qualidade e atleta já têm estado;
+  faltam o refinamento visual e a verificação integrada de clique/toque/teclado.
+- **Ausente como fluxo completo (M3):** `ScoutEvent.playerId` é opcional, porém
+  `VisualScoutDraft.playerNumber` e `CanonicalScoutEventCandidate.playerNumber`
+  são obrigatórios. O rascunho gestual exige atleta; o serviço exige atleta cadastrado.
+  Não há configuração de cobertura em `MatchMetadata`. `awardPoint` já existe e
+  deve ser reaproveitado, verificando a prevenção de duplicação após ação terminal.
+  Abrir partida sem elenco adversário e elegibilidade analítica precisam ser tratados
+  de ponta a ponta, não apenas pela opcionalidade do evento.
+- **Parcial (M4):** `CourtLineup` possui formulário de substituição; os cartões
+  `GestureRotationCard` só exibem posições. `substitute` valida equipe, atleta ativo,
+  ocupação e slot, e grava `substitution_made` com posição e placar da troca.
+  Não promete regras completas de líbero/limites competitivos: o acompanhamento
+  histórico registra essa dívida. Reutilizar o motor e testar seus limites reais.
+- **Parcial (M5):** Análise já tem gráficos Recharts e pontos/jogadas/heatmap,
+  origem/destino e filtros. `MatchAnalyticsPanel` e `SpatialAnalyticsPanel` usam
+  `useState`; não há salvar/abrir/renomear análises nem preferências permanentes.
+  `analyticsSnapshots` é cache com schema, contagem e última sequência, não uma
+  configuração de gráfico. Verificar invalidação em correção/undo/redo na M5.
+- **Parcial (M6):** existem modelo de relatório, JSON e exportador PDF. O JSON
+  usa schema `1.0.0` e não inclui análises ou seleção de gráficos. O PDF escreve
+  seis páginas fixas de texto, limita linhas/caracteres e remove acentos; não exporta
+  os gráficos escolhidos. Seleção, ordem, prévia e paginação dinâmica estão ausentes.
+
+### M0 — mapa de arquivos reais para M1–M6
+
+Todos os caminhos abaixo são relativos à raiz do projeto; são pontos de entrada,
+não uma lista de arquivos a reescrever.
+
+| Etapa | Arquivos existentes a reutilizar |
+| --- | --- |
+| M1 | `src/ui/app/App.tsx`, `src/ui/app/app.css`; `src/ui/screens/scout/ScoutScreen.tsx`, `ScoutModeSelector.tsx`, `ScoreHeader.tsx`, `MatchContextBar.tsx`, `SpatialCourtSurface.tsx`, `GestureCourtInput.tsx`, `SpatialCourtInputV2.tsx`, `SpatialCourtInputV2.css`, `VolleyballVisualScout.css`; `src/ui/screens/scout/gesture/gesture.css`, `GestureScout.tsx`, `GestureScoreCard.tsx`, `GestureRotationCard.tsx`; `src/ui/screens/summary/SummaryScreen.tsx`, `MatchAnalyticsPanel.tsx`. |
+| M2 | `src/ui/screens/scout/ScoutScreen.tsx`, `keyboardShortcut.ts`; `src/ui/screens/scout/gesture/GestureScout.tsx`, `AttackOutcomeBar.tsx`, `PlayerQuickPicker.tsx`, `QuickActionRail.tsx`, `gestureCommitKey.ts`; `src/domain/rally/gesture/GestureDraftState.ts`, `GestureExpectedActionResolver.ts`; `src/application/ScoutTrainerService.ts`. |
+| M3 | `src/domain/scout/events/ScoutEvent.ts`, `EventFactory.ts`; `src/domain/scout/mapper/VisualScoutDraft.ts`, `CanonicalScoutEventCandidate.ts`, `VisualScoutMapper.ts`, `HybridScoutMerger.ts`, `SemanticMapper.ts`; `src/domain/scout/validators/`, `src/domain/scout/completeness/CompletenessEvaluator.ts`; `src/domain/match/entities/MatchMetadata.ts`; `src/application/use-cases/register-scout-event/`, `src/application/use-cases/open-match/OpenMatchUseCase.ts`, `src/application/ScoutTrainerService.ts`; `src/ui/screens/match-setup/NewMatchScreen.tsx`; `src/domain/scout/spatial/SpatialProjection.ts`, `src/domain/statistics/queries/scoutEventQueries.ts`. |
+| M4 | `src/ui/screens/scout/CourtLineup.tsx`, `ScoutScreen.tsx`, `gesture/GestureRotationCard.tsx`; `src/application/ScoutTrainerService.ts`; `src/domain/match/lineup/SetLineup.ts`, `RotationEngine.ts`; `src/domain/match/events/MatchEvent.ts`, `ScoutTimeline.ts`; `src/domain/match/reducers/MatchReducer.ts`, `src/domain/match/replay/MatchReplayService.ts`, `src/domain/match/tactical/ActiveSetterResolver.ts`. |
+| M5 | `src/ui/screens/summary/MatchAnalyticsPanel.tsx`, `SpatialAnalyticsPanel.tsx`, `charts/`; `src/application/analytics/MatchAnalyticsService.ts`, `HistoricalAnalyticsService.ts`; `src/domain/analytics/MatchAnalyticsSnapshot.ts`; `src/application/ports/repositories/AnalyticsSnapshotRepository.ts`; `src/infrastructure/persistence/repositories/IndexedDbAnalyticsSnapshotRepository.ts`, `src/infrastructure/persistence/indexeddb/ScoutTrainerDatabase.ts`; JSON e restauração da M6; `vibecoding/docs/decisions/ADR-014-analytics-snapshot-cache.md` (exclusão explícita de filtros persistentes precisa ser atualizada na M5). |
+| M6 | `src/application/reporting/MatchReportModel.ts`; `src/infrastructure/export/pdf/MatchPdfRenderer.ts`, `src/infrastructure/export/json/MatchJson.ts`; `src/infrastructure/persistence/backup/IndexedDbMatchBackupRepository.ts`; `src/ui/screens/summary/charts/`, `HeatmapLayer.tsx`, `SummaryScreen.tsx`; `src/ui/app/App.tsx`; consultas e persistência de configurações da M5. |
+
+### M0 — comandos e verificações
+
+Scripts confirmados em `package.json`: `npm run dev`, `npm run build`,
+`npm run desktop`, `npm run build:exe`, `npm test`, `npm run test:e2e`,
+`npm run test:watch`, `npm run lint`, `npm run typecheck`, `npm run format`,
+`npm run format:check`. Não usar formatação global para executar este plano.
+
+Testes relevantes já presentes:
+
+- M1–M2: `src/ui/screens/scout/GestureCourtInput.test.tsx`,
+  `SpatialCourtSurface.test.tsx`, `SpatialCourtInputV2.test.tsx`,
+  `VolleyballVisualScout.test.tsx`, `gesture/GestureScout.test.tsx`,
+  `gesture/gestureCommitKey.test.ts`; `src/domain/rally/gesture/GestureDraftState.test.ts`;
+  `src/ui/app/AppFlow.test.tsx`. Capturas e redimensionamento ficam para M1.
+- M3–M4: `src/domain/scout/mapper/VisualScoutMapper.test.ts`,
+  `src/domain/scout/validators/ValidationEngine.test.ts`,
+  `src/domain/scout/completeness/CompletenessEvaluator.test.ts`,
+  `src/application/use-cases/register-scout-event/ValidateAndCreateScoutEventUseCase.test.ts`,
+  `src/domain/match/lineup/RotationEngine.test.ts`,
+  `src/domain/match/replay/MatchReplayService.test.ts`,
+  `src/domain/match/events/ScoutTimeline.test.ts`,
+  `src/domain/match/tactical/ActiveSetterResolver.test.ts`.
+- M5–M6: `src/ui/screens/summary/SpatialAnalyticsPanel.test.tsx`,
+  `charts/VisualAnalytics.test.tsx`; `src/application/analytics/HistoricalAnalyticsService.test.ts`,
+  `MatchAnalyticsService.test.ts`; `src/infrastructure/export/MatchReportExporters.test.ts`,
+  `json/MatchJson.test.ts`; `src/tests/integration/indexeddb-repositories.test.ts`.
+- M7: `e2e/critical-flow.spec.ts` cobre registro, correção, recuperação e exportação,
+  mas não todos os novos cenários gestuais. `playwright.config.ts` usa Chrome headless
+  e servidor Vite em `127.0.0.1:4175`; validar disponibilidade na execução visual.
+
+Ambiente confirmado nesta M0: Node **18.19.1**, npm **9.2.0**. Os manifests instalados
+declaram Vite 8.2.1/Rolldown 1.2.3 com Node `^20.19.0 || >=22.12.0`, Vitest 4.1.10
+com Node `^20.0.0 || ^22.0.0 || >=24.0.0`, e ESLint 10.8.1 com Node
+`^20.19.0 || ^22.13.0 || >=24`. Portanto, este runtime está fora do suporte das
+ferramentas instaladas. A rodada anterior registrou erro de `node:util.styleText`
+no teste/build; isso não é evidência de teste aprovado nem de regressão na M0.
+
+Verificação M0: leitura dos pontos de entrada, scripts e versões; conferência de
+caminhos e diff da documentação. Nenhum teste de aplicação, lint, build ou captura
+visual executado nesta etapa documental. Resultados antigos abaixo são históricos.
+
+### M1 — interface moderna e organização concluída
+
+- O cabeçalho persistente da partida passou a ser o placar principal compacto, com
+  nome das equipes, set, placar e abas Registro/Resumo/Análise. O `ScoreHeader` e o
+  `GestureScoreCard` duplicados deixaram de ser renderizados. O ajuste manual de
+  pontos permanece acessível pelo comando identificado `Ajustar placar` na barra de contexto.
+- A barra de contexto reúne equipe observada, set, saque, rotação, levantador, rally,
+  códigos de equipe e estado do set. No fluxo gestual, a equipe observada acompanha
+  a equipe da ação esperada, confirmada no cenário saque A → recepção B → ataque B.
+- Digitado, Visual, Híbrido e Gestual formam um único seletor compacto. Gestual segue
+  internamente pelo pipeline visual existente, mas somente o botão Gestual recebe
+  `aria-pressed=true`; Visual não aparece simultaneamente selecionado.
+- O modo gestual foi reorganizado em preparação à esquerda, quadra compartilhada no
+  centro, rotações à direita e confirmação junto da quadra. Atleta, qualidade e ações
+  têm títulos visíveis; `Outras ações` substitui o comando sem rótulo `…`.
+- O tema ganhou escalas de 4/8/12/16/24 px, alturas e raios comuns. A quadra preserva
+  geometria, interação e coordenadas, com laranja menos intenso e sem gradiente ou brilho.
+  O histórico permanece acessível abaixo da operação e tem altura limitada para não
+  dominar a área principal.
+- Em telas abaixo de 1100 px, preparação, quadra, confirmação e rotações passam para
+  fluxo vertical. Em 1024×768 e 390×844 não houve rolagem horizontal nem sobreposição;
+  a trajetória manteve os dois marcadores após redimensionamento.
+
+Verificação M1:
+
+- `npm run typecheck`: aprovado.
+- ESLint direcionado aos arquivos alterados: aprovado usando o Node 22.21.1 embutido
+  no Electron, pois o Node 18 do shell não atende aos manifests instalados.
+- Vitest direcionado: 4 arquivos e 9 testes aprovados. Inclui seleção única do modo,
+  render/controles gestuais, superfície compartilhada e 20 gestos consecutivos.
+- Build Vite de produção: aprovado, 759 módulos transformados. Permanece apenas o aviso
+  existente de chunk JavaScript acima de 500 kB.
+- Chrome headless em 1366×768: cabeçalho, contexto, seletor, preparação, quadra,
+  confirmação e duas rotações totalmente visíveis no topo; largura da página igual
+  à viewport. O cenário de ataque mostrou equipe B, atleta, qualidade e Registrar.
+- Chrome headless em 1024×768 e 390×844: sem rolagem horizontal; controles empilhados
+  e trajetória preservada. A página pode rolar verticalmente para rotações/histórico,
+  como previsto para telas menores.
+
+Próxima solicitação: executar somente **M2 — Seleção clara e registro fluido**.
 
 ## Completed
 
@@ -291,6 +453,8 @@ Evolution V3 — Correção Macro 20 · Correção concluída
 
 ## Tests
 
+Registro histórico anterior ao reconhecimento da 0.4; não reexecutado na M0.
+
 - `npm run test`: 274 tests passing, 0 failing.
 - `npm run test:e2e`: 7 critical Playwright flows passing in Chrome.
 - `npm run lint`: passing.
@@ -352,7 +516,8 @@ Evolution V3 — Correção Macro 20 · Correção concluída
 
 ## Next phase
 
-Continue Evolution V3 Macro 21 by the tendências/Opponent Profile execution (21C + 21D) according
-to the two-week economic plan. The base histórica (v5 migration, snapshots, historical aggregation
-and references) is functionally complete. IndexedDB is now at v5. The package version remains
-`0.2.0` until the final release execution sets `0.3.0`.
+Executar M2 — Seleção clara e registro fluido, do plano
+`docs/SCOUT_TRAINER_0.4_PLANO_REFINAMENTO_CODEX.md`, conforme o acompanhamento vigente
+no início deste arquivo. As pendências Evolution V3 acima são histórico anterior,
+não a próxima etapa autorizada. Banco local declarado: v6; pacote: 0.3.0;
+linha de desenvolvimento atual: 0.4.

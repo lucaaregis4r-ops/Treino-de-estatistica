@@ -2,6 +2,7 @@ import type {
   AuditableMetric,
   MatchReportModel,
 } from '../../../application/reporting/MatchReportModel';
+import type { ReportChartConfiguration } from '../../../domain/reporting/ReportChartConfiguration';
 
 function ascii(value: string): string {
   return value
@@ -50,14 +51,14 @@ function pdfText(
   return `BT /${font} ${size} Tf ${color} rg ${x} ${y} Td (${escapePdf(value)}) Tj ET`;
 }
 
-function pageStream(lines: readonly string[], pageNumber: number): string {
+function pageStream(lines: readonly string[], pageNumber: number, totalPages: number): string {
   const [title = 'SCOUT TRAINER', ...content] = lines;
   const commands = [
     'q 0.97 0.98 0.97 rg 0 0 595 842 re f Q',
     'q 0.035 0.12 0.095 rg 0 768 595 74 re f Q',
     'q 0.89 1 0.31 rg 0 763 595 5 re f Q',
     pdfText(title, 38, 800, 18, 'F2', '1 1 1'),
-    pdfText(reportSubtitle(pageNumber), 40, 781, 8, 'F1', '0.70 0.82 0.77'),
+    pdfText(reportSubtitle(pageNumber, title), 40, 781, 8, 'F1', '0.70 0.82 0.77'),
   ];
   let y = 738;
   content.slice(0, 42).forEach((line, index) => {
@@ -82,11 +83,11 @@ function pageStream(lines: readonly string[], pageNumber: number): string {
   });
   commands.push('q 0.12 0.32 0.25 RG 34 38 m 561 38 l S Q');
   commands.push(pdfText(`Scout Trainer 0.2`, 38, 23, 8, 'F2', '0.12 0.32 0.25'));
-  commands.push(pdfText(`pagina ${pageNumber}/6`, 500, 23, 8, 'F1', '0.35 0.43 0.40'));
+  commands.push(pdfText(`pagina ${pageNumber}/${totalPages}`, 500, 23, 8, 'F1', '0.35 0.43 0.40'));
   return commands.join('\n');
 }
 
-function reportSubtitle(pageNumber: number): string {
+function reportSubtitle(pageNumber: number, title: string): string {
   return (
     [
       'Visao executiva da partida',
@@ -95,7 +96,7 @@ function reportSubtitle(pageNumber: number): string {
       'Pressao de saque e qualidade de recepcao',
       'Eficiencia por rotacao',
       'Distribuicao da bola e direcoes P1-P6',
-    ][pageNumber - 1] ?? ''
+    ][pageNumber - 1] ?? `Grafico selecionado: ${ascii(title).slice(0, 70)}`
   );
 }
 
@@ -112,7 +113,7 @@ function createPdf(pages: readonly (readonly string[])[]): string {
   pages.forEach((lines, index) => {
     const pageId = pageIds[index];
     const contentId = pageId + 1;
-    const stream = pageStream(lines, index + 1);
+    const stream = pageStream(lines, index + 1, pages.length);
     objects.set(
       pageId,
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontObjectId} 0 R /F2 ${boldFontObjectId} 0 R >> >> /Contents ${contentId} 0 R >>`,
@@ -138,8 +139,77 @@ function createPdf(pages: readonly (readonly string[])[]): string {
   return document;
 }
 
+function selectedChartLines(
+  report: MatchReportModel,
+  configuration: ReportChartConfiguration,
+): readonly string[] {
+  const teamId = configuration.filters.teamId;
+  const playerId = configuration.filters.playerId;
+  switch (configuration.type) {
+    case 'win_probability':
+      return [
+        'Sequencia | Placar | Equipe A | Equipe B | Impacto',
+        ...(report.winProbability?.points ?? []).map(
+          (point) =>
+            `${point.sequence} | ${point.scoreTeamA} x ${point.scoreTeamB} | ${(point.teamA * 100).toFixed(1)}% | ${(point.teamB * 100).toFixed(1)}% | ${((point.actionImpact ?? 0) * 100).toFixed(1)}%`,
+        ),
+      ];
+    case 'team_performance':
+      return [
+        'Equipe | Ataque Ef. | Saque Ef. | Recepcao + | Sideout | Breakpoint | Bloqueios | Aces | Erros',
+        ...report.teamSummary.map(
+          (row) =>
+            `${teamName(report, row.teamId)} | ${audit(row.attackEfficiency)} | ${audit(row.serveEfficiency)} | ${audit(row.receptionPositive)} | ${audit(row.sideout)} | ${audit(row.breakpoint)} | ${row.blocks} | ${row.aces} | ${row.errors}`,
+        ),
+      ];
+    case 'rotation_performance':
+      return [
+        'Rotacao | Sideout | Breakpoint | Atq Ef. | Rec+ | Aces | Erros',
+        ...report.rotations
+          .filter((row) => !teamId || row.teamId === teamId)
+          .map(
+            (row) =>
+              `${teamName(report, row.teamId)} | R${row.rotation} | ${audit(row.sideout)} | ${audit(row.breakpoint)} | ${audit(row.attackEfficiency)} | ${audit(row.receptionPositive)} | ${row.aces} | ${row.errors}`,
+          ),
+      ];
+    case 'setter_distribution':
+      return [
+        'Equipe | Lev P | Atacante | Zona | Combinacao | Volume | Distribuicao',
+        ...report.setterDistribution
+          .filter((row) => (!teamId || row.teamId === teamId) && (!playerId || row.attackerPlayerId === playerId))
+          .map(
+            (row) =>
+              `${teamName(report, row.teamId)} | P${row.setterPosition} | ${playerName(report, row.attackerPlayerId)} | Z${row.attackZone ?? '-'} | ${row.attackCombination ?? '-'} | ${row.volume} | ${audit(row.share)}`,
+          ),
+      ];
+    case 'attack_evenness':
+      return [
+        'Equipe | Rotacao | Lev P | Fase | Recepcao | Equilibrio',
+        ...report.advanced.attackEvenness
+          .filter((row) => !teamId || row.teamId === teamId)
+          .map(
+            (row) =>
+              `${teamName(report, row.teamId)} | R${row.rotation ?? '-'} | P${row.setterPosition ?? '-'} | ${row.phase ?? '-'} | ${row.receptionGrade ?? '-'} | ${advancedAudit(row.evenness)}`,
+          ),
+      ];
+    case 'setter_repetition':
+      return [
+        'Equipe | Levantador | Atacante | Categoria | Repeticoes',
+        ...report.advanced.setterRepetition
+          .filter((row) => (!teamId || row.teamId === teamId) && (!playerId || row.attackerPlayerId === playerId))
+          .map(
+            (row) =>
+              `${teamName(report, row.teamId)} | ${playerName(report, row.setterPlayerId)} | ${playerName(report, row.attackerPlayerId)} | ${row.category} | ${audit(row.repeatRate)}`,
+          ),
+      ];
+  }
+}
+
 export class MatchPdfRenderer {
-  render(report: MatchReportModel): string {
+  render(
+    report: MatchReportModel,
+    selectedCharts?: readonly ReportChartConfiguration[],
+  ): string {
     const [teamA, teamB] = report.teams;
     const summary = report.teamSummary.flatMap((team) => [
       '',
@@ -147,6 +217,9 @@ export class MatchPdfRenderer {
       `Ataque Ef. ${audit(team.attackEfficiency)} | Saque Ef. ${audit(team.serveEfficiency)}`,
       `Recepcao + ${audit(team.receptionPositive)} | Recepcao # ${audit(team.receptionExcellent)}`,
       `Sideout ${audit(team.sideout)} | Breakpoint ${audit(team.breakpoint)}`,
+      ...(team.identifiedActions !== undefined
+        ? [`Acoes identificadas ${team.identifiedActions} | Sem atleta identificado ${team.unidentifiedActions ?? 0}`]
+        : []),
       `Bloqueios ${team.blocks} | Aces ${team.aces} | Erros ${team.errors}`,
     ]);
     const page1 = [
@@ -158,6 +231,11 @@ export class MatchPdfRenderer {
       `Criada em: ${new Date(report.metadata.createdAt).toISOString()}`,
       `Competicao: ${report.metadata.competitionProfileId ?? report.metadata.complexityProfileId}`,
       `Eventos efetivos: ${report.eventCount}`,
+      ...(report.coverage
+        ? [
+            `Cobertura: ${report.coverage.modes.join(' + ')} | Identificadas ${report.coverage.identifiedActions} | Sem atleta ${report.coverage.unidentifiedActions}`,
+          ]
+        : []),
       `Duracao observada: ${Math.round(report.durationMs / 60000)} min`,
       '',
       'SETS',
@@ -257,6 +335,19 @@ export class MatchPdfRenderer {
           `${teamName(report, row.teamId)} | P${row.setterPosition} | ${row.receptionGrade ?? '-'} | ${playerName(report, row.attackerPlayerId)} | Z${row.attackZone ?? '-'} | ${row.attackCombination ?? '-'} | ${row.volume} | ${audit(row.share)}`,
       ),
     ];
-    return createPdf([page1, page2, page3, page4, page5, page6]);
+    if (selectedCharts === undefined) return createPdf([page1, page2, page3, page4, page5, page6]);
+    const selectedPages = [...selectedCharts]
+      .sort((left, right) => left.order - right.order)
+      .map((configuration, index) => [
+        `${index + 3}. ${configuration.title}`,
+        `Tipo: ${configuration.type}`,
+        `Amostra: ${configuration.sample.totalActions} acoes | Identificadas ${configuration.sample.identifiedActions} | Sem atleta ${configuration.sample.unidentifiedActions}`,
+        ...(configuration.coverage
+          ? [`Cobertura: ${configuration.coverage.modes.join(' + ')} | Identificadas ${configuration.coverage.identifiedActions} | Sem atleta ${configuration.coverage.unidentifiedActions}`]
+          : []),
+        '',
+        ...selectedChartLines(report, configuration),
+      ]);
+    return createPdf([page1, page2, ...selectedPages]);
   }
 }

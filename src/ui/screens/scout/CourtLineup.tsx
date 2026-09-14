@@ -27,6 +27,9 @@ interface CourtLineupProps {
 export function CourtLineup({ workspace, teamId, side, busy, onSubstitute }: CourtLineupProps) {
   const [slotId, setSlotId] = useState('');
   const [playerInId, setPlayerInId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [substitutionError, setSubstitutionError] = useState('');
+  const [substitutionStatus, setSubstitutionStatus] = useState('');
   const team = workspace.teams.find((candidate) => candidate.id === teamId);
   const lineup = workspace.currentLineups.find((candidate) => candidate.teamId === teamId);
   const tacticalState = workspace.state.tacticalStateByTeamId[teamId];
@@ -49,10 +52,21 @@ export function CourtLineup({ workspace, teamId, side, busy, onSubstitute }: Cou
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!slotId || !playerInId) return;
-    await onSubstitute(teamId, slotId, playerInId);
-    setSlotId('');
-    setPlayerInId('');
+    if (busy || submitting || !slotId || !playerInId) return;
+    setSubmitting(true);
+    setSubstitutionError('');
+    setSubstitutionStatus('Aplicando troca…');
+    try {
+      await onSubstitute(teamId, slotId, playerInId);
+      setSlotId('');
+      setPlayerInId('');
+      setSubstitutionStatus('Troca aplicada.');
+    } catch {
+      setSubstitutionStatus('');
+      setSubstitutionError('Não foi possível aplicar a troca. A escalação foi preservada; tente novamente.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -105,6 +119,21 @@ export function CourtLineup({ workspace, teamId, side, busy, onSubstitute }: Cou
                 {isServer && <em>S</em>}
                 {isLibero && <em>LI</em>}
               </div>
+              {slot && player && (
+                <button
+                  type="button"
+                  className="substitution-trigger"
+                  aria-label={`Trocar ${player.name ?? `#${player.number}`}`}
+                  onClick={() => {
+                    setSlotId(slot.slotId);
+                    setPlayerInId('');
+                    setSubstitutionError('');
+                    setSubstitutionStatus('');
+                  }}
+                >
+                  Trocar
+                </button>
+              )}
             </li>
           );
         })}
@@ -118,7 +147,7 @@ export function CourtLineup({ workspace, teamId, side, busy, onSubstitute }: Cou
           {tacticalState?.activeSetterPosition ? ` · P${tacticalState.activeSetterPosition}` : ''}
         </strong>
       </p>
-      <details className="court-substitution">
+      <details className="court-substitution" open={Boolean(slotId)}>
         <summary>Substituição</summary>
         <form onSubmit={(event) => void submit(event)}>
           <label>
@@ -142,23 +171,26 @@ export function CourtLineup({ workspace, teamId, side, busy, onSubstitute }: Cou
                 })}
             </select>
           </label>
-          <label>
-            Entra
-            <select
-              aria-label={`${team?.name}: atleta que entra`}
-              value={playerInId}
-              onChange={(event) => setPlayerInId(event.target.value)}
-            >
-              <option value="">Atleta do banco</option>
+          <div className="quick-substitution-bench" aria-label={`${team?.name}: atleta que entra`}>
+            <span>Entra</span>
+            <div>
               {bench.map((player) => (
-                <option key={player.id} value={player.id}>
+                <button
+                  key={player.id}
+                  type="button"
+                  aria-pressed={playerInId === player.id}
+                  onClick={() => setPlayerInId(player.id)}
+                >
                   #{String(player.number).padStart(2, '0')} {player.name ?? ''}
-                </option>
+                </button>
               ))}
-            </select>
-          </label>
-          <button type="submit" disabled={busy || !slotId || !playerInId}>
-            Substituir
+              {bench.length === 0 && <small>Nenhuma reserva disponível.</small>}
+            </div>
+          </div>
+          {substitutionStatus && <p className="substitution-status" role="status">{substitutionStatus}</p>}
+          {substitutionError && <p className="substitution-status substitution-status-error" role="alert">{substitutionError}</p>}
+          <button type="submit" disabled={busy || submitting || !slotId || !playerInId}>
+            Aplicar troca
           </button>
         </form>
       </details>

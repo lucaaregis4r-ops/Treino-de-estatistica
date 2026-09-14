@@ -7,6 +7,7 @@ import { DEFAULT_INDOOR_SCORING_RULES, setWinner } from '../rules/SetScoringRule
 import type {
   MatchCorrectionEvent,
   MatchEvent,
+  ScoreAdjustmentEvent,
   RallyStartedEvent,
   ScoutCorrectedEvent,
   ScoutRedoneEvent,
@@ -143,6 +144,22 @@ export class MatchEventFactory {
   }): ScoutCorrectedEvent {
     return {
       type: 'scout_corrected',
+      id: this.dependencies.createId(),
+      timestamp: this.dependencies.now(),
+      ...input,
+    };
+  }
+
+  scoreAdjustment(input: {
+    readonly matchId: string;
+    readonly setNumber: number;
+    readonly teamId: string;
+    readonly delta: number;
+    readonly reason?: string;
+    readonly sequence: number;
+  }): ScoreAdjustmentEvent {
+    return {
+      type: 'score_adjustment',
       id: this.dependencies.createId(),
       timestamp: this.dependencies.now(),
       ...input,

@@ -5,10 +5,10 @@ interface ScoreHeaderProps {
   readonly busy: boolean;
   readonly onBack: () => void;
   readonly onSummary: () => void;
-  readonly onPoint: (teamId: string) => Promise<void>;
+  readonly onScoreAdjust: (teamId: string, delta: number) => Promise<void>;
 }
 
-export function ScoreHeader({ workspace, busy, onBack, onSummary, onPoint }: ScoreHeaderProps) {
+export function ScoreHeader({ workspace, busy, onBack, onSummary, onScoreAdjust }: ScoreHeaderProps) {
   const [teamA, teamB] = workspace.teams;
   const teamASets = workspace.state.sets.filter((set) => set.winnerTeamId === teamA.id).length;
   const teamBSets = workspace.state.sets.filter((set) => set.winnerTeamId === teamB.id).length;
@@ -26,9 +26,24 @@ export function ScoreHeader({ workspace, busy, onBack, onSummary, onPoint }: Sco
       <div className="score-header-team home">
         <strong>{teamA.name}</strong>
         <span>{workspace.state.score.teamA}</span>
-        <button type="button" onClick={() => void onPoint(teamA.id)} disabled={busy}>
-          Corrigir +1
-        </button>
+        <div className="score-header-adjustments" aria-label={`Ajustar placar de ${teamA.name}`}>
+          <button
+            type="button"
+            aria-label={`Diminuir placar de ${teamA.name}`}
+            onClick={() => void onScoreAdjust(teamA.id, -1)}
+            disabled={busy || workspace.state.score.teamA === 0}
+          >
+            Ajustar -1
+          </button>
+          <button
+            type="button"
+            aria-label={`Aumentar placar de ${teamA.name}`}
+            onClick={() => void onScoreAdjust(teamA.id, 1)}
+            disabled={busy}
+          >
+            Ajustar +1
+          </button>
+        </div>
       </div>
       <div className="score-header-center score-center">
         <small>SETS</small>
@@ -40,9 +55,24 @@ export function ScoreHeader({ workspace, busy, onBack, onSummary, onPoint }: Sco
       <div className="score-header-team away">
         <strong>{teamB.name}</strong>
         <span>{workspace.state.score.teamB}</span>
-        <button type="button" onClick={() => void onPoint(teamB.id)} disabled={busy}>
-          Corrigir +1
-        </button>
+        <div className="score-header-adjustments" aria-label={`Ajustar placar de ${teamB.name}`}>
+          <button
+            type="button"
+            aria-label={`Diminuir placar de ${teamB.name}`}
+            onClick={() => void onScoreAdjust(teamB.id, -1)}
+            disabled={busy || workspace.state.score.teamB === 0}
+          >
+            Ajustar -1
+          </button>
+          <button
+            type="button"
+            aria-label={`Aumentar placar de ${teamB.name}`}
+            onClick={() => void onScoreAdjust(teamB.id, 1)}
+            disabled={busy}
+          >
+            Ajustar +1
+          </button>
+        </div>
       </div>
       <button className="icon-button" type="button" onClick={onSummary} aria-label="Abrir resumo">
         ≡

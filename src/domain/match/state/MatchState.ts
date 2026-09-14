@@ -8,11 +8,13 @@ import type {
   DerivedTacticalState,
   SubstitutionWindow,
 } from '../tactical/TacticalState';
+import type { CourtOrientation } from './CourtOrientation';
 
 export interface MatchState {
   readonly metadata: MatchMetadata;
   readonly currentSet: number;
   readonly score: ScoreSnapshot;
+  readonly courtOrientation: CourtOrientation;
   readonly servingTeamId?: string;
   readonly currentRally: RallyState;
   readonly sets: readonly SetState[];
@@ -31,6 +33,10 @@ export function createInitialMatchState(metadata: MatchMetadata): MatchState {
     metadata,
     currentSet: 1,
     score,
+    courtOrientation: {
+      leftTeamId: metadata.teamAId,
+      rightTeamId: metadata.teamBId,
+    },
     ...(metadata.initialServingTeamId ? { servingTeamId: metadata.initialServingTeamId } : {}),
     currentRally: Object.freeze({ status: 'idle', phase: 'idle', eventIds: Object.freeze([]) }),
     sets: Object.freeze([{ setNumber: 1, score, completed: false }]),

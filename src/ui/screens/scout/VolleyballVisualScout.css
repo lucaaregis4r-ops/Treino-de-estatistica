@@ -20,7 +20,7 @@
 .volley-visual {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--st-radius-surface);
   padding: clamp(14px, 2vw, 28px);
 }
 .volley-visual fieldset {
@@ -65,14 +65,13 @@
 .volley-visual button:not(.primary) {
   background: var(--panel-strong);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--st-radius-control);
   color: var(--ink);
   padding: 11px 14px;
   font: inherit;
   cursor: pointer;
-  transition:
-    border-color 0.15s,
-    background 0.15s;
+  min-height: var(--st-control-height);
+  transition: border-color var(--st-motion), background-color var(--st-motion), color var(--st-motion);
 }
 .volley-visual button:not(.primary):hover {
   border-color: var(--muted);
@@ -82,10 +81,11 @@
   border-color: var(--accent);
   color: var(--accent-ink);
   font-weight: 700;
+  box-shadow: 0 0 0 2px rgb(216 243 106 / 18%);
 }
 .volley-visual button:focus-visible {
   outline: 2px solid var(--cyan);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 .volley-visual fieldset:disabled {
   opacity: 0.65;
@@ -116,6 +116,15 @@
   font-size: 1.25rem !important;
   padding: 7px !important;
   font-weight: 800 !important;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+.volley-quality button span {
+  color: inherit;
+  font-size: 0.58rem;
+  font-weight: 600;
+  line-height: 1.1;
 }
 .volley-court {
   min-width: 0;
@@ -244,6 +253,8 @@
 .volley-recent small,.volley-shortcuts { color:var(--muted); font-size:.65rem; }
 .volley-visual .volley-recent button { padding:4px 7px !important; font-size:.65rem !important; }
 .volley-shortcuts { display:block; margin-top:4px; }
+.capture-status { margin: 6px 0 0; color: var(--st-success); font-size: 0.78rem; }
+.capture-status-error { color: var(--st-danger); }
 .volley-visual:focus { outline:none; }
 @media (min-width: 900px) {
  .visual-workspace .volley-visual > fieldset { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0 16px; grid-template-areas:'teams teams' 'board board' 'roster recent' 'details recent' 'footer footer' 'shortcuts shortcuts'; }

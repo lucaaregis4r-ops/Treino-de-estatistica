@@ -5,7 +5,7 @@ import {
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import type { MatchWorkspace, StartNextSetInput } from '../../../application/ScoutTrainerService';
+import type { MatchWorkspace, StartNextSetInput, MatchContextAdjustmentInput } from '../../../application/ScoutTrainerService';
 import {
   ContinuousInputController,
   type ContinuousInputUpdate,
@@ -14,6 +14,8 @@ import type {
   ReceptionGrade,
   ScoutEventMetadata,
   ScoutInputMode,
+  ScoutCoverage,
+  ScoutCoverageMode,
 } from '../../../domain/scout/events/ScoutEvent';
 import type { VisualScoutDraft } from '../../../domain/scout/mapper/VisualScoutDraft';
 import type { InputCandidateState } from '../../../domain/scout/input/InputCandidateState';
@@ -25,7 +27,6 @@ import { TacticalInputInterpreter } from '../../../domain/scout/input/TacticalIn
 import type { SpatialMetadata } from '../../../domain/scout/spatial/SpatialMetadata';
 import { SpatialCourtInputV2 } from './SpatialCourtInputV2';
 import { matchesShortcut } from './keyboardShortcut';
-import { ScoreHeader } from './ScoreHeader';
 import { MatchContextBar } from './MatchContextBar';
 import { CourtLineup } from './CourtLineup';
 import { ScoutInput } from './ScoutInput';
@@ -37,12 +38,25 @@ import { ATTACK_COMBINATION_OPTIONS } from './attackCombinationOptions';
 import { ScoutModeSelector } from './ScoutModeSelector';
 import { VisualScoutForm } from './VisualScoutForm';
 import { VolleyballVisualScout } from './VolleyballVisualScout';
+import { GestureScout } from './gesture/GestureScout';
+import { GesturePlayerSuggestionResolver } from '../../../domain/rally/gesture/GesturePlayerSuggestion';
+import { GestureExpectedActionResolver } from '../../../domain/rally/gesture/GestureExpectedActionResolver';
+import {
+  beginGestureCommit,
+  createGestureDraftState,
+  failGestureCommit,
+  selectGesturePlayer,
+  setGestureOutcome,
+  setGestureTrajectory,
+  type GestureDraftState,
+} from '../../../domain/rally/gesture/GestureDraftState';
+import { shouldCommitGestureKey } from './gesture/gestureCommitKey';
+import { GestureRotationCard } from './gesture/GestureRotationCard';
+import { SKILL_LABELS } from './presentationLabels';
 
 interface ScoutScreenProps {
   readonly workspace: MatchWorkspace;
   readonly busy: boolean;
-  readonly onBack: () => void;
-  readonly onSummary: () => void;
   readonly onRegister: (
     teamId: string,
     rawCode: string,
@@ -61,7 +75,8 @@ interface ScoutScreenProps {
   ) => Promise<void>;
   readonly onUndo: () => Promise<void>;
   readonly onRedo: () => Promise<void>;
-  readonly onPoint: (teamId: string) => Promise<void>;
+  readonly onScoreAdjust: (teamId: string, delta: number) => Promise<void>;
+  readonly onAdjustContext?: (input: MatchContextAdjustmentInput) => Promise<void>;
   readonly onSubstitute: (teamId: string, slotId: string, playerInId: string) => Promise<void>;
   readonly onNextSet: (input: StartNextSetInput) => Promise<void>;
   readonly onExport: () => Promise<void>;
@@ -70,18 +85,27 @@ interface ScoutScreenProps {
 const HISTORY_PAGE_SIZE = 200;
 const directionResolver = new DirectionResolver();
 
+function scoutCoverage(
+  teams: readonly { readonly id: string }[],
+  mode: ScoutCoverageMode,
+): ScoutCoverage {
+  const observedTeamIds = mode === 'both'
+    ? teams.map((team) => team.id)
+    : [teams[mode === 'team_a' ? 0 : 1]?.id].filter((id): id is string => id !== undefined);
+  return { mode, observedTeamIds };
+}
+
 export function ScoutScreen({
   workspace,
   busy,
-  onBack,
-  onSummary,
   onRegister,
   onRegisterVisual,
   onRegisterHybrid,
   onCorrect,
   onUndo,
   onRedo,
-  onPoint,
+  onScoreAdjust,
+  onAdjustContext,
   onSubstitute,
   onNextSet,
   onExport,
@@ -93,6 +117,16 @@ export function ScoutScreen({
   const [candidateState, setCandidateState] = useState<InputCandidateState>('empty');
   const [activeTeamId, setActiveTeamId] = useState(workspace.teams[0].id);
   const [inputMode, setInputMode] = useState<ScoutInputMode>('typed');
+  const [gestureMode, setGestureMode] = useState(false);
+  const [coverageMode, setCoverageMode] = useState<ScoutCoverageMode>(workspace.coverage.mode);
+  const [recoveryAction, setRecoveryAction] = useState<{ skill: Skill; teamId: string }>();
+  const [rapidGesture, setRapidGesture] = useState(false);
+  const [gestureDraft, setGestureDraft] = useState<GestureDraftState>(() =>
+    createGestureDraftState(),
+  );
+  const [gestureDraftKey, setGestureDraftKey] = useState(0);
+  const gestureCommittingRef = useRef(false);
+  const handledSubstitutionRef = useRef<string | undefined>(undefined);
   const [visualPlayerNumber, setVisualPlayerNumber] = useState(
     String(
       workspace.players.find((player) => player.teamId === workspace.teams[0].id)?.number ?? '',
@@ -103,6 +137,9 @@ export function ScoutScreen({
   );
   const [visualEvaluation, setVisualEvaluation] = useState('excellent');
   const [hybridCode, setHybridCode] = useState('');
+  const [hybridSubmitting, setHybridSubmitting] = useState(false);
+  const [hybridSubmitStatus, setHybridSubmitStatus] = useState('');
+  const [hybridSubmitError, setHybridSubmitError] = useState('');
   const [editingId, setEditingId] = useState<string>();
   const [originZone, setOriginZone] = useState('');
   const [targetZone, setTargetZone] = useState('');
@@ -222,18 +259,128 @@ export function ScoutScreen({
   const visualTeamPlayers = workspace.players.filter(
     (player) => player.teamId === activeTeamId && player.active !== false,
   );
-  const selectedVisualPlayerNumber = visualTeamPlayers.some(
-    (player) => String(player.number) === visualPlayerNumber,
-  )
-    ? visualPlayerNumber
-    : String(visualTeamPlayers[0]?.number ?? '');
+  const resolvedGestureExpected = new GestureExpectedActionResolver().resolve(
+    workspace.tacticalRally.expectedNextAction,
+  );
+  const gestureExpected = recoveryAction ?? resolvedGestureExpected;
+  const gestureSkill = gestureExpected?.skill ?? 'serve';
+  const gestureTeamId = gestureSkill === 'serve'
+    ? workspace.state.servingTeamId ?? activeTeamId
+    : gestureExpected?.teamId ?? activeTeamId;
+  const gestureLineup = workspace.currentLineups.find((lineup) => lineup.teamId === gestureTeamId);
+  const gestureTeam = workspace.teams.find((team) => team.id === gestureTeamId);
+  const gestureSuggestion = new GesturePlayerSuggestionResolver().resolve(gestureLineup, gestureSkill);
+  const gesturePlayerLabels = Object.fromEntries(
+    workspace.players.map((player) => [player.id, `#${String(player.number).padStart(2, '0')}`]),
+  );
+  const gesturePlayerTitles = Object.fromEntries(
+    workspace.players.map((player) => [
+      player.id,
+      `#${String(player.number).padStart(2, '0')}${player.name ? ` ${player.name}` : ''}`,
+    ]),
+  );
+  const selectedVisualPlayerNumber = visualPlayerNumber === ''
+    ? ''
+    : visualTeamPlayers.some((player) => String(player.number) === visualPlayerNumber)
+      ? visualPlayerNumber
+      : String(visualTeamPlayers[0]?.number ?? '');
   const selectedVisualEvaluation = visualEvaluations.includes(visualEvaluation)
     ? visualEvaluation
     : (visualEvaluations[0] ?? '');
 
   useEffect(() => {
+    if (!gestureMode) return;
+    const expectedAction = { skill: gestureSkill, teamId: gestureTeamId } as const;
+    setGestureDraft((current) => {
+      const sameAction = current.expectedAction?.skill === expectedAction.skill &&
+        current.expectedAction?.teamId === expectedAction.teamId;
+      if (sameAction) {
+        if (!current.playerId &&
+          current.playerSelection !== 'unidentified' &&
+          gestureSuggestion.automatic) {
+          return { ...current, playerId: gestureSuggestion.automatic };
+        }
+        return current;
+      }
+      return createGestureDraftState(expectedAction, gestureSuggestion.automatic);
+    });
+  }, [gestureMode, gestureSkill, gestureTeamId, gestureSuggestion.automatic, gestureDraftKey]);
+
+  useEffect(() => {
     if (inputMode === 'typed') inputRef.current?.focus();
   }, [inputMode, workspace.events.length]);
+
+  useEffect(() => {
+    const substitution = [...workspace.events]
+      .reverse()
+      .find((event) => event.type === 'substitution_made');
+    if (!substitution || substitution.id === handledSubstitutionRef.current) return;
+    handledSubstitutionRef.current = substitution.id;
+    const playerOut = workspace.players.find((player) => player.id === substitution.playerOutId);
+    if (!playerOut) return;
+    setVisualPlayerNumber((current) =>
+      current === String(playerOut.number) ? '' : current,
+    );
+    setGestureDraft((current) =>
+      current.playerId === playerOut.id ? selectGesturePlayer(current) : current,
+    );
+  }, [workspace.events, workspace.players]);
+  function clearGestureDraft() {
+    setRecoveryAction(undefined);
+    setGestureDraft(createGestureDraftState());
+    setGestureDraftKey((key) => key + 1);
+  }
+
+  function chooseGestureAction(skill?: Skill) {
+    const next = skill ? { skill, teamId: gestureTeamId } : undefined;
+    setRecoveryAction(next);
+    setGestureDraft((current) => ({ ...current, outcome: undefined,
+      expectedAction: next ?? resolvedGestureExpected ?? { skill: 'serve', teamId: workspace.state.servingTeamId },
+    }));
+  }
+
+  async function commitCurrentGesture(preparedDraft = gestureDraft) {
+    if (gestureCommittingRef.current || busy) return;
+    let draft = preparedDraft;
+    if (!draft.expectedAction) {
+      draft = createGestureDraftState(
+        { skill: gestureSkill, teamId: gestureTeamId },
+        gestureSuggestion.automatic,
+      );
+    }
+    if (!draft.playerId && draft.playerSelection !== 'unidentified' && gestureSuggestion.automatic) {
+      draft = selectGesturePlayer(draft, gestureSuggestion.automatic);
+    }
+    const checked = beginGestureCommit(draft);
+    if (checked.status === 'error') {
+      setGestureDraft(checked);
+      return;
+    }
+    const player = checked.playerId
+      ? workspace.players.find((candidate) => candidate.id === checked.playerId)
+      : undefined;
+    if (!checked.trajectory || (checked.playerId && !player)) {
+      setGestureDraft(failGestureCommit(checked, 'Não foi possível preparar a ação.'));
+      return;
+    }
+    gestureCommittingRef.current = true;
+    setGestureDraft(checked);
+    try {
+      await onRegisterVisual({
+        teamId: gestureTeamId,
+        ...(player ? { playerNumber: player.number } : {}),
+        coverage: scoutCoverage(workspace.teams, coverageMode),
+        skill: gestureSkill,
+        evaluation: checked.outcome === '#' ? 'excellent' : checked.outcome === '=' ? 'error' : 'neutral',
+        spatial: checked.trajectory,
+      });
+      clearGestureDraft();
+    } catch {
+      setGestureDraft(failGestureCommit(checked, 'Não foi possível registrar. Rascunho mantido; use Registrar para tentar novamente.'));
+    } finally {
+      gestureCommittingRef.current = false;
+    }
+  }
   useEffect(() => {
     if (editingId || !inputRef.current) return;
     inputRef.current.setSelectionRange(stream.length, stream.length);
@@ -308,7 +455,6 @@ export function ScoutScreen({
   }
 
   function metadata(): ScoutEventMetadata | undefined {
-    if (!tactical) return undefined;
     const origin = confirmedSpatial ? undefined : drawnOrigin ?? courtLocation(originZone);
     const target = confirmedSpatial ? undefined : drawnTarget ?? courtLocation(targetZone);
     const resolvedDirection =
@@ -341,9 +487,10 @@ export function ScoutScreen({
         : {}),
     };
     return Object.keys(captureDraft).length > 0 || confirmedSpatial
-      ? { ...(Object.keys(captureDraft).length > 0 ? { captureDraft } : {}),
+      ? { coverage: scoutCoverage(workspace.teams, coverageMode),
+          ...(Object.keys(captureDraft).length > 0 ? { captureDraft } : {}),
           ...(confirmedSpatial ? { spatial: confirmedSpatial } : {}) }
-      : undefined;
+      : { coverage: scoutCoverage(workspace.teams, coverageMode) };
   }
 
   function inlineMetadata(tokens: readonly string[]): ScoutEventMetadata | undefined {
@@ -430,13 +577,17 @@ export function ScoutScreen({
   }
 
   function buildVisualDraft(): VisualScoutDraft | undefined {
-    const playerNumber = Number(selectedVisualPlayerNumber);
-    if (!activeTeamId || !Number.isInteger(playerNumber)) return undefined;
+    const parsedPlayerNumber = selectedVisualPlayerNumber
+      ? Number(selectedVisualPlayerNumber)
+      : undefined;
+    if (!activeTeamId || (parsedPlayerNumber !== undefined && !Number.isInteger(parsedPlayerNumber))) return undefined;
+    const coverage = scoutCoverage(workspace.teams, coverageMode);
     const capture = metadata()?.captureDraft;
     const contactLocation = capture?.origin ?? capture?.target;
     return {
       teamId: activeTeamId,
-      playerNumber,
+      ...(parsedPlayerNumber !== undefined ? { playerNumber: parsedPlayerNumber } : {}),
+      coverage,
       skill: visualSkill,
       evaluation: selectedVisualEvaluation,
       ...(confirmedSpatial ? { spatial: confirmedSpatial } : {}),
@@ -463,16 +614,30 @@ export function ScoutScreen({
 
   async function submitVisual(event: FormEvent) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || hybridSubmitting) return;
     const draft = buildVisualDraft();
     if (!draft) return;
-    if (inputMode === 'hybrid') {
-      if (!hybridCode.trim()) return;
-      await onRegisterHybrid(activeTeamId, hybridCode, draft);
-      setHybridCode('');
-    } else {
-      await onRegisterVisual(draft);
+    try {
+      if (inputMode === 'hybrid') {
+        if (!hybridCode.trim()) return;
+        setHybridSubmitting(true);
+        setHybridSubmitStatus('Registrando…');
+        setHybridSubmitError('');
+        await onRegisterHybrid(activeTeamId, hybridCode, draft);
+        setHybridCode('');
+      } else {
+        await onRegisterVisual(draft);
+      }
+    } catch {
+      if (inputMode === 'hybrid') {
+        setHybridSubmitStatus('');
+        setHybridSubmitError('Não foi possível registrar a ação. O rascunho foi preservado; tente novamente.');
+      }
+      return;
+    } finally {
+      if (inputMode === 'hybrid') setHybridSubmitting(false);
     }
+    if (inputMode === 'hybrid') setHybridSubmitStatus('Ação registrada.');
     clearTacticalCapture();
   }
 
@@ -491,17 +656,21 @@ export function ScoutScreen({
     const decodedCodes = codes.map(
       (code) => inputController.decode(code) ?? { coreCode: code, tacticalTokens: [] },
     );
-    clearTacticalCapture();
     commitQueueRef.current = commitQueueRef.current
       .catch(() => undefined)
       .then(async () => {
         for (const [index, decoded] of decodedCodes.entries()) {
-          const eventMetadata = mergeMetadata(
+          const selectedMetadata = mergeMetadata(
             index === 0 ? capturedMetadata : undefined,
             inlineMetadata(decoded.tacticalTokens),
           );
+          const eventMetadata: ScoutEventMetadata = {
+            coverage: scoutCoverage(workspace.teams, coverageMode),
+            ...(selectedMetadata ?? {}),
+          };
           await onRegister(teamIdForCode(decoded.coreCode), decoded.coreCode, eventMetadata);
         }
+        clearTacticalCapture();
       });
   }
 
@@ -546,7 +715,11 @@ export function ScoutScreen({
     if (!buffer.trim()) return;
     if (editingId) {
       if (busy) return;
-      await onCorrect(editingId, buffer, metadata());
+      try {
+        await onCorrect(editingId, buffer, metadata());
+      } catch {
+        return;
+      }
       setBuffer('');
       setEditingId(undefined);
       setCandidateState('empty');
@@ -674,6 +847,26 @@ export function ScoutScreen({
   }
 
   function handleScreenKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+    const target = event.target as HTMLElement;
+    if (target.closest('button,input,select,textarea,[contenteditable="true"],[data-native-keys]')) {
+      return;
+    }
+    if (gestureMode) {
+      if (shouldCommitGestureKey(
+        event.key,
+        event.repeat,
+        gestureCommittingRef.current || gestureDraft.status === 'committing',
+      )) {
+        event.preventDefault();
+        void commitCurrentGesture();
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        clearGestureDraft();
+        return;
+      }
+    }
     if (!tactical || !tacticalInput || event.defaultPrevented) return;
     const shortcuts = tacticalInput.shortcuts;
     if (matchesShortcut(event, shortcuts.quickEditor)) {
@@ -699,26 +892,31 @@ export function ScoutScreen({
     }
   }
 
+  const workspaceSkill = gestureMode ? gestureSkill : activeCaptureSkill ?? visualSkill;
+  const workspaceTeam = workspace.teams.find(
+    (team) => team.id === (gestureMode ? gestureTeamId : activeTeamId),
+  );
+
   return (
     <section className="scout-screen" aria-labelledby="scout-title" onKeyDown={handleScreenKeyDown}>
       <h1 id="scout-title" className="sr-only">
         Scout de {workspace.state.metadata.name}
       </h1>
-      <ScoreHeader
-        workspace={workspace}
-        busy={busy}
-        onBack={onBack}
-        onSummary={onSummary}
-        onPoint={onPoint}
-      />
       <MatchContextBar
         workspace={workspace}
         activeTeamId={activeTeamId}
+        observedTeamId={gestureMode ? gestureTeamId : activeTeamId}
+        busy={busy}
         {...(teamCodes ? { teamCodes } : {})}
         onActiveTeamChange={(teamId) => {
           setActiveTeamId(teamId);
           setSpatialCapture(undefined);
         }}
+        onScoreAdjust={onScoreAdjust}
+        onAdjustContext={onAdjustContext ? async (input) => { await onAdjustContext(input); clearGestureDraft(); } : undefined}
+        onRecoverySkillChange={chooseGestureAction}
+        coverageMode={coverageMode}
+        onCoverageModeChange={setCoverageMode}
       />
       {setCompleted && !workspace.state.matchCompleted && (
         <NextSetLineupEditor
@@ -728,33 +926,111 @@ export function ScoutScreen({
           onConfirm={onNextSet}
         />
       )}
-      <main className={`match-workspace${inputMode === 'visual' ? ' visual-workspace' : ''}`}>
+      <main className={`match-workspace${inputMode === 'visual' ? ' visual-workspace' : ''}${gestureMode ? ' gesture-workspace' : ''}`}>
         <section className="dual-court" aria-label="Lineups da partida">
-          <CourtLineup
-            workspace={workspace}
-            teamId={teamA.id}
-            side="home"
-            busy={busy}
-            onSubstitute={onSubstitute}
-          />
-          <CourtLineup
-            workspace={workspace}
-            teamId={teamB.id}
-            side="away"
-            busy={busy}
-            onSubstitute={onSubstitute}
-          />
+          {gestureMode ? (
+            <>
+              <GestureRotationCard workspace={workspace} teamId={teamA.id} />
+              <GestureRotationCard workspace={workspace} teamId={teamB.id} />
+            </>
+          ) : (
+            <>
+              <CourtLineup
+                workspace={workspace}
+                teamId={teamA.id}
+                side="home"
+                busy={busy}
+                onSubstitute={onSubstitute}
+              />
+              <CourtLineup
+                workspace={workspace}
+                teamId={teamB.id}
+                side="away"
+                busy={busy}
+                onSubstitute={onSubstitute}
+              />
+            </>
+          )}
         </section>
         <section className="capture-workspace" aria-label="Captura do scout">
+          <div className="capture-heading">
+            <div>
+              <p className="eyebrow">Registro da ação</p>
+              <h2>
+                Ação atual: {SKILL_LABELS[workspaceSkill]}
+                <span> — {workspaceTeam?.name ?? 'equipe não definida'}</span>
+              </h2>
+            </div>
+            <span className="capture-heading-context">
+              {workspace.state.currentRally.status === 'active' ? 'Rally ativo' : 'Próximo rally'}
+            </span>
+          </div>
           <ScoutModeSelector
-            mode={inputMode}
+            mode={gestureMode ? 'gesture' : inputMode}
             disabled={editingId !== undefined}
-            onChange={changeInputMode}
+            onChange={(mode) => {
+              if (mode === 'gesture') {
+                setGestureMode(true);
+                setInputMode('visual');
+                return;
+              }
+              setGestureMode(false);
+              changeInputMode(mode);
+            }}
           />
-          {inputMode === 'visual' && <VolleyballVisualScout
-            key={`${workspace.state.metadata.id}:${workspace.events.length}`}
+          {gestureMode && <GestureScout
+            phase={gestureSkill}
+            skill={gestureSkill}
+            teamName={gestureTeam?.name}
+            trajectoryReady={gestureDraft.trajectory !== undefined}
+            suggestion={gestureSuggestion}
+            playerLabels={gesturePlayerLabels}
+            playerTitles={gesturePlayerTitles}
+            playerNames={Object.fromEntries(workspace.players.map((player) => [player.id, player.name ?? 'Atleta sem nome']))}
+            rapid={rapidGesture}
+            onRapidChange={setRapidGesture}
+            freeBallSelected={gestureSkill === 'free_ball'}
+            lineup={gestureLineup}
+            rosterIds={workspace.players.filter((player) => player.teamId === gestureTeamId && player.active !== false).map((player) => player.id)}
+            liberoIds={workspace.players.filter((player) => player.registeredRole === 'libero' || workspace.state.metadata.liberoPlayerIds?.includes(player.id)).map((player) => player.id)}
+            courtTeamNames={[
+              workspace.teams.find((team) => team.id === workspace.state.courtOrientation.leftTeamId)?.name ?? 'Esquerda',
+              workspace.teams.find((team) => team.id === workspace.state.courtOrientation.rightTeamId)?.name ?? 'Direita',
+            ]}
+            selectedPlayerId={gestureDraft.playerId}
+            playerSelection={gestureDraft.playerSelection}
+            outcome={gestureDraft.outcome}
+            committing={busy || gestureDraft.status === 'committing'}
+            error={gestureDraft.error}
+            draftKey={gestureDraftKey}
+            onTrajectory={(spatial) => {
+              if (gestureCommittingRef.current || busy) return;
+              const next = setGestureTrajectory(gestureDraft, spatial);
+              setGestureDraft(next);
+              if (rapidGesture && gestureDraft.status !== 'error') void commitCurrentGesture(next);
+            }}
+            onPlayerSelected={(playerId) => {
+              setGestureDraft((current) => selectGesturePlayer(current, playerId));
+              const player = playerId
+                ? workspace.players.find((candidate) => candidate.id === playerId)
+                : undefined;
+              if (player) setVisualPlayerNumber(String(player.number));
+              else if (!playerId) setVisualPlayerNumber('');
+            }}
+            onAttackOutcome={(outcome) => {
+              setGestureDraft((current) => setGestureOutcome(current, outcome));
+            }}
+            onQuickAction={(action) => {
+              if (action === 'free_ball') chooseGestureAction(gestureSkill === 'free_ball' ? undefined : 'free_ball');
+            }}
+            onUndo={() => void onUndo()}
+            onCommit={() => void commitCurrentGesture()}
+          />}
+          {!gestureMode && inputMode === 'visual' && <VolleyballVisualScout
+            key={`${workspace.state.metadata.id}:${workspace.timeline.length}`}
             workspace={workspace} busy={busy} onRegister={onRegisterVisual}
             onUndo={onUndo} onRedo={onRedo}
+            coverage={scoutCoverage(workspace.teams, coverageMode)}
             onEdit={entry => edit(entry.sourceEventId, entry.event.rawCode, entry.event.skill, entry.event.metadata)}
           />}
           {inputMode === 'hybrid' && (
@@ -769,20 +1045,24 @@ export function ScoutScreen({
               skills={visualSkills}
               evaluations={visualEvaluations}
               hybridCode={hybridCode}
-              busy={busy}
+              busy={busy || hybridSubmitting}
+              statusMessage={hybridSubmitStatus}
+              errorMessage={hybridSubmitError}
               suggestion={workspace.tacticalRally.expectedNextAction?.skill}
               onTeamChange={(teamId) => {
                 setActiveTeamId(teamId);
                 setSpatialCapture(undefined);
+                setHybridSubmitStatus('');
+                setHybridSubmitError('');
                 const first = workspace.players.find(
                   (player) => player.teamId === teamId && player.active !== false,
                 );
                 setVisualPlayerNumber(String(first?.number ?? ''));
               }}
-              onPlayerChange={(value) => { setVisualPlayerNumber(value); setSpatialCapture(undefined); }}
-              onSkillChange={(value) => { setVisualSkill(value); setSpatialCapture(undefined); }}
-              onEvaluationChange={(value) => { setVisualEvaluation(value); setSpatialCapture(undefined); }}
-              onHybridCodeChange={(value) => { setHybridCode(value); setSpatialCapture(undefined); }}
+              onPlayerChange={(value) => { setVisualPlayerNumber(value); setSpatialCapture(undefined); setHybridSubmitStatus(''); setHybridSubmitError(''); }}
+              onSkillChange={(value) => { setVisualSkill(value); setSpatialCapture(undefined); setHybridSubmitStatus(''); setHybridSubmitError(''); }}
+              onEvaluationChange={(value) => { setVisualEvaluation(value); setSpatialCapture(undefined); setHybridSubmitStatus(''); setHybridSubmitError(''); }}
+              onHybridCodeChange={(value) => { setHybridCode(value); setSpatialCapture(undefined); setHybridSubmitStatus(''); setHybridSubmitError(''); }}
               onSubmit={(event) => void submitVisual(event)}
             />
           )}
@@ -1044,6 +1324,8 @@ export function ScoutScreen({
         </section>
         <EventTimeline
           timeline={workspace.timeline}
+          teams={workspace.teams}
+          players={workspace.players}
           historyLimit={historyLimit}
           pageSize={HISTORY_PAGE_SIZE}
           busy={busy}

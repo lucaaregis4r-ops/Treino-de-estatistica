@@ -94,6 +94,25 @@ describe('MatchEventFactory', () => {
     );
   });
 
+  it('creates an independent score adjustment event', () => {
+    const event = factory().scoreAdjustment({
+      matchId: 'match',
+      setNumber: 1,
+      teamId: 'b',
+      delta: -1,
+      reason: 'Placar conferido',
+      sequence: 7,
+    });
+
+    expect(event).toMatchObject({
+      type: 'score_adjustment',
+      teamId: 'b',
+      delta: -1,
+      reason: 'Placar conferido',
+      sequence: 7,
+    });
+  });
+
   it('ignores non-terminal scout contacts', () => {
     expect(
       factory().derivedFromScout({

@@ -14,3 +14,7 @@ test-results/
 .DS_Store
 Thumbs.db
 *.lnk
+
+# Artefatos locais de desenvolvimento
+output/
+tmp/

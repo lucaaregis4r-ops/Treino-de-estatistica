@@ -53,7 +53,7 @@ test('creates, scouts, recovers, exports, and records a training attempt', async
   await scoutCode.press('Enter');
   await expect(page.locator('.event-list code')).toHaveText('*01A#');
   await expect(scoutCode).toHaveValue('*01A#*01S');
-  await expect(page.locator('.score-header-team.home > span')).toHaveText('1');
+  await expect(page.locator('.match-workspace-score')).toContainText('1 × 0');
   await expect(page.locator('.serving-inline')).toContainText('Equipe A');
   await expect(page.locator('.serving-inline')).toContainText('#01');
   await expect(page.locator('.partial-badge')).toContainText('parcial');
@@ -169,7 +169,7 @@ test('registers a complete tactical scout using only configured keyboard shortcu
     pointerType: 'mouse',
   });
   await expect(page.getByText('Trajetória desenhada', { exact: true })).toBeVisible();
-  await page.getByLabel('Abrir resumo').click();
+  await page.getByRole('button', { name: 'Resumo', exact: true }).click();
   await page.getByLabel('Grupo').selectOption('attack');
   await expect(page.getByLabel('Matriz de zonas: Origem do ataque')).toContainText('Z4');
   await expect(page.getByLabel('Matriz de zonas: Origem do ataque')).toContainText('1/1');

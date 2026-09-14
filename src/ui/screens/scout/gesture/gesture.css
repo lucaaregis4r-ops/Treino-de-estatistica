@@ -1,0 +1,373 @@
+.gesture-scout {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: var(--space-3, 12px);
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.gesture-preparation-panel,
+.gesture-operation-bar {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel, 12px);
+  background: var(--panel-subtle, #0b1713);
+}
+
+.gesture-preparation-panel {
+  display: grid;
+  gap: var(--space-3, 12px);
+  align-content: start;
+  padding: 12px;
+  min-width: 0;
+}
+
+.gesture-scout-status {
+  display: grid;
+  gap: 4px;
+  padding-bottom: var(--space-3, 12px);
+  border-bottom: 1px solid var(--line);
+}
+
+.gesture-scout-status > span,
+.gesture-control-group > strong {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gesture-scout-status > strong {
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.gesture-scout-status > small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.gesture-control-group {
+  display: grid;
+  gap: 7px;
+}
+
+.gesture-outcome,
+.gesture-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0;
+}
+
+.gesture-picker button,
+.gesture-outcome button,
+.gesture-quick-actions button,
+.gesture-quick-actions summary,
+.gesture-scout-undo,
+.gesture-scout-commit {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-control);
+  color: var(--ink);
+  background: var(--panel-strong);
+  font: inherit;
+  cursor: pointer;
+}
+
+.gesture-picker button:hover,
+.gesture-outcome button:hover,
+.gesture-quick-actions button:hover,
+.gesture-quick-actions summary:hover,
+.gesture-scout-undo:hover {
+  border-color: var(--cyan);
+  background: var(--st-surface-raised);
+}
+
+.gesture-picker button.highlighted {
+  border-style: dashed;
+  border-color: var(--st-team-a);
+}
+
+.gesture-picker { display: grid; gap: 6px; min-width: 0; }
+.gesture-picker button { font-size: 14px; line-height: 1.2; }
+.gesture-player-row > strong { display: block; margin-bottom: 4px; font-size: 12px; color: var(--st-text); }
+.gesture-player-row.front { border-top: 3px solid var(--st-control-border); padding-top: 4px; }
+.gesture-player-row.back { border-top: 1px dashed var(--st-control-border); padding-top: 4px; }
+.gesture-player-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.gesture-player-grid button { position: relative; display: grid; gap: 2px; padding: 4px; min-width: 0; }
+.gesture-player-grid button small { font-size: 12px; }
+.gesture-player-grid button b { font: 800 24px ui-monospace, monospace; }
+.gesture-player-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: 14px; font-weight: 600; line-height: 1.15; }
+.gesture-libero > button .gesture-player-name { flex: 1; min-width: 0; }
+.gesture-libero > button b { font: 800 22px ui-monospace, monospace; }
+.gesture-player-grid button { min-height: 76px; }
+.gesture-rapid-control { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; width: 100%; font-size: 14px; }
+.gesture-rapid-control input { width: 20px; min-height: 20px; accent-color: var(--st-accent); }
+.gesture-rapid-control small { color: var(--st-muted); font-size: 12px; }
+.gesture-workspace .capture-heading h2 { font-size: 24px; line-height: 1.15; }
+.gesture-workspace .capture-heading h2 > span { display: block; font-size: 16px; font-weight: 700; color: var(--st-text); }
+.gesture-picker button[aria-pressed='true'] { border-style: solid; }
+.gesture-libero > button { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.gesture-libero label { margin-bottom: 8px; }
+.gesture-player-extras { display: flex; flex-wrap: wrap; align-items: start; gap: 8px; }
+.gesture-player-extras > .gesture-libero { flex: 1; min-width: 0; }
+.gesture-reserves[open] { flex-basis: 100%; }
+.gesture-player-empty { display: grid; text-align: center; align-content: center; font-size: 12px; color: var(--st-muted); }
+.gesture-reserves summary { min-height: 44px; padding: 8px 0; font-size: 14px; cursor: pointer; }
+.gesture-selected-name { color: var(--st-text); overflow-wrap: anywhere; font-size: 12px; min-height: 17px; }
+.gesture-selected-name.sr-only { min-height: 0; }
+.gesture-suggestion-key { color: var(--st-muted); font-size: 12px; line-height: 1.4; }
+.gesture-action-options { display: flex; align-items: start; flex-wrap: wrap; gap: 12px 24px; }
+.gesture-action-options > .gesture-secondary-actions { flex: 1; }
+
+.gesture-picker button[aria-pressed='true'],
+.gesture-outcome button[aria-pressed='true'],
+.gesture-quick-actions button[aria-pressed='true'],
+.gesture-quick-actions summary[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgb(216 243 106 / 18%);
+}
+
+.gesture-outcome button {
+  min-width: 64px;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+.gesture-outcome button {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding-block: 4px;
+}
+.gesture-outcome button span {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.gesture-quick-actions {
+  align-items: start;
+}
+
+.gesture-quick-actions details {
+  min-width: 0;
+}
+
+.gesture-quick-actions summary {
+  display: grid;
+  place-content: center;
+  list-style: none;
+  font-weight: 700;
+}
+
+.gesture-quick-actions summary::-webkit-details-marker {
+  display: none;
+}
+
+.gesture-quick-actions details > div {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.gesture-scout-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.78rem;
+}
+
+.gesture-operation-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+}
+
+.gesture-operation-bar > span {
+  flex: 1;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.gesture-scout-commit {
+  min-width: 10rem;
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent);
+  font-weight: 800;
+}
+
+.gesture-scout-commit:disabled,
+.gesture-scout-undo:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.gesture-rotation-card {
+  padding: 12px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel, 12px);
+  background: var(--panel-subtle, #0b1713);
+}
+
+.gesture-rotation-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+
+.gesture-rotation-card header small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gesture-rotation-card ol {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid #78938680;
+  border-radius: 7px;
+  background: var(--st-surface-raised);
+  list-style: none;
+}
+
+.gesture-rotation-card li {
+  position: relative;
+  display: grid;
+  min-height: 44px;
+  place-content: center;
+  justify-items: center;
+  border: 1px solid #ffffff1f;
+  border-radius: 6px;
+  background: #0a1915cc;
+}
+
+.gesture-rotation-card li.setter {
+  border-color: var(--cyan);
+}
+
+.gesture-rotation-card li > span {
+  color: var(--st-muted);
+  font-size: 12px;
+}
+
+.gesture-rotation-card li > b {
+  color: var(--st-text);
+  font: 700 0.95rem ui-monospace, monospace;
+}
+
+.gesture-rotation-card li > div {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  gap: 2px;
+}
+
+.gesture-rotation-card em {
+  display: grid;
+  width: 15px;
+  height: 15px;
+  place-content: center;
+  border-radius: 50%;
+  color: #07110e;
+  background: var(--cyan);
+  font-size: 0.48rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.gesture-rotation-card em[title='Sacador'] {
+  background: var(--accent);
+}
+
+.match-workspace.gesture-workspace {
+  padding-top: 12px;
+}
+.gesture-workspace .capture-workspace {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.gesture-workspace .capture-heading .eyebrow { display: none; }
+.gesture-workspace .gesture-court { width: 100%; max-width: 840px; margin: 0 auto; }
+.gesture-workspace .gesture-court-frame { padding: 8px; }
+.gesture-workspace .gesture-court-hint { margin: 4px 0; line-height: 18px; }
+.gesture-action-options .gesture-control-group { gap: 4px; }
+.gesture-action-options .gesture-control-group > strong { line-height: 14px; }
+
+@media (min-width: 768px) {
+  .gesture-workspace .capture-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+  .gesture-workspace .capture-heading,
+  .gesture-workspace .scout-mode-selector { margin: 0; }
+  .gesture-workspace .capture-heading-context { display: none; }
+  .gesture-workspace .gesture-scout { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1024px) {
+  .gesture-workspace .gesture-scout {
+    grid-column: 1 / -1;
+    grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    gap: 8px 16px;
+    align-items: start;
+  }
+  .gesture-workspace .gesture-preparation-panel { grid-column: 1; grid-row: 1 / 4; }
+  .gesture-workspace .gesture-court { grid-column: 2; grid-row: 1; }
+  .gesture-workspace .gesture-action-options { grid-column: 2; grid-row: 2; }
+  .gesture-workspace .gesture-operation-bar { grid-column: 2; grid-row: 3; }
+}
+
+@media (min-width: 1280px) and (max-height: 740px) {
+  .gesture-workspace .gesture-preparation-panel { padding: 8px; }
+  .gesture-workspace .gesture-court { max-width: min(100%, max(320px, calc((100dvh - 490px) * 2))); }
+}
+
+@media (max-width: 767px) {
+  .gesture-preparation-panel { padding: 12px; }
+  .gesture-picker button,
+  .gesture-outcome button,
+  .gesture-quick-actions button,
+  .gesture-quick-actions summary,
+  .gesture-reserves summary,
+  .gesture-scout-undo,
+  .gesture-scout-commit { min-height: 48px; }
+}
+
+@media (max-width: 560px) {
+  .gesture-preparation-panel {
+    padding: 12px;
+  }
+
+  .gesture-operation-bar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .gesture-operation-bar > span {
+    flex-basis: 100%;
+  }
+
+  .gesture-scout-undo,
+  .gesture-scout-commit {
+    flex: 1;
+    min-width: 0;
+  }
+}

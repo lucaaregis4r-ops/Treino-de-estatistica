@@ -9,11 +9,11 @@ const SKILLS = [
   ['A', 'Ataque'],
   ['B', 'Bloqueio'],
   ['D', 'Defesa'],
-  ['F', 'Free ball'],
+  ['F', 'Bola de graça'],
 ] as const;
 
 const EVALUATIONS = [
-  ['Saque', 'Ace', 'Positivo', 'Limita', 'Negativo', 'Free ball', 'Erro'],
+  ['Saque', 'Ace', 'Positivo', 'Limita', 'Negativo', 'Bola de graça', 'Erro'],
   ['Recepção', 'Perfeita', 'Positiva', 'Limitada', 'Negativa', 'Overpass', 'Erro'],
   ['Levantamento', '0–1 bloqueio', 'Jogável', '—', '—', '—', 'Erro'],
   ['Ataque', 'Ponto', 'Positivo', 'Coberto', 'Defendido', 'Bloqueado', 'Erro'],
@@ -118,10 +118,10 @@ const QUALIFIER_GUIDES = [
   },
   {
     code: 'F',
-    name: 'Free ball',
+    name: 'Bola de graça',
     purpose: 'Registra uma devolução sem ataque; a avaliação descreve o controle da devolução.',
     qualifiers: [
-      ['#', 'Alvo perfeito', 'Free ball direcionada exatamente ao alvo planejado.'],
+      ['#', 'Alvo perfeito', 'Bola de graça direcionada exatamente ao alvo planejado.'],
       ['+', 'Controlada', 'Devolução segura e dirigida.'],
       ['!', 'Neutra', 'Devolução mantém a bola em jogo sem vantagem clara.'],
       ['-', 'Fácil', 'Entrega construção confortável ao adversário.'],
@@ -227,6 +227,7 @@ export function ManualScreen({ onBack }: ManualScreenProps) {
         <h2>Avaliações</h2>
         <div className="manual-table-wrap">
           <table className="manual-table">
+            <caption className="sr-only">Avaliações disponíveis por fundamento</caption>
             <thead>
               <tr>
                 <th>Fundamento</th>

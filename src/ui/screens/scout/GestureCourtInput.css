@@ -1,0 +1,33 @@
+.gesture-court {
+  width: 100%;
+  max-width: 480px;
+  margin: 16px auto;
+}
+
+.gesture-court-frame {
+  position: relative;
+  width: 100%;
+  padding: 18px;
+  box-sizing: border-box;
+  touch-action: none;
+  user-select: none;
+  cursor: crosshair;
+  border-radius: 5px;
+  background: var(--st-bg);
+}
+
+.gesture-court-frame[data-dragging='true'] { cursor: grabbing; }
+
+.gesture-court-frame > .spatial-v2-surface {
+  pointer-events: none;
+}
+
+.gesture-court-hint { margin: 8px 0; color: var(--st-muted); font-size: 13px; }
+.gesture-court-teams { display: flex; justify-content: space-between; gap: 16px; color: var(--st-muted); font-size: 12px; }
+.gesture-court-teams span { min-width: 0; overflow-wrap: anywhere; }
+.gesture-court-teams span:last-child { text-align: right; }
+
+@media (max-width: 520px) {
+  .gesture-court { margin: 8px auto; }
+  .gesture-court-frame { padding: 12px; }
+}

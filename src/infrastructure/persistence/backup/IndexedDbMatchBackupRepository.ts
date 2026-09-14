@@ -24,6 +24,8 @@ export class IndexedDbMatchBackupRepository implements MatchBackupRepository {
         STORE_NAMES.codeProfiles,
         STORE_NAMES.complexityProfiles,
         STORE_NAMES.competitionProfiles,
+        STORE_NAMES.analysisConfigurations,
+        STORE_NAMES.reportChartConfigurations,
       ];
       const transaction = database.transaction(storeNames, 'readwrite');
       const events = transaction.objectStore(STORE_NAMES.events);
@@ -32,6 +34,20 @@ export class IndexedDbMatchBackupRepository implements MatchBackupRepository {
         'find events replaced by backup',
       );
       oldEventKeys.forEach((key) => events.delete(key));
+
+      const configurations = transaction.objectStore(STORE_NAMES.analysisConfigurations);
+      const oldConfigurationKeys = await requestResult(
+        configurations.index('matchId').getAllKeys(IDBKeyRange.only(backup.match.id)),
+        'find analysis configurations replaced by backup',
+      );
+      oldConfigurationKeys.forEach((key) => configurations.delete(key));
+
+      const reportCharts = transaction.objectStore(STORE_NAMES.reportChartConfigurations);
+      const oldReportChartKeys = await requestResult(
+        reportCharts.index('matchId').getAllKeys(IDBKeyRange.only(backup.match.id)),
+        'find report chart configurations replaced by backup',
+      );
+      oldReportChartKeys.forEach((key) => reportCharts.delete(key));
 
       const players = transaction.objectStore(STORE_NAMES.players);
       for (const teamId of [backup.match.teamAId, backup.match.teamBId]) {
@@ -67,6 +83,8 @@ export class IndexedDbMatchBackupRepository implements MatchBackupRepository {
           event,
         }),
       );
+      backup.analysisConfigurations?.forEach((configuration) => configurations.put(configuration));
+      backup.reportChartConfigurations?.forEach((configuration) => reportCharts.put(configuration));
       await transactionDone(transaction, 'restore match backup');
       return success(undefined);
     } catch (error) {

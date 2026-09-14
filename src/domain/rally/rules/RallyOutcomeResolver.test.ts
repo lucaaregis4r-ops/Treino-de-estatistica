@@ -44,4 +44,16 @@ describe('RallyOutcomeResolver', () => {
       reason: 'block_error',
     });
   });
+
+  it('keeps an ace with the serving team and awards a serve error to the opponent', () => {
+    const resolver = new RallyOutcomeResolver();
+    expect(resolver.resolve({ ...base, skill: 'serve', outcome: 'ace' }, teams)).toEqual({
+      winnerTeamId: 'a',
+      reason: 'serve_ace',
+    });
+    expect(resolver.resolve({ ...base, skill: 'serve', outcome: 'error' }, teams)).toEqual({
+      winnerTeamId: 'b',
+      reason: 'serve_error',
+    });
+  });
 });
