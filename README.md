@@ -1,353 +1,280 @@
-﻿Scout Trainer
+<div align="center">
+  <img src="public/icons/scout-trainer-192.png" width="112" alt="Scout Trainer" />
 
-Scout de voleibol local, visual, configurável e open source.
+# Scout Trainer
 
-O Scout Trainer é uma aplicação para registro, treinamento e análise de partidas de voleibol, criada para tornar o trabalho de scout mais acessível sem depender obrigatoriamente de plataformas comerciais.
+### Scout de voleibol local, visual e orientado por dados
 
-O projeto combina diferentes formas de registrar uma partida — por códigos, interface visual ou gestos sobre a quadra — com reconstrução do estado do jogo, análises estatísticas, dados espaciais e exportação dos registros.
+Registre a partida do jeito que fizer mais sentido — **digitando códigos, tocando na interface ou desenhando trajetórias na quadra** — e transforme o histórico do jogo em informação tática e estatística.
 
-A aplicação funciona em arquitetura local-first: as partidas ficam armazenadas no próprio dispositivo e continuam acessíveis mesmo sem conexão com a internet.
+<br />
 
-Versão atual: 0.4.0
+![Versão](https://img.shields.io/badge/vers%C3%A3o-0.4.0-5b5bd6?style=for-the-badge)
+![Status](https://img.shields.io/badge/status-em%20desenvolvimento-f59e0b?style=for-the-badge)
+![Local first](https://img.shields.io/badge/local--first-offline-16a34a?style=for-the-badge)
+![TypeScript](https://img.shields.io/badge/TypeScript-React-3178c6?style=for-the-badge&logo=typescript&logoColor=white)
+![Electron](https://img.shields.io/badge/Electron-desktop-47848f?style=for-the-badge&logo=electron&logoColor=white)
 
-Por que o Scout Trainer existe?
+<br />
 
-Softwares profissionais de scout são extremamente poderosos, mas normalmente exigem treinamento específico, licenças comerciais ou uma rotina de registro bastante rígida.
+[**Visão geral**](#-visão-geral) · [**Registro**](#-quatro-formas-de-registrar) · [**Análises**](#-análises) · [**Roadmap**](#-roadmap) · [**Desenvolvimento**](#-desenvolvimento)
 
-O Scout Trainer nasceu como uma ferramenta de treinamento de códigos e evoluiu para experimentar uma pergunta mais ampla:
+</div>
 
-É possível registrar uma partida de voleibol de forma rápida e intuitiva sem abrir mão de dados táticos e estatísticos mais profundos?
+---
 
-Por isso, o projeto tenta combinar duas ideias:
+## 🏐 Visão geral
 
-registrar o mínimo necessário durante o rally;
+O **Scout Trainer** é uma aplicação para **registro, treinamento e análise de partidas de voleibol**.
 
-enriquecer e analisar os dados posteriormente.
+O projeto começou como uma ferramenta para praticar códigos de scout e evoluiu para uma plataforma experimental de dados esportivos: além do registro tradicional por teclado, hoje é possível trabalhar com **entrada visual, modo híbrido, registro gestual, rotação, contexto da partida, trajetórias espaciais, heatmaps e analytics**.
 
-O objetivo não é substituir soluções profissionais, mas criar uma alternativa aberta para treinadores, analistas, estudantes, pesquisadores e profissionais do esporte.
+A pergunta que guia o projeto é simples:
 
-O que já existe
+> **Como registrar uma partida com velocidade sem abrir mão de contexto, rastreabilidade e profundidade analítica?**
 
-Quatro formas de registrar uma partida
+A resposta do Scout Trainer é tentar pedir menos durante o rally e aproveitar melhor aquilo que o próprio estado da partida já permite inferir.
 
-O Scout Trainer permite trabalhar com diferentes níveis de velocidade e detalhamento.
+### Para quem ele pode ser útil?
 
-Digitado
+| | |
+| --- | --- |
+| 🧑‍🏫 **Treinadores** | Registro e leitura tática sem depender de uma estrutura pesada. |
+| 📊 **Analistas** | Dados espaciais, filtros, métricas e exportações estruturadas. |
+| 🎓 **Estudantes** | Ambiente para aprender scout, estatística e análise esportiva. |
+| 🧪 **Pesquisadores** | Base local e auditável para experimentação com dados de voleibol. |
+| ⌨️ **Operadores de scout** | Treino de velocidade, consistência e leitura do jogo. |
 
-Registro contínuo por códigos de scout.
+---
 
-Ideal para:
+## ✨ O que já existe na 0.4
 
-treinamento de operadores;
+<table>
+<tr>
+<td width="50%" valign="top">
 
-quem já utiliza códigos de voleibol;
+### 🎯 Registro contextual
 
-registro rápido por teclado;
+- placar, set e equipe sacadora;
+- rotação P1–P6;
+- atletas em quadra;
+- levantador ativo;
+- substituições;
+- rally atual;
+- histórico reconstruível.
 
-partidas com grande volume de ações.
+</td>
+<td width="50%" valign="top">
 
-Exemplo:
+### 🗺️ Dados espaciais
 
+- origem e destino da bola;
+- zonas da quadra;
+- direção das ações;
+- ataques para fora;
+- pontos e jogadas;
+- heatmaps;
+- filtros por contexto.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### ↩️ Histórico auditável
+
+- correção de eventos;
+- desfazer e refazer;
+- replay determinístico;
+- reconstrução do estado;
+- persistência local;
+- continuidade de partidas.
+
+</td>
+<td width="50%" valign="top">
+
+### 📈 Analytics
+
+- saque e recepção;
+- eficiência de ataque;
+- sideout e breakpoint;
+- desempenho por rotação;
+- distribuição do levantador;
+- análise espacial;
+- probabilidade estimada de set e partida.
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🎮 Quatro formas de registrar
+
+O Scout Trainer não obriga o operador a trabalhar de uma única maneira. Todos os modos convergem para o mesmo histórico de partida.
+
+| Modo | Como funciona | Melhor para |
+| --- | --- | --- |
+| ⌨️ **Digitado** | Linha contínua com códigos de scout. | Velocidade, treinamento e operadores habituados a códigos. |
+| 🖱️ **Visual** | Ação, qualidade, atleta e trajetória escolhidos pela interface. | Uso mais guiado e registro espacial. |
+| 🔀 **Híbrido** | Código rápido + enriquecimento visual/tático. | Equilibrar velocidade e detalhe. |
+| 👆 **Gestual** | Trajetória desenhada diretamente na quadra com touch, mouse ou caneta. | Tablet, telas touch e registro durante rallies rápidos. |
+
+### ⌨️ Digitado
+
+Um registro pode começar por uma sequência compacta como:
+
+```text
 *08S# a05R+ a12A#
+```
 
-O sistema interpreta os códigos, registra os eventos e atualiza automaticamente o contexto da partida.
+O parser interpreta os contatos, registra os eventos e atualiza o contexto da partida.
 
-Visual
+### 🖱️ Visual e híbrido
 
-O operador registra a ação diretamente pela interface.
+A interface permite complementar o evento com informações como:
 
-É possível informar:
+`fundamento` · `qualidade` · `atleta` · `origem` · `destino` · `direção` · `contexto tático`
 
-fundamento;
+### 👆 Gestual
 
-qualidade;
+No modo gestual, a própria quadra vira uma entrada de dados. O contexto do rally ajuda a sugerir **equipe, ação esperada e atletas compatíveis com a rotação**, reduzindo cliques desnecessários.
 
-atleta;
+O levantamento pode ser tratado implicitamente quando o contexto permite, sem obrigar o operador a registrar um contato que não acrescentaria informação naquele momento.
 
-origem;
+---
 
-destino;
+## 🗺️ A quadra é dado, não decoração
 
-direção;
+As trajetórias são armazenadas como informação espacial.
 
-contexto tático.
+```text
+origem  ───────────────→  destino
+```
 
-A quadra utiliza coordenadas contínuas, permitindo análises espaciais posteriores.
+Com isso, o projeto pode responder perguntas como:
 
-Híbrido
+- de onde determinado atleta mais ataca?
+- para onde os ataques estão sendo direcionados?
+- em quais regiões a recepção está acontecendo?
+- quais padrões mudam conforme a rotação?
+- onde uma ação teve mais sucesso ou mais erro?
 
-Combina a velocidade da digitação com o enriquecimento visual.
+A mesma base espacial alimenta visualizações em **pontos, jogadas e heatmap**.
 
-O usuário pode registrar o núcleo da ação por código e complementar informações como:
+---
 
-trajetória;
+## 🔄 A partida como sequência, não como planilha
 
-zona;
+Cada evento existe dentro de um contexto.
 
-direção;
+```text
+Saque → Recepção → Ataque → Defesa → Contra-ataque → ... → fim do rally
+```
 
-tipo de ataque;
+O Scout Trainer mantém informações de placar, saque, rotação, atleta, levantador e rally para que as análises não precisem tratar cada contato como uma linha isolada.
 
-contexto tático.
+Errou durante o scout? O histórico foi pensado para isso:
 
-Gestual
+```text
+registrar → corrigir → desfazer → refazer → reconstruir
+```
 
-O modo gestual foi desenvolvido pensando principalmente em touch, tablet, caneta e mouse.
+A intenção é preservar a rastreabilidade sem obrigar o usuário a refazer uma partida inteira.
 
-Em vez de preencher diversos campos, o operador pode representar a trajetória da bola diretamente sobre a quadra.
+---
 
-O fluxo utiliza o próprio contexto do rally para sugerir:
+## 📊 Análises
 
-equipe da ação;
+### Estatísticas de jogo
 
-atleta provável;
+A aplicação já trabalha com métricas relacionadas a:
 
-saque;
+- saque;
+- recepção;
+- ataque;
+- bloqueio;
+- sideout;
+- breakpoint;
+- distribuição do levantador;
+- desempenho por rotação;
+- eficiência por atleta.
 
-recepção;
+### Analytics espaciais
 
-ataque;
+Os registros podem ser recortados por diferentes dimensões, como:
 
-rotação atual.
+`ação` · `atleta` · `qualidade` · `set` · `posição do levantador` · `origem` · `destino`
 
-O levantamento pode ser tratado implicitamente quando o contexto permite, reduzindo a quantidade de ações necessárias durante rallies rápidos.
+### Probabilidade de vitória
 
-Registro espacial
+Existe também uma leitura estimativa da probabilidade do **set** e da **partida** a partir do estado do placar, incluindo sua evolução ao longo dos rallies.
 
-A quadra não funciona apenas como ilustração.
+> Essas probabilidades são **estimativas**, não previsões absolutas. A calibração será aprofundada conforme o projeto ganhar histórico suficiente.
 
-Cada trajetória pode gerar dados de:
+---
 
-origem → destino
+## 🧭 Princípios do projeto
 
-Isso permite construir análises como:
+<table>
+<tr>
+<td width="33%" valign="top">
 
-origem dos ataques;
+### 📴 Local-first
 
-destino dos ataques;
+O funcionamento principal não depende de servidor externo. Partidas e cadastros ficam no dispositivo do usuário.
 
-regiões de recepção;
+</td>
+<td width="33%" valign="top">
 
-distribuição espacial;
+### 🧱 Evento como fonte de verdade
 
-mapas de calor;
+A interface apresenta os dados; regras esportivas e cálculos pertencem ao domínio.
 
-direção das ações;
+</td>
+<td width="33%" valign="top">
 
-padrões por atleta;
+### ⚡ Registrar rápido
 
-padrões por rotação.
+Se o sistema pode inferir um contexto com segurança, ele não deve obrigar o operador a digitá-lo de novo.
 
-Também existe uma área externa à quadra para representar bolas para fora sem criar coordenadas inválidas.
+</td>
+</tr>
+</table>
 
-Contexto real da partida
+### Símbolo não é significado
 
-O Scout Trainer não trata cada ação como um registro isolado.
+`#`, `+`, `-`, `=` e outros símbolos continuam úteis para captura, mas as análises devem trabalhar cada vez mais com **significado esportivo normalizado**, e não apenas com o caractere digitado.
 
-O sistema mantém o estado da partida, incluindo:
+### Estatística antes de IA
 
-set;
+> **IA pergunta. Analytics calcula. IA interpreta.**
 
-placar;
+Uma futura camada de IA poderá ajudar o usuário a consultar e explicar os dados, mas o cálculo estatístico central continuará determinístico dentro do Scout Trainer.
 
-equipe sacadora;
+---
 
-rotação;
+## 🚀 Roadmap
 
-posições P1–P6;
+### `0.4.x` — consolidação
 
-atletas em quadra;
+Fechar a versão atual: documentação, testes de fluxo antigos, consistência da interface e refinamentos operacionais.
 
-levantador;
+### `0.45` — Analytics & Capture Foundation
 
-substituições;
+A próxima evolução planejada aprofunda a análise da **construção do ponto**:
 
-rally atual;
+- normalização semântica dos eventos;
+- reconstrução estruturada de rallies;
+- análise sequencial;
+- cadeias de Markov;
+- probabilidade de vencer o rally por estado;
+- valor estimado das ações;
+- padrões recorrentes de sequência;
+- comparação por rotação e contexto;
+- tamanho de amostra e incerteza explícitos.
 
-histórico de eventos.
-
-O objetivo é utilizar informações que já podem ser derivadas da partida em vez de exigir que o operador as informe repetidamente.
-
-Rotação e atletas
-
-A aplicação possui cadastro reutilizável de:
-
-atletas;
-
-equipes;
-
-escalações.
-
-Durante a partida, o sistema acompanha a rotação e apresenta os atletas nas posições regulamentares:
-
-P4  P3  P2
-P5  P6  P1
-
-O levantador é identificado no contexto da rotação e pode ser utilizado posteriormente nas análises.
-
-Substituições também são registradas no histórico da partida.
-
-Correção sem perder o histórico
-
-Erros durante um scout são inevitáveis.
-
-Por isso, o Scout Trainer utiliza um histórico de eventos que permite:
-
-corrigir;
-
-desfazer;
-
-refazer;
-
-reconstruir o estado da partida.
-
-A intenção é preservar a rastreabilidade das alterações sem precisar reescrever toda a partida.
-
-Análises
-
-A aplicação já possui diferentes níveis de análise.
-
-Estatísticas tradicionais
-
-Entre as métricas disponíveis estão indicadores relacionados a:
-
-saque;
-
-recepção;
-
-ataque;
-
-bloqueio;
-
-sideout;
-
-breakpoint;
-
-distribuição do levantador;
-
-desempenho por rotação;
-
-eficiência por atleta.
-
-Analytics espaciais
-
-Os registros realizados sobre a quadra podem ser filtrados por:
-
-fundamento;
-
-atleta;
-
-qualidade;
-
-set;
-
-posição do levantador;
-
-origem;
-
-destino.
-
-A mesma seleção pode ser visualizada como:
-
-pontos;
-
-jogadas;
-
-heatmap.
-
-Probabilidade de vitória
-
-O Scout Trainer também possui uma estimativa de probabilidade baseada no estado do placar.
-
-É possível acompanhar:
-
-probabilidade estimada do set;
-
-probabilidade estimada da partida;
-
-evolução ao longo dos rallies;
-
-impacto das mudanças de placar.
-
-Esses valores devem ser interpretados como estimativas, e não como previsões absolutas.
-
-O modelo será aprimorado conforme o projeto ganhar uma base histórica maior de partidas.
-
-Filosofia do projeto
-
-Alguns princípios orientam o desenvolvimento do Scout Trainer.
-
-Local-first
-
-Os dados pertencem ao usuário.
-
-O funcionamento principal não depende de servidor externo.
-
-Evento como fonte de verdade
-
-As análises são derivadas do histórico da partida.
-
-A interface não é responsável por calcular as estatísticas.
-
-Símbolo não é significado
-
-Códigos como:
-
-#
-+
--
-=
-
-são formas de entrada.
-
-Internamente, o projeto busca representar o significado esportivo dessas ações de maneira estruturada.
-
-Registrar rápido primeiro
-
-O sistema tenta inferir automaticamente tudo aquilo que pode ser conhecido pelo contexto.
-
-Detalhes adicionais podem ser registrados quando forem realmente úteis.
-
-Estatística antes de IA
-
-A evolução planejada do projeto segue um princípio simples:
-
-IA pergunta. Analytics calcula. IA interpreta.
-
-Modelos de linguagem poderão futuramente ajudar o usuário a explorar os dados, mas os cálculos estatísticos permanecerão determinísticos dentro da aplicação.
-
-Próximas evoluções
-
-A versão 0.4 consolidou principalmente a interface, o registro visual e o registro gestual.
-
-As próximas versões devem aprofundar a parte analítica.
-
-0.45 — Analytics & Capture Foundation
-
-Planejado:
-
-normalização semântica dos eventos;
-
-reconstrução completa de rallies;
-
-análise sequencial;
-
-cadeias de Markov;
-
-probabilidade de vencer o rally a partir de diferentes estados;
-
-valor estimado de cada ação;
-
-identificação de sequências recorrentes;
-
-comparação de padrões por rotação e contexto;
-
-apresentação de tamanho de amostra e incerteza das estimativas.
-
-Uma das ideias centrais será analisar não apenas ações isoladas, mas a construção do ponto.
-
-Exemplo:
-
+```text
 Saque
   ↓
 Recepção
@@ -359,179 +286,31 @@ Ataque
 Defesa
   ↓
 Contra-ataque
+```
 
-Evoluções futuras
+### Depois da 0.45
 
-O projeto também está sendo preparado para estudar:
+| Horizonte | Direção |
+| --- | --- |
+| 🧍 **Performance** | Integrar identidade de atletas, treino, carga, PSE/PSR e outros registros sem misturar domínios. |
+| ⚽ **Multi-esporte** | Explorar um núcleo compartilhado para futebol, futsal e basquete, preservando regras específicas de cada modalidade. |
+| 🤖 **IA opcional** | Permitir consultas em linguagem natural usando o próprio provedor do usuário sobre analytics determinísticos. |
+| 🎥 **Vídeo** | Relacionar eventos e timestamps antes de experimentar classificação automática assistida. |
 
-Dados de performance
+---
 
-Possível integração entre:
+## 🧠 Arquitetura em uma frase
 
-scout;
+```text
+Entrada → Evento canônico → Timeline da partida → Estado/replay → Estatísticas → Análise/relatório
+```
 
-treino;
+<details>
+<summary><strong>Ver estrutura técnica do projeto</strong></summary>
 
-carga;
+<br />
 
-PSE;
-
-recuperação;
-
-participação do atleta.
-
-Outros esportes
-
-A arquitetura poderá futuramente servir como base para módulos de:
-
-futebol;
-
-futsal;
-
-basquete.
-
-A ideia não é tratar todos os esportes da mesma maneira, mas compartilhar conceitos como:
-
-Evento
-Sequência
-Estado
-Transição
-Atleta
-Equipe
-Tempo
-Contexto
-
-No voleibol, uma sequência é principalmente um rally.
-
-Nos esportes de invasão, poderá ser uma posse.
-
-Assistente de IA
-
-Também está prevista uma camada opcional em que o usuário poderá utilizar seu próprio provedor de IA para fazer perguntas sobre os dados.
-
-Exemplo:
-
-Qual rotação apresentou maior dificuldade de sideout?
-
-ou:
-
-Quais sequências mais frequentemente terminaram em ponto depois de uma recepção positiva?
-
-O modelo de IA não calculará a estatística. Ele consultará os resultados produzidos pelo motor analítico do Scout Trainer.
-
-Vídeo
-
-Análise de vídeo também é uma possibilidade futura.
-
-A ideia inicial é relacionar eventos e timestamps antes de explorar reconhecimento automático de ações.
-
-Fluxo básico
-
-Cadastros
-   ↓
-Partida
-   ↓
-Registro
- ┌───────┬────────┬─────────┬─────────┐
-Digitado Visual  Híbrido   Gestual
- └───────┴────────┴─────────┴─────────┘
-   ↓
-Histórico de eventos
-   ↓
-Resumo
-   ↓
-Análise
-   ↓
-Exportação
-
-Persistência
-
-Os dados são armazenados localmente utilizando IndexedDB.
-
-Atualmente são preservados dados como:
-
-atletas;
-
-equipes;
-
-partidas;
-
-eventos;
-
-rotações;
-
-configurações;
-
-snapshots analíticos.
-
-A arquitetura foi construída para permitir reconstrução do estado da partida a partir do histórico.
-
-Exportação
-
-Dependendo do fluxo utilizado, o Scout Trainer pode gerar dados e relatórios em formatos como:
-
-JSON;
-
-CSV;
-
-TXT;
-
-PDF.
-
-Para análises mais aprofundadas, os formatos estruturados como CSV e JSON são normalmente os mais indicados.
-
-Tecnologias
-
-O projeto utiliza principalmente:
-
-TypeScript
-
-React
-
-Vite
-
-Electron
-
-IndexedDB
-
-Recharts
-
-Vitest
-
-Playwright
-
-A aplicação também possui suporte a funcionamento como PWA.
-
-Desenvolvimento
-
-Clone o repositório e instale as dependências:
-
-npm install
-
-Execute em desenvolvimento:
-
-npm run dev
-
-Verificação de tipos:
-
-npm run typecheck
-
-Build de produção:
-
-npm run build
-
-Testes:
-
-npm test
-
-Testes end-to-end:
-
-npm run test:e2e
-
-Estrutura geral
-
-O projeto separa domínio, aplicação, infraestrutura e interface.
-
+```text
 src/
 ├── application/
 ├── core/
@@ -545,36 +324,94 @@ src/
 ├── infrastructure/
 ├── profiles/
 └── ui/
+```
 
-A intenção é manter regras esportivas e estatísticas independentes da interface.
+A intenção é manter regras esportivas e estatísticas independentes de React, DOM e persistência.
 
-Download
+</details>
+
+---
+
+## 💾 Persistência e exportação
+
+O projeto usa **IndexedDB** para persistência local de partidas, equipes, atletas, eventos e configurações.
+
+Os registros podem alimentar exportações em formatos como:
+
+`JSON` · `CSV` · `TXT` · `PDF`
+
+Para auditoria e análises externas mais profundas, **JSON e CSV** são os formatos mais indicados.
+
+---
+
+## 🛠️ Tecnologias
+
+<div align="center">
+
+**TypeScript** · **React** · **Vite** · **Electron** · **IndexedDB** · **Recharts** · **Vitest** · **Playwright**
+
+</div>
+
+---
+
+## 💻 Desenvolvimento
+
+Instale as dependências:
+
+```bash
+npm install
+```
+
+Execute em desenvolvimento:
+
+```bash
+npm run dev
+```
+
+Validações principais:
+
+```bash
+npm run typecheck
+npm run build
+npm test
+```
+
+Testes end-to-end:
+
+```bash
+npm run test:e2e
+```
+
+> A versão 0.4 está em consolidação. Build e typecheck fazem parte do fluxo de validação; alguns testes de fluxo antigos ainda estão sendo ajustados à interface atual.
+
+---
+
+## 📦 Download
 
 O código-fonte mais recente está disponível neste repositório.
 
-Builds portáteis podem ser disponibilizados na área de Releases conforme novas versões forem estabilizadas.
+Builds portáteis podem ser publicados na área de **Releases** conforme cada versão for estabilizada.
 
-Caso queira apenas testar ou estudar o projeto, também é possível executá-lo diretamente pelo ambiente de desenvolvimento.
+---
 
-Estado do projeto
+## 📚 Documentação
 
-O Scout Trainer está em desenvolvimento ativo.
+- [`CHANGELOG.md`](CHANGELOG.md) — histórico das versões e mudanças relevantes.
+- [`docs/`](docs/) — planos, decisões, guias e documentação técnica.
+- [`docs/REGISTRO_RAPIDO.md`](docs/REGISTRO_RAPIDO.md) — detalhes do fluxo de registro rápido.
 
-A versão 0.4 representa uma etapa importante de consolidação do registro visual e gestual, mas ainda existem pontos de interface, testes de fluxo e refinamentos que continuarão sendo trabalhados antes das próximas grandes evoluções.
+---
 
-Consulte o CHANGELOG.md para acompanhar as mudanças entre as versões.
+## 🤝 Sobre o projeto
 
-Os planos técnicos e documentos de implementação ficam disponíveis na pasta docs/.
-
-Sobre
-
-O Scout Trainer é um projeto independente e open source voltado à experimentação de novas formas de registrar e analisar dados esportivos.
+O Scout Trainer é um projeto independente voltado à experimentação de formas mais acessíveis de **registrar, estruturar e analisar dados esportivos**.
 
 Não possui vínculo oficial com Data Volley, federações, confederações ou organizações esportivas.
 
-O objetivo é aprender, experimentar e desenvolver ferramentas que possam ser úteis para quem trabalha com esporte e dados.
+<div align="center">
 
-Desenvolvido por Lucas Regis.
+**Desenvolvido por Lucas Regis**
 
+`voleibol` · `scout` · `sports analytics` · `data` · `open source`
 
-
+</div>
