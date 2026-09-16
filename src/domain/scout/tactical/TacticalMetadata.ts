@@ -35,6 +35,13 @@ export interface SetTacticalData {
   readonly setType?: string;
 }
 
+export type AttackBlockOutcome = 'none' | 'point' | 'tool' | 'soft_touch';
+
+export interface AttackBlockData {
+  readonly outcome: AttackBlockOutcome;
+  readonly blockerIds?: readonly string[];
+}
+
 export interface AttackTacticalData {
   readonly attackType?: string;
   readonly trajectory?: BallTrajectory;
@@ -42,6 +49,7 @@ export interface AttackTacticalData {
   readonly tempo?: string;
   readonly blockersCount?: number;
   readonly blockTouchLocation?: CourtLocation;
+  readonly block?: AttackBlockData;
 }
 
 export interface BlockTacticalData {
@@ -78,6 +86,8 @@ export interface TacticalCaptureDraft {
   readonly tempo?: string;
   readonly combination?: string;
   readonly blockersCount?: number;
+  readonly blockOutcome?: AttackBlockOutcome;
+  readonly blockerIds?: readonly string[];
   readonly setterPosition?: number;
   readonly phase?: RallyPhase;
   readonly orientation?: CourtOrientation;

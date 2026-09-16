@@ -13,6 +13,7 @@ import {
   type ReportChartConfiguration,
 } from '../../../domain/reporting/ReportChartConfiguration';
 import type { CodeProfile, CompetitionProfile, ComplexityProfile } from '../../../profiles/types';
+import type { DerivedAnalyticsReport } from '../../../application/reporting/DerivedAnalyticsReport';
 import { ProfileValidator } from '../../../profiles/ProfileValidator';
 import { isSkill } from '../../../domain/scout/entities/Skill';
 
@@ -34,6 +35,8 @@ export interface MatchExport {
   readonly events: readonly MatchEvent[];
   readonly analysisConfigurations?: readonly AnalysisConfiguration[];
   readonly reportChartConfigurations?: readonly ReportChartConfiguration[];
+  /** Opt-in derived analytics; raw events remain the canonical backup. */
+  readonly derivedAnalytics?: DerivedAnalyticsReport;
 }
 
 export class JsonMatchExporter {
@@ -234,6 +237,7 @@ function validReportChartConfiguration(
 const MATCH_EVENT_TYPES = new Set([
   'rally_started',
   'rally_ended',
+  'fault',
   'score_changed',
   'score_adjustment',
   'set_started',
@@ -396,6 +400,24 @@ function validateMatchExport(
         !Number.isSafeInteger(item.delta) ||
         item.delta === 0 ||
         (item.reason !== undefined && typeof item.reason !== 'string')
+      )
+        return false;
+    }
+    if (item.type === 'fault') {
+      if (
+        !isText(item.faultType) ||
+        !new Set(['net_touch', 'invasion', 'double_touch', 'rotation_error']).has(item.faultType) ||
+        !isText(item.teamId) ||
+        !teamIds.has(item.teamId) ||
+        !isText(item.rallyId) ||
+        item.terminal !== true ||
+        !isText(item.pointFor) ||
+        !teamIds.has(item.pointFor) ||
+        item.pointFor === item.teamId ||
+        !isText(item.previousServingTeamId) ||
+        !teamIds.has(item.previousServingTeamId) ||
+        (item.athleteId !== undefined &&
+          (!isText(item.athleteId) || !playerIds.has(item.athleteId)))
       )
         return false;
     }

@@ -6,6 +6,8 @@ import { RallyOutcomeResolver } from '../../rally/rules/RallyOutcomeResolver';
 import { DEFAULT_INDOOR_SCORING_RULES, setWinner } from '../rules/SetScoringRules';
 import type {
   MatchCorrectionEvent,
+  FaultEvent,
+  FaultType,
   MatchEvent,
   ScoreAdjustmentEvent,
   RallyStartedEvent,
@@ -40,6 +42,16 @@ interface PointCorrectionInput {
   readonly rallyId: string;
   readonly firstSequence: number;
   readonly startsRally: boolean;
+}
+
+interface FaultInput {
+  readonly state: MatchState;
+  readonly teamId: string;
+  readonly athleteId?: string;
+  readonly faultType: FaultType;
+  readonly rallyId: string;
+  readonly pointFor: string;
+  readonly firstSequence: number;
 }
 
 export class MatchEventFactory {
@@ -148,6 +160,41 @@ export class MatchEventFactory {
       timestamp: this.dependencies.now(),
       ...input,
     };
+  }
+
+  fault(input: FaultInput): FaultEvent {
+    return {
+      type: 'fault',
+      id: this.dependencies.createId(),
+      matchId: input.state.metadata.id,
+      sequence: input.firstSequence,
+      timestamp: this.dependencies.now(),
+      faultType: input.faultType,
+      teamId: input.teamId,
+      ...(input.athleteId ? { athleteId: input.athleteId } : {}),
+      rallyId: input.rallyId,
+      terminal: true,
+      pointFor: input.pointFor,
+      previousServingTeamId:
+        input.state.servingTeamId ??
+        input.state.metadata.initialServingTeamId ??
+        input.pointFor,
+    };
+  }
+
+  derivedFromFault(input: {
+    readonly state: MatchState;
+    readonly teams: readonly [Team, Team];
+    readonly fault: FaultEvent;
+    readonly sequence: number;
+  }): readonly MatchEvent[] {
+    return this.setFinishedEvents(
+      input.state,
+      input.teams,
+      input.fault.pointFor,
+      input.sequence,
+      { sourceHistoryEventId: input.fault.id },
+    );
   }
 
   scoreAdjustment(input: {

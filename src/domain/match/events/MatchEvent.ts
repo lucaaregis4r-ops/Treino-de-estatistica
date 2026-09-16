@@ -42,6 +42,20 @@ export interface SetStartedEvent extends MatchSystemEvent {
   readonly courtOrientation?: CourtOrientation;
 }
 
+export type FaultType = 'net_touch' | 'invasion' | 'double_touch' | 'rotation_error';
+
+export interface FaultEvent extends MatchSystemEvent {
+  readonly type: 'fault';
+  readonly faultType: FaultType;
+  /** Team that committed the fault. */
+  readonly teamId: string;
+  readonly athleteId?: string;
+  readonly rallyId: string;
+  readonly terminal: true;
+  readonly pointFor: string;
+  readonly previousServingTeamId: string;
+}
+
 export interface ScoreChangedEvent extends MatchSystemEvent {
   readonly type: 'score_changed';
   readonly setNumber: number;
@@ -122,6 +136,7 @@ export interface SubstitutionEvent extends MatchSystemEvent {
 }
 
 export type MatchEvent =
+  | FaultEvent
   | ScoutRegisteredEvent
   | ScoutCorrectedEvent
   | ScoutUndoneEvent

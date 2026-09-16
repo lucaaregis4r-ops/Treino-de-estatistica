@@ -4,6 +4,8 @@ import type { Team } from '../../../domain/match/entities/Team';
 import type { Skill } from '../../../domain/scout/entities/Skill';
 import type { ScoutInputMode } from '../../../domain/scout/events/ScoutEvent';
 import { evaluationLabel, SKILL_LABELS } from './presentationLabels';
+import type { AttackBlockOutcome } from '../../../domain/scout/tactical/TacticalMetadata';
+import { AttackBlockSelector, type AttackBlockerOption } from './AttackBlockSelector';
 
 interface VisualScoutFormProps {
   readonly mode: Exclude<ScoutInputMode, 'typed'>;
@@ -25,6 +27,11 @@ interface VisualScoutFormProps {
   readonly onSkillChange: (skill: Skill) => void;
   readonly onEvaluationChange: (evaluation: string) => void;
   readonly onHybridCodeChange: (code: string) => void;
+  readonly blockOutcome: AttackBlockOutcome;
+  readonly blockerIds: readonly string[];
+  readonly blockers: readonly AttackBlockerOption[];
+  readonly onBlockOutcomeChange: (value: AttackBlockOutcome) => void;
+  readonly onBlockersChange: (ids: readonly string[]) => void;
   readonly onSubmit: FormEventHandler<HTMLFormElement>;
 }
 
@@ -48,6 +55,11 @@ export function VisualScoutForm({
   onSkillChange,
   onEvaluationChange,
   onHybridCodeChange,
+  blockOutcome,
+  blockerIds,
+  blockers,
+  onBlockOutcomeChange,
+  onBlockersChange,
   onSubmit,
 }: VisualScoutFormProps) {
   const teamPlayers = players.filter(
@@ -133,6 +145,15 @@ export function VisualScoutForm({
       <p className="capture-help-note">
         Coordenadas e detalhes são opcionais. O levantamento normal continua implícito.
       </p>
+      {skill === 'attack' && (
+        <AttackBlockSelector
+          value={blockOutcome}
+          blockerIds={blockerIds}
+          blockers={blockers}
+          onChange={onBlockOutcomeChange}
+          onBlockersChange={onBlockersChange}
+        />
+      )}
       {statusMessage && <p className="capture-status" role="status">{statusMessage}</p>}
       {errorMessage && <p className="capture-status capture-status-error" role="alert">{errorMessage}</p>}
       <button

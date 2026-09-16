@@ -180,6 +180,25 @@ Canonical events / match state
 A interface recebe `MetricResult`; ela não conhece fórmulas. Mudanças no event store invalidam
 somente caches de métricas afetadas.
 
+## Pipeline de caminhos do rally
+
+```text
+MatchEvent[] efetivos
+  → RallyPathAnalyzer: normalização por rally + terminal real
+  → contexto de ambas as equipes
+  → estados equipe + fundamento + qualidade
+  → matriz de primeira ordem + absorção
+  → foco na ocorrência inicial + primeira transição observada
+  → prefixos reais de 1/2 contatos
+  → Caminhos do rally / quadra / comparações / evidências
+```
+
+A probabilidade da matriz é condicional à saída do estado. O potencial é a probabilidade de
+absorção no terminal da equipe de referência; não é a frequência de rallies vencidos que contêm
+o estado. A frequência observada conta rallies distintos. Filtros espaciais e de atleta selecionam
+ocorrências iniciais, sem apagar contatos intermediários nem reestimar a cadeia com um subconjunto
+de rallies. Rallies incompletos ou conflitantes permanecem auditáveis e são excluídos do modelo.
+
 Percentuais são razões entre `0` e `1` no domínio. O ViewModel é responsável apenas pela
 apresentação localizada. Métricas CBV são selecionadas pelo `CompetitionProfile` versionado e
 mantêm numerador, denominador e componentes auditáveis no resultado.

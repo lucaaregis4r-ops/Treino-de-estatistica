@@ -3,6 +3,7 @@ import type { Team } from '../../../domain/match/entities/Team';
 import type { Player } from '../../../domain/match/entities/Player';
 import type { ScoutEventMetadata } from '../../../domain/scout/events/ScoutEvent';
 import type { Skill } from '../../../domain/scout/entities/Skill';
+import type { FaultEvent } from '../../../domain/match/events/MatchEvent';
 import { SKILL_LABELS } from './presentationLabels';
 
 const outcomeLabels: Readonly<Record<string, string>> = {
@@ -34,6 +35,7 @@ const completenessFieldLabels: Readonly<Record<string, string>> = {
 
 interface EventTimelineProps {
   readonly timeline: readonly ProjectedScoutEvent[];
+  readonly faults?: readonly FaultEvent[];
   readonly teams: readonly Team[];
   readonly players: readonly Player[];
   readonly historyLimit: number;
@@ -52,6 +54,7 @@ interface EventTimelineProps {
 
 export function EventTimeline({
   timeline,
+  faults = [],
   teams,
   players,
   historyLimit,
@@ -62,6 +65,16 @@ export function EventTimeline({
   onEdit,
   onLoadMore,
 }: EventTimelineProps) {
+  const faultLabels: Readonly<Record<FaultEvent['faultType'], string>> = {
+    net_touch: 'Toque na rede',
+    invasion: 'Invasão',
+    double_touch: 'Dois toques',
+    rotation_error: 'Erro de rotação',
+  };
+  const historyItems = [
+    ...timeline.map((item) => ({ kind: 'scout' as const, sequence: item.event.sequence, item })),
+    ...faults.map((fault) => ({ kind: 'fault' as const, sequence: fault.sequence, fault })),
+  ].sort((left, right) => left.sequence - right.sequence);
   return (
     <section className="event-timeline" aria-labelledby="event-timeline-title">
       <div className="history-heading">
@@ -87,20 +100,37 @@ export function EventTimeline({
           </button>
         </div>
       </div>
-      {timeline.length === 0 ? (
+      {historyItems.length === 0 ? (
         <p className="history-empty">O primeiro evento aparecerá aqui.</p>
       ) : (
         <>
-          {timeline.length > pageSize && (
+          {historyItems.length > pageSize && (
             <p className="history-count">
-              {Math.min(historyLimit, timeline.length)} de {timeline.length}
+              {Math.min(historyLimit, historyItems.length)} de {historyItems.length}
             </p>
           )}
           <ol className="event-list">
-            {timeline
+            {historyItems
               .slice(-historyLimit)
               .reverse()
-              .map((item) => (
+              .map((entry) => entry.kind === 'fault' ? (
+                <li key={entry.fault.id}>
+                  <span className="event-sequence">{String(entry.fault.sequence).padStart(2, '0')}</span>
+                  <code>Infração</code>
+                  <span className="event-meaning"><strong>{faultLabels[entry.fault.faultType]}</strong> ponto adversário</span>
+                  <span className="event-context">
+                    {teams.find((team) => team.id === entry.fault.teamId)?.name ?? 'Equipe não identificada'}
+                    {' · '}
+                    {entry.fault.athleteId
+                      ? players.find((player) => player.id === entry.fault.athleteId)?.name ?? 'Atleta identificado'
+                      : 'Sem atleta identificado'}
+                  </span>
+                  <span className="event-flags" />
+                  <span aria-hidden="true" />
+                </li>
+              ) : (() => {
+                const item = entry.item;
+                return (
                 <li key={item.sourceEventId}>
                   <span className="event-sequence">
                     {String(item.event.sequence).padStart(2, '0')}
@@ -160,9 +190,10 @@ export function EventTimeline({
                     {item.event.completeness?.status === 'partial' ? 'Completar' : 'Corrigir'}
                   </button>
                 </li>
-              ))}
+                );
+              })())}
           </ol>
-          {historyLimit < timeline.length && (
+          {historyLimit < historyItems.length && (
             <button className="button secondary" type="button" onClick={onLoadMore}>
               Carregar eventos anteriores
             </button>

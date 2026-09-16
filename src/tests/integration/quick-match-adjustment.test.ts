@@ -124,3 +124,42 @@ it('registers free ball coordinates without rewriting the attack and prepares th
   if (!reopened.ok) throw reopened.error;
   expect(reopened.value.timeline).toEqual(freeBall.value.timeline);
 });
+
+it('registers infractions without spatial capture and undoes their terminal consequences', async () => {
+  const { service } = setup();
+  const match = await service.createMatch({
+    teamAName: 'A',
+    teamBName: 'B',
+    teamAPlayers: [1, 2, 3, 4, 5, 6],
+    teamBPlayers: [7, 8, 9, 10, 11, 12],
+    complexityProfileId: 'basic',
+  });
+  if (!match.ok) throw match.error;
+  const id = match.value.state.metadata.id;
+  const [a, b] = match.value.teams;
+
+  const fault = await service.registerFault(id, {
+    teamId: a.id,
+    faultType: 'net_touch',
+  });
+  if (!fault.ok) throw fault.error;
+  expect(fault.value.events.find((event) => event.type === 'fault')).toMatchObject({
+    faultType: 'net_touch',
+    teamId: a.id,
+    pointFor: b.id,
+    terminal: true,
+  });
+  expect(fault.value.state).toMatchObject({
+    score: { teamA: 0, teamB: 1 },
+    servingTeamId: b.id,
+    currentRally: { status: 'ended', winningTeamId: b.id },
+  });
+
+  const undone = await service.undo(id);
+  if (!undone.ok) throw undone.error;
+  expect(undone.value.state).toMatchObject({
+    score: { teamA: 0, teamB: 0 },
+    servingTeamId: a.id,
+    currentRally: { status: 'idle' },
+  });
+});

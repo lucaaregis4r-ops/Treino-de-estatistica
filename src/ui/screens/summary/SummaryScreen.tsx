@@ -1,4 +1,8 @@
 import { useMemo, useState } from 'react';
+import { ReportEditor } from './ReportEditor';
+import { loadReportDraft } from './reportDraftStorage';
+import type { ReportDraft } from '../../../application/reporting/ReportDraft';
+import type { ReportChartConfiguration } from '../../../domain/reporting/ReportChartConfiguration';
 import type { MatchWorkspace } from '../../../application/ScoutTrainerService';
 import type {
   TacticalMetricGroup,
@@ -10,13 +14,14 @@ interface SummaryScreenProps {
   readonly onBack: () => void;
   readonly onAnalysis: () => void;
   readonly onHome: () => void;
-  readonly onExport: (format: 'json' | 'csv' | 'txt' | 'pdf') => Promise<void>;
+  readonly onExport: (format: 'json' | 'csv' | 'txt' | 'pdf', draft?: ReportDraft) => Promise<void>;
+  readonly reportCharts?: readonly ReportChartConfiguration[];
   readonly directoryExportSupported: boolean;
   readonly connectedDirectory?: string;
   readonly busy: boolean;
   readonly onConnectDirectory: () => Promise<void>;
   readonly onDisconnectDirectory: () => void;
-  readonly onExportBundle: () => Promise<void>;
+  readonly onExportBundle: (draft?: ReportDraft) => Promise<void>;
 }
 
 export function SummaryScreen({
@@ -31,8 +36,10 @@ export function SummaryScreen({
   onConnectDirectory,
   onDisconnectDirectory,
   onExportBundle,
+  reportCharts,
 }: SummaryScreenProps) {
-  const [teamA, teamB] = workspace.teams;
+  const [reportDraft, setReportDraft] = useState(() => loadReportDraft(workspace.state.metadata.id));
+  const [teamA] = workspace.teams;
   const [tacticalTeamId, setTacticalTeamId] = useState(teamA.id);
   const [tacticalGroup, setTacticalGroup] = useState<TacticalMetricGroup>('serve');
   const tacticalMetrics = useMemo(
@@ -59,14 +66,6 @@ export function SummaryScreen({
           </button>
         </div>
       </div>
-      <div className="summary-score">
-        <strong>{teamA.name}</strong>
-        <span>{workspace.state.score.teamA}</span>
-        <small>SET {workspace.state.currentSet}</small>
-        <span>{workspace.state.score.teamB}</span>
-        <strong>{teamB.name}</strong>
-      </div>
-
       <section className="set-scoreboard" aria-labelledby="set-scoreboard-title">
         <div>
           <p className="eyebrow">Placar completo</p>
@@ -168,6 +167,7 @@ export function SummaryScreen({
           </div>
         )}
       </section>
+      <ReportEditor report={workspace.report} charts={reportCharts ?? EMPTY_REPORT_CHARTS} draft={reportDraft} onChange={setReportDraft} onExport={() => onExport('pdf', reportDraft)} onManageCharts={onAnalysis} busy={busy} />
       <section className="folder-export" aria-labelledby="folder-export-title">
         <div>
           <h2 id="folder-export-title">Exportar pacote para uma pasta</h2>
@@ -199,7 +199,7 @@ export function SummaryScreen({
               className="button primary"
               type="button"
               disabled={busy}
-              onClick={() => void onExportBundle()}
+              onClick={() => void onExportBundle(reportDraft)}
             >
               Exportar pacote agora
             </button>
@@ -214,7 +214,7 @@ export function SummaryScreen({
         <details className="summary-export-menu">
           <summary className="button primary">Exportar</summary>
           <div className="summary-export-options" aria-label="Formatos de exportação">
-            <button className="button primary" type="button" disabled={busy} onClick={() => void onExport('pdf')}>
+            <button className="button primary" type="button" disabled={busy} onClick={() => void onExport('pdf', reportDraft)}>
               Exportar PDF
             </button>
             <button className="button primary" type="button" disabled={busy} onClick={() => void onExport('json')}>
@@ -235,6 +235,8 @@ export function SummaryScreen({
     </section>
   );
 }
+
+const EMPTY_REPORT_CHARTS: readonly ReportChartConfiguration[] = [];
 
 function TacticalMetricCard({ metric }: { readonly metric: TacticalMetricViewModel }) {
   return (

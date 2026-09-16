@@ -759,6 +759,49 @@ textarea {
   gap: 0.75rem;
   margin-top: 1rem;
 }
+
+.attack-block-selector {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.attack-block-selector legend,
+.attack-blockers > span {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.attack-block-selector small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.attack-block-options,
+.attack-blockers > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.attack-block-options label,
+.attack-blockers label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink);
+  font-size: 0.78rem;
+}
+
+.attack-blockers {
+  display: grid;
+  gap: 5px;
+  padding-top: 4px;
+}
 .tactical-fields input,
 .tactical-fields select {
   min-height: 2.6rem;

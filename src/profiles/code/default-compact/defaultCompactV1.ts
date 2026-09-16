@@ -30,7 +30,10 @@ export const defaultCompactV1 = Object.freeze({
   outcomeMappings: Object.freeze({
     serve: Object.freeze({ '#': 'ace', '=': 'error' }),
     reception: Object.freeze({ '#': 'perfect', '=': 'error' }),
+    set: Object.freeze({ '#': 'excellent', '=': 'error' }),
     attack: Object.freeze({ '#': 'point', '=': 'error' }),
     block: Object.freeze({ '#': 'point', '=': 'error' }),
+    dig: Object.freeze({ '#': 'excellent', '=': 'error' }),
+    free_ball: Object.freeze({ '#': 'excellent', '=': 'error' }),
   }),
 } satisfies CodeProfile);

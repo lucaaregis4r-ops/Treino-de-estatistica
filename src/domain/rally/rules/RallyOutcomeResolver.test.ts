@@ -56,4 +56,31 @@ describe('RallyOutcomeResolver', () => {
       reason: 'serve_error',
     });
   });
+
+  it('keeps neutral-quality contacts in the rally and ends errors for every technical action', () => {
+    const resolver = new RallyOutcomeResolver();
+    for (const skill of ['reception', 'set', 'dig', 'free_ball'] as const) {
+      expect(resolver.resolve({ ...base, skill, outcome: 'excellent', evaluation: 'excellent' }, teams)).toBeUndefined();
+      expect(resolver.resolve({ ...base, skill, outcome: 'error', evaluation: 'error' }, teams)).toMatchObject({
+        winnerTeamId: 'b',
+        reason: `${skill}_error`,
+      });
+    }
+  });
+
+  it('resolves attack block outcomes without turning a block point into an attack error', () => {
+    const resolver = new RallyOutcomeResolver();
+    const metadata = (outcome: 'point' | 'tool' | 'soft_touch') => ({
+      tactical: { attack: { block: { outcome } } },
+    });
+    expect(resolver.resolve({ ...base, outcome: 'blocked', evaluation: 'error', metadata: metadata('point') }, teams)).toEqual({
+      winnerTeamId: 'b',
+      reason: 'attack_blocked',
+    });
+    expect(resolver.resolve({ ...base, outcome: 'point', metadata: metadata('tool') }, teams)).toEqual({
+      winnerTeamId: 'a',
+      reason: 'attack_tool',
+    });
+    expect(resolver.resolve({ ...base, outcome: 'continuation', metadata: metadata('soft_touch') }, teams)).toBeUndefined();
+  });
 });

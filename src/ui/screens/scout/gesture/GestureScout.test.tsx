@@ -1,17 +1,18 @@
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GestureScout } from './GestureScout';
 
 afterEach(cleanup);
 
 describe('GestureScout', () => {
-  it('does not set an invisible quality through shortcuts during free ball', () => {
+  it('accepts both quality symbols for free ball', () => {
     const onOutcome = vi.fn();
     const { getByRole } = render(<GestureScout phase="free_ball" skill="free_ball"
       suggestion={{ highlighted: [], others: [] }} onAttackOutcome={onOutcome} />);
     fireEvent.keyDown(getByRole('application'), { key: '#' });
     fireEvent.keyDown(getByRole('application'), { key: '=' });
-    expect(onOutcome).not.toHaveBeenCalled();
+    expect(onOutcome).toHaveBeenNthCalledWith(1, '#');
+    expect(onOutcome).toHaveBeenNthCalledWith(2, '=');
   });
 
   it('exposes compact player, attack outcome, quick actions and undo controls', () => {
@@ -58,6 +59,8 @@ describe('GestureScout', () => {
 
     expect(netTouch).toHaveAttribute('aria-pressed', 'true');
     expect(getByText('Outras ações')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('application')).not.toBeInTheDocument();
+    expect(getByText('Toque na rede — Equipe não identificada · Ponto: adversário')).toBeInTheDocument();
   });
 
   it('allows clearing the selected attack outcome', () => {

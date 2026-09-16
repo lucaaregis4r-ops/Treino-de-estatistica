@@ -38,6 +38,16 @@ function mergedMetadata(
       ...enrichment.attack,
       ...primary.attack,
       trajectory: { ...enrichment.attack?.trajectory, ...primary.attack?.trajectory },
+      ...(enrichment.attack?.block || primary.attack?.block
+        ? {
+            block: {
+              outcome: primary.attack?.block?.outcome ?? enrichment.attack?.block?.outcome ?? 'none',
+              ...(primary.attack?.block?.blockerIds ?? enrichment.attack?.block?.blockerIds
+                ? { blockerIds: primary.attack?.block?.blockerIds ?? enrichment.attack?.block?.blockerIds }
+                : {}),
+            },
+          }
+        : {}),
     },
     block: { ...enrichment.block, ...primary.block },
   };
@@ -78,6 +88,9 @@ export class HybridScoutMerger {
     const visual = this.visualMapper.map(input.visualDraft, input.codeProfile);
     return success({
       ...input.typedCandidate,
+      ...(input.visualDraft.skill === 'attack' && input.visualDraft.blockOutcome !== undefined
+        ? { outcome: visual.outcome }
+        : {}),
       metadata: mergedMetadata(input.typedCandidate.metadata, visual.metadata),
     });
   }

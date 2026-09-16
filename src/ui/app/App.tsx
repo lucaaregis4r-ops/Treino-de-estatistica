@@ -11,6 +11,7 @@ import { RegistrationsScreen } from '../screens/registrations/RegistrationsScree
 import { NewMatchScreen } from '../screens/match-setup/NewMatchScreen';
 import { ScoutScreen } from '../screens/scout/ScoutScreen';
 import { SummaryScreen } from '../screens/summary/SummaryScreen';
+import type { ReportDraft } from '../../application/reporting/ReportDraft';
 import { MatchAnalyticsPanel } from '../screens/summary/MatchAnalyticsPanel';
 import { TrainingScreen } from '../screens/training/TrainingScreen';
 import {
@@ -238,7 +239,7 @@ export function App({
     } else setMessage(result.error.message);
   }
 
-  async function exportMatch(format: 'json' | 'csv' | 'txt' | 'pdf' = 'json') {
+  async function exportMatch(format: 'json' | 'csv' | 'txt' | 'pdf' = 'json', reportDraft?: ReportDraft) {
     if (!workspace) return;
     const result = await (format === 'json'
       ? service.exportJson(workspace.state.metadata.id)
@@ -246,7 +247,7 @@ export function App({
         ? service.exportCsv(workspace.state.metadata.id)
         : format === 'txt'
           ? service.exportTxt(workspace.state.metadata.id)
-          : service.exportPdf(workspace.state.metadata.id));
+          : service.exportPdf(workspace.state.metadata.id, { reportDraft }));
     if (!result.ok) {
       setMessage(result.error.message);
       return;
@@ -277,7 +278,7 @@ export function App({
     } else setMessage(result.error.message);
   }
 
-  async function exportMatchBundle() {
+  async function exportMatchBundle(reportDraft?: ReportDraft) {
     if (!workspace) return;
     setBusy(true);
     setMessage(undefined);
@@ -290,7 +291,7 @@ export function App({
       }
       setConnectedDirectory(connected.value);
     }
-    const bundle = await service.exportBundle(workspace.state.metadata.id);
+    const bundle = await service.exportBundle(workspace.state.metadata.id, { reportDraft });
     if (!bundle.ok) {
       setBusy(false);
       setMessage(bundle.error.message);
@@ -573,6 +574,12 @@ export function App({
               successMessage: 'Ação registrada.',
             })
           }
+          onRegisterFault={(input) =>
+            runWorkspaceAction(() => service.registerFault(matchId, input), {
+              rejectOnFailure: true,
+              successMessage: 'Infração registrada.',
+            })
+          }
           onCorrect={(sourceId, rawCode, metadata) =>
             runWorkspaceAction(() => service.correctScout(matchId, sourceId, rawCode, metadata), {
               rejectOnFailure: true,
@@ -600,9 +607,11 @@ export function App({
           onExport={() => exportMatch('json')}
         />
       )}
-      {screen === 'analysis' && workspace && <main className="page-section analysis-page"><MatchAnalyticsPanel key={workspace.state.metadata.id} report={workspace.report} matchId={workspace.state.metadata.id} analysisConfigurations={analysisConfigurations} onSaveAnalysisConfiguration={saveAnalysisConfiguration} onDeleteAnalysisConfiguration={deleteAnalysisConfiguration} reportChartConfigurations={reportChartConfigurations} onSaveReportChartConfiguration={saveReportChartConfiguration} onDeleteReportChartConfiguration={deleteReportChartConfiguration}/></main>}
+      {screen === 'analysis' && workspace && <main className="page-section analysis-page"><MatchAnalyticsPanel key={workspace.state.metadata.id} report={workspace.report} sequenceAnalytics={workspace.sequenceAnalytics} matchId={workspace.state.metadata.id} analysisConfigurations={analysisConfigurations} onSaveAnalysisConfiguration={saveAnalysisConfiguration} onDeleteAnalysisConfiguration={deleteAnalysisConfiguration} reportChartConfigurations={reportChartConfigurations} onSaveReportChartConfiguration={saveReportChartConfiguration} onDeleteReportChartConfiguration={deleteReportChartConfiguration}/></main>}
       {screen === 'summary' && workspace && (
         <SummaryScreen
+          key={workspace.state.metadata.id}
+          reportCharts={reportChartConfigurations}
           workspace={workspace}
           onBack={() => setScreen('scout')}
           onAnalysis={() => setScreen('analysis')}

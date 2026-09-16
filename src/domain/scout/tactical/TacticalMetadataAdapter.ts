@@ -4,6 +4,7 @@ import {
   TACTICAL_METADATA_SCHEMA_VERSION,
   type BallTrajectory,
   type CourtLocation,
+  type AttackBlockOutcome,
   type TacticalMetadata,
 } from './TacticalMetadata';
 import { canonicalCourtLocation } from './CourtGeometry';
@@ -83,6 +84,15 @@ export function toTacticalMetadata(metadata: ScoutEventMetadata, skill?: Skill):
         combination: draft?.combination ?? metadata.attackCombination,
         tempo: draft?.tempo ?? metadata.attackTempo,
         blockersCount: draft?.blockersCount ?? metadata.blockersCount,
+        block:
+          (draft?.blockOutcome ?? metadata.blockOutcome) !== undefined
+            ? {
+                outcome: (draft?.blockOutcome ?? metadata.blockOutcome) as AttackBlockOutcome,
+                ...((draft?.blockerIds ?? metadata.blockerIds)?.length
+                  ? { blockerIds: draft?.blockerIds ?? metadata.blockerIds }
+                  : {}),
+              }
+            : undefined,
       }),
     };
   if (skill === 'block')
@@ -129,6 +139,16 @@ export function normalizeTacticalMetadata(
         attack: {
           ...mergeDefined(previous.attack, next.attack),
           trajectory: mergeDefined(previous.attack?.trajectory, next.attack?.trajectory),
+          ...(previous.attack?.block || next.attack?.block
+            ? {
+                block: {
+                  outcome: next.attack?.block?.outcome ?? previous.attack?.block?.outcome ?? 'none',
+                  ...(next.attack?.block?.blockerIds ?? previous.attack?.block?.blockerIds
+                    ? { blockerIds: next.attack?.block?.blockerIds ?? previous.attack?.block?.blockerIds }
+                    : {}),
+                },
+              }
+            : {}),
         },
       },
     };
@@ -319,6 +339,14 @@ export const tacticalValue = {
     return (
       tactical.attack?.blockersCount ?? tactical.block?.blockersCount ?? metadata.blockersCount
     );
+  },
+  blockOutcome(metadata: ScoutEventMetadata | undefined): AttackBlockOutcome | undefined {
+    if (!metadata) return undefined;
+    return toTacticalMetadata(metadata, 'attack').attack?.block?.outcome ?? metadata.blockOutcome;
+  },
+  blockerIds(metadata: ScoutEventMetadata | undefined): readonly string[] | undefined {
+    if (!metadata) return undefined;
+    return toTacticalMetadata(metadata, 'attack').attack?.block?.blockerIds ?? metadata.blockerIds;
   },
   phase(metadata: ScoutEventMetadata | undefined) {
     return metadata ? (toTacticalMetadata(metadata).phase ?? metadata.phase) : undefined;

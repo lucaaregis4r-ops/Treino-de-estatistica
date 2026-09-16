@@ -1,0 +1,127 @@
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #08 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #08 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado attack excellent
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #01 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #09 serve error
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #02 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #10 serve error
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #14 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado dig neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #03 attack error
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #11 serve excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #11 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #05 attack excellent
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #03 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado dig neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado attack excellent
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #03 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #12 serve error
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #05 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #07 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #01 attack excellent
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #08 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #08 serve error
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #01 serve error
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #09 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #01 reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #03 attack error
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #09 serve error
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #02 serve error
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #10 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #05 attack excellent
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #14 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #11 serve error
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #03 serve error
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #12 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #01 attack excellent
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #05 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #07 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado attack neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado free_ball neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado free_ball neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado dig neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack error
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #08 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado dig neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado attack neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado dig neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #08 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #03 reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #01 attack excellent
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #01 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #07 attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #09 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #03 reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #03 attack error
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #09 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #03 attack neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado dig neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #12 attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #09 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #04 reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado attack excellent
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #02 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #02 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #07 reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #02 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado dig neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #01 attack excellent
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #02 serve error
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #10 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #03 attack neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #14 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado free_ball neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 Sem atleta identificado dig neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #05 attack excellent
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #14 serve neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado reception neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #11 attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #11 serve excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #11 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #05 reception neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #01 attack neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado dig neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado attack neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #01 free_ball neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado dig neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #08 attack excellent
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #11 serve neutral
+[VISUAL] 1df68542-fd9a-4794-8afb-fd63936ae052 #04 free_ball neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 Sem atleta identificado dig neutral
+[VISUAL] 0b69626a-72f0-4763-b9d2-55451002d909 #08 attack excellent

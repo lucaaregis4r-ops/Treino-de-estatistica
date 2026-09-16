@@ -1,5 +1,6 @@
 import type { SpatialMetadata } from '../../scout/spatial/SpatialMetadata';
 import type { GestureExpectedAction } from './GestureExpectedActionResolver';
+import type { AttackBlockOutcome } from '../../scout/tactical/TacticalMetadata';
 
 export type GestureDraftStatus =
   | 'awaiting_gesture'
@@ -15,6 +16,8 @@ export interface GestureDraftState {
   readonly playerId?: string;
   readonly playerSelection?: 'identified' | 'unidentified';
   readonly outcome?: '#' | '=';
+  readonly blockOutcome?: AttackBlockOutcome;
+  readonly blockerIds?: readonly string[];
   readonly error?: string;
 }
 
@@ -28,7 +31,27 @@ export function createGestureDraftState(
     ...(automaticPlayerId
       ? { playerId: automaticPlayerId, playerSelection: 'identified' as const }
       : {}),
+    ...(expectedAction?.skill === 'attack' ? { blockOutcome: 'none' as const, blockerIds: [] } : {}),
   };
+}
+
+export function setGestureBlock(
+  state: GestureDraftState,
+  blockOutcome: AttackBlockOutcome,
+): GestureDraftState {
+  return {
+    ...state,
+    blockOutcome,
+    ...(blockOutcome === 'none' ? { blockerIds: [] } : {}),
+    error: undefined,
+  };
+}
+
+export function setGestureBlockers(
+  state: GestureDraftState,
+  blockerIds: readonly string[],
+): GestureDraftState {
+  return { ...state, blockerIds: [...blockerIds], error: undefined };
 }
 
 export function setGestureTrajectory(

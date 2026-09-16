@@ -21,7 +21,7 @@ import {
   projectScoutTimeline,
   type ProjectedScoutEvent,
 } from '../domain/match/events/ScoutTimeline';
-import { type MatchEvent } from '../domain/match/events/MatchEvent';
+import { type FaultType, type MatchEvent } from '../domain/match/events/MatchEvent';
 import { MatchEventFactory } from '../domain/match/events/MatchEventFactory';
 import type { MatchState } from '../domain/match/state/MatchState';
 import { swapCourtOrientation } from '../domain/match/state/CourtOrientation';
@@ -75,7 +75,10 @@ import {
   type TacticalAnalyticsViewModel,
 } from './view-models/TacticalAnalyticsViewModel';
 import { MatchAnalyticsService } from './analytics/MatchAnalyticsService';
+import { SequenceAnalyticsService, type SequenceAnalytics } from './analytics/SequenceAnalyticsService';
 import type { MatchReportModel } from './reporting/MatchReportModel';
+import type { ReportDraft } from './reporting/ReportDraft';
+import { buildDerivedAnalyticsReport } from './reporting/DerivedAnalyticsReport';
 import { MatchPdfRenderer } from '../infrastructure/export/pdf/MatchPdfRenderer';
 import { StatisticsCsvExporter } from '../infrastructure/export/csv/StatisticsCsvExporter';
 
@@ -92,6 +95,12 @@ export interface MatchContextAdjustmentInput {
   readonly positionOneByTeam: Readonly<Record<string, string>>;
   readonly score: { readonly teamA: number; readonly teamB: number };
   readonly resumeFromServe?: boolean;
+}
+
+export interface RegisterFaultInput {
+  readonly teamId: string;
+  readonly faultType: FaultType;
+  readonly athleteId?: string;
 }
 
 export interface LineupPositionInput {
@@ -143,6 +152,7 @@ export interface MatchWorkspace {
   readonly tacticalAnalytics: TacticalAnalyticsViewModel;
   readonly currentLineups: readonly SetLineup[];
   readonly tacticalRally: TacticalRallyProjection;
+  readonly sequenceAnalytics?: SequenceAnalytics;
   readonly report: MatchReportModel;
   readonly coverage: ScoutCoverage;
 }
@@ -185,6 +195,7 @@ export class ScoutTrainerService {
   private readonly openMatch: OpenMatchUseCase;
   private readonly statisticsEngine = new StatisticsEngine(createDefaultMetricRegistry());
   private readonly matchAnalytics = new MatchAnalyticsService(this.statisticsEngine);
+  private readonly sequenceAnalyticsService = new SequenceAnalyticsService();
   private readonly matchEventFactory: MatchEventFactory;
   private readonly matchReplayService = new MatchReplayService();
   private readonly rallyContextResolver = new RallyContextResolver();
@@ -496,6 +507,15 @@ export class ScoutTrainerService {
         ? { zoneSystem: profiles.value.codeProfile.tacticalInput.zoneSystem }
         : {}),
     });
+    const zoneSystem = profiles.value.codeProfile.tacticalInput?.zoneSystem;
+    const sequenceAnalytics = zoneSystem
+      ? this.sequenceAnalyticsService.build(
+          events.value,
+          [loadedTeamA, loadedTeamB],
+          tacticalRally,
+          zoneSystem,
+        )
+      : undefined;
 
     return success({
       state: state.value,
@@ -510,6 +530,7 @@ export class ScoutTrainerService {
       tacticalAnalytics,
       currentLineups,
       tacticalRally,
+      ...(sequenceAnalytics ? { sequenceAnalytics } : {}),
       report,
       coverage,
     });
@@ -569,6 +590,77 @@ export class ScoutTrainerService {
         context,
       });
     });
+  }
+
+  async registerFault(
+    matchId: string,
+    input: RegisterFaultInput,
+  ): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const { state, teams, players, currentLineups } = workspace.value;
+    if (state.matchCompleted || state.sets.some((set) => set.setNumber === state.currentSet && set.completed)) {
+      return failure(new ValidationError('The current set is finished.', []));
+    }
+    if (!teams.some((team) => team.id === input.teamId)) {
+      return failure(new ValidationError('Fault team was not found.', []));
+    }
+    if (!['net_touch', 'invasion', 'double_touch', 'rotation_error'].includes(input.faultType)) {
+      return failure(new ValidationError('Unknown fault type.', []));
+    }
+    if (input.athleteId !== undefined && !players.some(
+      (player) => player.id === input.athleteId && player.teamId === input.teamId,
+    )) {
+      return failure(new ValidationError('Fault athlete was not found in the selected team.', []));
+    }
+
+    let sequence = state.lastSequence;
+    const bootstrapLineups = currentLineups.filter(
+      (lineup) => !state.lineups.some(
+        (persisted) => persisted.teamId === lineup.teamId && persisted.setNumber === lineup.setNumber,
+      ),
+    );
+    const bootstrapEvents: MatchEvent[] = bootstrapLineups.map((lineup) => ({
+      type: 'set_lineup_confirmed',
+      id: this.dependencies.createId(),
+      matchId,
+      lineup,
+      sequence: ++sequence,
+      timestamp: this.dependencies.now(),
+    }));
+    const baseState = bootstrapEvents.length > 0
+      ? replayMatch(state.metadata, [...workspace.value.events, ...bootstrapEvents])
+      : state;
+    const startsRally = baseState.currentRally.status !== 'active' || !baseState.currentRally.rallyId;
+    const rallyId = startsRally ? this.dependencies.createId() : baseState.currentRally.rallyId;
+    if (!rallyId) return failure(new ValidationError('Rally could not be identified.', []));
+    const pointFor = teams.find((team) => team.id !== input.teamId)?.id;
+    if (!pointFor) return failure(new ValidationError('Opponent team was not found.', []));
+    const fault = this.matchEventFactory.fault({
+      state: baseState,
+      teamId: input.teamId,
+      faultType: input.faultType,
+      rallyId,
+      pointFor,
+      firstSequence: sequence + (startsRally ? 2 : 1),
+      ...(input.athleteId ? { athleteId: input.athleteId } : {}),
+    });
+    const eventsToPersist: MatchEvent[] = [...bootstrapEvents];
+    if (startsRally) {
+      eventsToPersist.push(this.matchEventFactory.rallyStarted(matchId, rallyId, sequence + 1, {
+        sourceHistoryEventId: fault.id,
+      }));
+    }
+    eventsToPersist.push(fault, ...this.matchEventFactory.derivedFromFault({
+      state: baseState,
+      teams,
+      fault,
+      sequence: fault.sequence + 1,
+    }));
+    const persisted = await this.events.appendMany(eventsToPersist);
+    if (!persisted.ok) return failure(persisted.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
   }
 
   private async registerResolvedScout(
@@ -1023,7 +1115,7 @@ export class ScoutTrainerService {
     return this.loadMatch(matchId);
   }
 
-  async exportJson(matchId: string): Promise<Result<string, ServiceError>> {
+  async exportJson(matchId: string, options: { readonly includeDerivedAnalytics?: boolean } = {}): Promise<Result<string, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
     const configurations = this.analysisConfigurations
@@ -1049,6 +1141,9 @@ export class ScoutTrainerService {
         events: workspace.value.events,
         ...(configurations ? { analysisConfigurations: configurations.value } : {}),
         ...(reportCharts ? { reportChartConfigurations: reportCharts.value } : {}),
+        ...(options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
+          ? { derivedAnalytics: buildDerivedAnalyticsReport(workspace.value.sequenceAnalytics, workspace.value.profiles.codeProfile.tacticalInput.zoneSystem) }
+          : {}),
       }),
     );
   }
@@ -1069,17 +1164,20 @@ export class ScoutTrainerService {
     );
   }
 
-  async exportPdf(matchId: string): Promise<Result<string, ServiceError>> {
+  async exportPdf(matchId: string, options: { readonly includeDerivedAnalytics?: boolean; readonly reportDraft?: ReportDraft } = {}): Promise<Result<string, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
     const reportCharts = this.reportCharts
       ? await this.reportCharts.listByMatchId(matchId)
       : undefined;
     if (reportCharts && !reportCharts.ok) return failure(reportCharts.error);
-    return success(new MatchPdfRenderer().render(workspace.value.report, reportCharts?.value));
+    const derived = options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
+      ? buildDerivedAnalyticsReport(workspace.value.sequenceAnalytics, workspace.value.profiles.codeProfile.tacticalInput.zoneSystem)
+      : undefined;
+    return success(new MatchPdfRenderer().render(workspace.value.report, reportCharts?.value, derived, options.reportDraft));
   }
 
-  async exportBundle(matchId: string): Promise<Result<MatchExportBundle, ServiceError>> {
+  async exportBundle(matchId: string, options: { readonly includeDerivedAnalytics?: boolean; readonly reportDraft?: ReportDraft } = {}): Promise<Result<MatchExportBundle, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
     const configurations = this.analysisConfigurations
@@ -1104,6 +1202,9 @@ export class ScoutTrainerService {
       events: workspace.value.events,
       ...(configurations ? { analysisConfigurations: configurations.value } : {}),
       ...(reportCharts ? { reportChartConfigurations: reportCharts.value } : {}),
+      ...(options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
+        ? { derivedAnalytics: buildDerivedAnalyticsReport(workspace.value.sequenceAnalytics, workspace.value.profiles.codeProfile.tacticalInput.zoneSystem) }
+        : {}),
     });
     const effectiveEvents = workspace.value.timeline.map((item) => item.event);
     const timestamp = localExportTimestamp(this.dependencies.now());
@@ -1122,7 +1223,10 @@ export class ScoutTrainerService {
         'eventos.csv': new CsvMatchExporter().export(effectiveEvents),
         'scout.txt': new TxtMatchExporter().export(effectiveEvents),
         'estatisticas.csv': new StatisticsCsvExporter().export(workspace.value.report),
-        'relatorio.pdf': new MatchPdfRenderer().render(workspace.value.report, reportCharts?.value),
+        'relatorio.pdf': new MatchPdfRenderer().render(workspace.value.report, reportCharts?.value,
+          options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
+            ? buildDerivedAnalyticsReport(workspace.value.sequenceAnalytics, workspace.value.profiles.codeProfile.tacticalInput.zoneSystem)
+            : undefined, options.reportDraft),
       }),
     });
   }

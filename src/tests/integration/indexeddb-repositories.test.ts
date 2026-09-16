@@ -906,7 +906,7 @@ describe('IndexedDB repositories', () => {
     if (!reportedAttack) throw new Error('Reported attack was not found.');
     const pdf = await service.exportPdf(matchId);
     const bundle = await service.exportBundle(matchId);
-    expect(pdf.ok && pdf.value).toContain('/Type /Pages /Count 6');
+    expect(pdf.ok && pdf.value).not.toContain('BOX SCORE');
     expect(bundle.ok && Object.keys(bundle.value.files).sort()).toEqual([
       'estatisticas.csv',
       'eventos.csv',
@@ -917,6 +917,13 @@ describe('IndexedDB repositories', () => {
     if (!pdf.ok) throw pdf.error;
     if (!bundle.ok) throw bundle.error;
     expect(bundle.value.files['relatorio.pdf']).toBe(pdf.value);
+    const reportDraft = { title: 'Relatorio revisado', subtitle: '', author: 'Analista', notes: 'Ajustar cobertura.', sections: ['summary'] as const };
+    const editedPdf = await service.exportPdf(matchId, { reportDraft });
+    const editedBundle = await service.exportBundle(matchId, { reportDraft });
+    if (!editedPdf.ok) throw editedPdf.error;
+    if (!editedBundle.ok) throw editedBundle.error;
+    expect(editedPdf.value).toContain('Ajustar cobertura.');
+    expect(editedBundle.value.files['relatorio.pdf']).toBe(editedPdf.value);
     expect(bundle.value.files['estatisticas.csv']).toContain(
       `attack,${reportedAttack.teamId},${reportedAttack.playerId},,efficiency,1,1,1`,
     );

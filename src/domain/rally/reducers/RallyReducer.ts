@@ -32,19 +32,24 @@ export function reduceRally(state: RallyState, event: MatchEvent): RallyState {
   if (
     (event.type === 'rally_ended' ||
       event.type === 'rally_result' ||
-      event.type === 'match_correction') &&
-    state.rallyId === (event.type === 'match_correction' ? event.correction.rallyId : event.rallyId)
+      event.type === 'match_correction' ||
+      event.type === 'fault') &&
+    (state.rallyId === (event.type === 'match_correction' ? event.correction.rallyId : event.rallyId) ||
+      (event.type === 'fault' && state.status === 'idle'))
   ) {
     const winningTeamId =
       event.type === 'rally_result'
         ? event.winnerTeamId
         : event.type === 'match_correction'
           ? event.correction.teamId
+          : event.type === 'fault'
+            ? event.pointFor
           : event.winningTeamId;
     return {
       ...state,
       status: 'ended',
       phase: 'ended',
+      ...(event.type === 'fault' ? { eventIds: Object.freeze([...state.eventIds, event.id]) } : {}),
       ...(winningTeamId ? { winningTeamId } : {}),
     };
   }

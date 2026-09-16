@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import type { MatchReportModel } from '../../../application/reporting/MatchReportModel';
 import {
   createAnalysisConfiguration,
@@ -25,6 +25,46 @@ interface SpatialAnalyticsPanelProps {
 
 type Coordinate = 'origin' | 'target';
 type ViewMode = 'points' | 'plays' | 'heatmap';
+export type MarkerKind = 'point' | 'neutral' | 'error';
+
+function markerKind(evaluation?: string): MarkerKind {
+  if (evaluation === 'excellent' || evaluation === '#') return 'point';
+  if (evaluation === 'error' || evaluation === '=') return 'error';
+  return 'neutral';
+}
+
+function locationLabel(location?: SpatialLocation): string {
+  if (!location) return 'não registrada';
+  if (location.x !== undefined && location.y !== undefined)
+    return `${location.x.toFixed(2)}, ${location.y.toFixed(2)}`;
+  return location.zoneId ?? 'não registrada';
+}
+
+function blockLabel(sample: SpatialSample, playerLabel: (id?: string) => string): string {
+  if (sample.skill !== 'attack' || !sample.blockOutcome || sample.blockOutcome === 'none') {
+    return 'Sem bloqueio';
+  }
+  const outcome = {
+    point: 'Ponto de bloqueio',
+    tool: 'Bloqueio explorado',
+    soft_touch: 'Bloqueio amortecido',
+    none: 'Sem bloqueio',
+  }[sample.blockOutcome];
+  const blockers = sample.blockerIds?.map((id) => playerLabel(id)).join(', ');
+  return `${outcome}${blockers ? ` · ${blockers}` : ''}`;
+}
+
+function sampleDetail(sample: SpatialSample, playerLabel: (id?: string) => string): string {
+  return [
+    playerLabel(sample.playerId),
+    SKILL_LABELS[sample.skill],
+    sample.evaluation ? `Avaliação: ${sample.evaluation}` : undefined,
+    `Origem: ${locationLabel(sample.origin)}`,
+    `Destino: ${locationLabel(sample.target)}`,
+    blockLabel(sample, playerLabel),
+    `Set ${sample.setNumber}`,
+  ].filter(Boolean).join(' · ');
+}
 
 function pointFor(sample: SpatialSample, coordinate: Coordinate): SpatialLocation | undefined {
   const point = sample[coordinate];
@@ -37,12 +77,22 @@ function currentTimestamp(): number {
   return Date.now();
 }
 
-function PointCourt({
+export interface SpatialAnalysisPoint {
+  readonly x: number;
+  readonly y: number;
+  readonly label: string;
+  readonly marker: MarkerKind;
+  readonly eventId?: string;
+}
+
+export function SpatialAnalysisCourt({
   points,
   heatmap = false,
+  onSelect,
 }: {
-  readonly points: readonly { x: number; y: number; label: string }[];
+  readonly points: readonly SpatialAnalysisPoint[];
   heatmap?: boolean;
+  readonly onSelect?: (eventId: string) => void;
 }) {
   return (
     <svg
@@ -64,22 +114,49 @@ function PointCourt({
       ))}
       <rect className="spatial-points-border" x="0" y="0" width="200" height="100" />
       {!heatmap &&
-        points.map((point, index) => (
-          <circle
-            key={`${point.x}-${point.y}-${index}`}
-            className="spatial-point"
-            cx={point.x * 200}
-            cy={point.y * 100}
-            r="2.4"
-          >
-            <title>{point.label}</title>
-          </circle>
-        ))}
+        points.map((point, index) => {
+          const x = point.x * 200;
+          const y = point.y * 100;
+          const common = {
+            className: 'spatial-point-hit',
+            onClick: () => point.eventId && onSelect?.(point.eventId),
+            onKeyDown: (event: KeyboardEvent<SVGGElement>) => {
+              if (event.key === 'Enter' || event.key === ' ') onSelect?.(point.eventId ?? '');
+            },
+          };
+          return (
+            <g
+              key={point.eventId ?? `${point.x}-${point.y}-${index}`}
+              {...common}
+              tabIndex={point.eventId ? 0 : undefined}
+              role={point.eventId ? 'button' : undefined}
+              aria-label={point.label}
+            >
+              <circle className={`spatial-point spatial-point-${point.marker}`} cx={x} cy={y} r={point.marker === 'point' ? 3 : 0} />
+              {point.marker === 'neutral' && <polygon className="spatial-point-neutral" points={`${x},${y - 3.2} ${x + 3.2},${y} ${x},${y + 3.2} ${x - 3.2},${y}`} />}
+              {point.marker === 'error' && (
+                <>
+                  <line className="spatial-point-error" x1={x - 2.8} y1={y - 2.8} x2={x + 2.8} y2={y + 2.8} />
+                  <line className="spatial-point-error" x1={x + 2.8} y1={y - 2.8} x2={x - 2.8} y2={y + 2.8} />
+                </>
+              )}
+              <title>{point.label}</title>
+            </g>
+          );
+        })}
     </svg>
   );
 }
 
-function TrajectoryCourt({ samples }: { readonly samples: readonly SpatialSample[] }) {
+function TrajectoryCourt({
+  samples,
+  onSelect,
+  playerLabel,
+}: {
+  readonly samples: readonly SpatialSample[];
+  readonly onSelect?: (eventId: string) => void;
+  readonly playerLabel: (id?: string) => string;
+}) {
   return (
     <svg
       className="spatial-points-court"
@@ -103,30 +180,28 @@ function TrajectoryCourt({ samples }: { readonly samples: readonly SpatialSample
         const target = pointFor(sample, 'target');
         if (!origin || !target) return null;
         return (
-          <g key={sample.eventId}>
+          <g
+            key={sample.eventId}
+            tabIndex={0}
+            role="button"
+            aria-label={sampleDetail(sample, playerLabel)}
+            onClick={() => onSelect?.(sample.eventId)}
+          >
             <line
-              className="spatial-play-line"
+              className={`spatial-play-line spatial-play-${markerKind(sample.evaluation)}`}
               x1={origin.x! * 200}
               y1={origin.y! * 100}
               x2={target.x! * 200}
               y2={target.y! * 100}
             >
               <title>
-                {SKILL_LABELS[sample.skill]} · Set {sample.setNumber}
+                {sampleDetail(sample, playerLabel)}
               </title>
             </line>
-            <circle
-              className="spatial-play-origin"
-              cx={origin.x! * 200}
-              cy={origin.y! * 100}
-              r="2"
-            />
-            <circle
-              className="spatial-play-target"
-              cx={target.x! * 200}
-              cy={target.y! * 100}
-              r="2"
-            />
+            <circle className="spatial-play-origin" cx={origin.x! * 200} cy={origin.y! * 100} r="2" />
+            {markerKind(sample.evaluation) === 'point' && <circle className="spatial-point-point" cx={target.x! * 200} cy={target.y! * 100} r="3" />}
+            {markerKind(sample.evaluation) === 'neutral' && <polygon className="spatial-point-neutral" points={`${target.x! * 200},${target.y! * 100 - 3.2} ${target.x! * 200 + 3.2},${target.y! * 100} ${target.x! * 200},${target.y! * 100 + 3.2} ${target.x! * 200 - 3.2},${target.y! * 100}`} />}
+            {markerKind(sample.evaluation) === 'error' && <g className="spatial-point-error"><line x1={target.x! * 200 - 2.8} y1={target.y! * 100 - 2.8} x2={target.x! * 200 + 2.8} y2={target.y! * 100 + 2.8} /><line x1={target.x! * 200 + 2.8} y1={target.y! * 100 - 2.8} x2={target.x! * 200 - 2.8} y2={target.y! * 100 + 2.8} /></g>}
           </g>
         );
       })}
@@ -155,6 +230,7 @@ export function SpatialAnalyticsPanel({
   const [intensity, setIntensity] = useState(1);
   const [analysisName, setAnalysisName] = useState('');
   const [selectedConfigurationId, setSelectedConfigurationId] = useState('');
+  const [selectedSampleId, setSelectedSampleId] = useState<string>();
   const effectiveTeamId = teamId;
   const selectedConfiguration = analysisConfigurations.find(
     (configuration) => configuration.id === selectedConfigurationId,
@@ -233,10 +309,10 @@ export function SpatialAnalyticsPanel({
           {
             x: point.x!,
             y: point.y!,
+            eventId: sample.eventId,
+            marker: markerKind(sample.evaluation),
             label: [
-              `${SKILL_LABELS[sample.skill]}${sample.evaluation ? ` ${sample.evaluation}` : ''}`,
-              playerLabel(sample.playerId),
-              `Set ${sample.setNumber}`,
+              sampleDetail(sample, playerLabel),
             ]
               .filter(Boolean)
               .join(' · '),
@@ -249,6 +325,7 @@ export function SpatialAnalyticsPanel({
   );
   const selectedCoordinateLabel = coordinate === 'origin' ? 'origem' : 'destino';
   const registeredCoordinateCount = filteredSamples.filter((sample) => Boolean(pointFor(sample, coordinate))).length;
+  const selectedSample = filteredSamples.find((sample) => sample.eventId === selectedSampleId);
   const isSavedConfigurationCurrent = selectedConfiguration
     ? selectedConfiguration.matchId === analysisMatchId &&
       selectedConfiguration.filters.teamId === effectiveTeamId &&
@@ -480,6 +557,11 @@ export function SpatialAnalyticsPanel({
           </span>
         ))}
       </div>
+      <div className="spatial-marker-legend" aria-label="Legenda de avaliação">
+        <span><i className="legend-marker legend-marker-point" aria-hidden="true" /> # Ponto</span>
+        <span><i className="legend-marker legend-marker-neutral" aria-hidden="true" /> Avaliação neutra</span>
+        <span><i className="legend-marker legend-marker-error" aria-hidden="true" /> = Erro</span>
+      </div>
       {viewMode === 'heatmap' && (
         <details className="analysis-adjustments">
           <summary>Ajustar mapa de calor</summary>
@@ -514,16 +596,21 @@ export function SpatialAnalyticsPanel({
       {viewMode === 'heatmap' && filteredPoints.length > 0 ? (
         <div className="analysis-heat-court">
           <HeatmapLayer points={filteredPoints} radius={radius} intensity={intensity} />
-          <PointCourt points={[]} heatmap />
+          <SpatialAnalysisCourt points={[]} heatmap />
         </div>
       ) : viewMode === 'points' && filteredPoints.length > 0 ? (
-        <PointCourt points={filteredPoints} />
+        <SpatialAnalysisCourt points={filteredPoints} onSelect={setSelectedSampleId} />
       ) : viewMode === 'plays' && filteredPlays.length > 0 ? (
-        <TrajectoryCourt samples={filteredPlays} />
+        <TrajectoryCourt samples={filteredPlays} onSelect={setSelectedSampleId} playerLabel={playerLabel} />
       ) : (
         <p className="spatial-points-empty">Nenhuma ação corresponde aos filtros selecionados.</p>
       )}
       {viewMode === 'plays' && <small>● Origem (amarelo) → destino (verde)</small>}
+      {selectedSample && (
+        <p className="spatial-sample-detail" role="status">
+          {sampleDetail(selectedSample, playerLabel)}
+        </p>
+      )}
       <details className="analysis-adjustments">
         <summary>Ver tabela detalhada · {filteredSamples.length} ações</summary>
         <div className="analytics-table-scroll">
@@ -537,6 +624,7 @@ export function SpatialAnalyticsPanel({
                 <th>P</th>
                 <th>Origem</th>
                 <th>Destino</th>
+                <th>Bloqueio</th>
               </tr>
             </thead>
             <tbody>
@@ -549,6 +637,7 @@ export function SpatialAnalyticsPanel({
                   <td>{s.setterPosition ?? '—'}</td>
                   <td>{s.origin ? `${s.origin.x}, ${s.origin.y}` : '—'}</td>
                   <td>{s.target ? `${s.target.x}, ${s.target.y}` : '—'}</td>
+                  <td>{blockLabel(s, playerLabel)}</td>
                 </tr>
               ))}
             </tbody>

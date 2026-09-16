@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { MatchReportModel } from '../../../application/reporting/MatchReportModel';
+import type { SequenceAnalytics } from '../../../application/analytics/SequenceAnalyticsService';
 import type { AnalysisConfiguration } from '../../../domain/analytics/AnalysisConfiguration';
 import { createEntityId } from '../../../core/ids/entityId';
 import {
@@ -14,9 +15,12 @@ import { SetterDistributionChart } from './charts/SetterDistributionChart';
 import { SetterRepetitionChart } from './charts/SetterRepetitionChart';
 import { TeamPerformanceChart } from './charts/TeamPerformanceChart';
 import { SpatialAnalyticsPanel } from './SpatialAnalyticsPanel';
+import { SequenceAnalyticsPanel } from './SequenceAnalyticsPanel';
+import './ReportChartSelection.css';
 
 interface MatchAnalyticsPanelProps {
   readonly report: MatchReportModel;
+  readonly sequenceAnalytics?: SequenceAnalytics;
   readonly matchId?: string;
   readonly analysisConfigurations?: readonly AnalysisConfiguration[];
   readonly onSaveAnalysisConfiguration?: (configuration: AnalysisConfiguration) => Promise<void>;
@@ -53,6 +57,7 @@ const REPORT_CHART_OPTIONS: readonly { readonly type: ReportChartType; readonly 
 
 export function MatchAnalyticsPanel({
   report,
+  sequenceAnalytics,
   matchId = report.metadata.id,
   analysisConfigurations = [],
   onSaveAnalysisConfiguration,
@@ -62,7 +67,7 @@ export function MatchAnalyticsPanel({
   onDeleteReportChartConfiguration,
 }: MatchAnalyticsPanelProps) {
   const winProbability = report.winProbability ?? { teamA: .5, teamB: .5, setTeamA: .5, setTeamB: .5, points: [] };
-  const [activeSection, setActiveSection] = useState<'court' | 'performance' | 'distribution' | 'evolution'>('court');
+  const [activeSection, setActiveSection] = useState<'court' | 'sequences' | 'performance' | 'distribution' | 'evolution'>(sequenceAnalytics ? 'sequences' : 'court');
   const [teamId, setTeamId] = useState(report.teams[0]?.id ?? '');
   const teamPlayers = report.players.filter((player) => player.teamId === teamId);
   const [playerId, setPlayerId] = useState('');
@@ -83,26 +88,44 @@ export function MatchAnalyticsPanel({
       (!setterPosition || row.setterPosition === setterPosition),
   );
   const [reportChartTitle, setReportChartTitle] = useState('');
+  const [reportTeamId, setReportTeamId] = useState('');
+  const [reportChartType, setReportChartType] = useState<ReportChartType>('setter_distribution');
+  const [addingReportChart, setAddingReportChart] = useState(false);
+  const reportChartTypeRef = useRef<HTMLSelectElement>(null);
+  const [reportPlayerId, setReportPlayerId] = useState('');
+  const [reportSetterPosition, setReportSetterPosition] = useState('');
+  const reportTeamPlayers = report.players.filter((player) => !reportTeamId || player.teamId === reportTeamId);
   const orderedReportCharts = [...reportChartConfigurations].sort((left, right) => left.order - right.order);
 
+  function chartFilters(type: ReportChartType) {
+    return {
+      ...(type !== 'win_probability' && reportTeamId ? { teamId: reportTeamId } : {}),
+      ...(['setter_distribution', 'setter_repetition'].includes(type) && reportTeamPlayers.some((player) => player.id === reportPlayerId) ? { playerId: reportPlayerId } : {}),
+      ...(['setter_distribution', 'attack_evenness'].includes(type) && reportSetterPosition ? { setterPosition: Number(reportSetterPosition) } : {}),
+    };
+  }
+
   async function addReportChart(type: ReportChartType, label: string) {
-    if (!onSaveReportChartConfiguration) return;
+    if (!onSaveReportChartConfiguration || addingReportChart) return;
+    setAddingReportChart(true);
+    const filters = chartFilters(type);
+    const scope = [
+      filters.teamId ? report.teams.find((team) => team.id === filters.teamId)?.name : undefined,
+      filters.playerId ? report.players.find((player) => player.id === filters.playerId)?.name : undefined,
+      filters.setterPosition ? `P${filters.setterPosition}` : undefined,
+    ].filter(Boolean).join(' / ');
     const configuration = createReportChartConfiguration({
       id: createEntityId(),
       matchId,
       type,
-      title: reportChartTitle.trim() || label,
-      filters: {
-        ...(type !== 'win_probability' ? { teamId } : {}),
-        ...(selectedPlayerId ? { playerId: selectedPlayerId } : {}),
-        ...(setterPosition ? { setterPosition } : {}),
-      },
+      title: reportChartTitle.trim() || `${label}${scope ? ` · ${scope}` : ''}`,
+      filters,
       parameters: {
-        teamId,
-        playerId: selectedPlayerId,
-        setterPosition: setterPosition || null,
+        teamId: filters.teamId ?? '',
+        playerId: filters.playerId ?? '',
+        setterPosition: filters.setterPosition ?? null,
       },
-      order: orderedReportCharts.length,
+      order: Math.max(-1, ...orderedReportCharts.map((chart) => chart.order)) + 1,
       sample: {
         totalActions: report.eventCount,
         identifiedActions: report.coverage?.identifiedActions ?? report.eventCount,
@@ -118,8 +141,22 @@ export function MatchAnalyticsPanel({
           }
         : {}),
     });
-    await onSaveReportChartConfiguration(configuration);
+    try {
+      await onSaveReportChartConfiguration(configuration);
+      setReportChartTitle('');
+    } finally {
+      setAddingReportChart(false);
+    }
+  }
+
+  function prepareReportVariation(configuration: ReportChartConfiguration) {
+    setReportChartType(configuration.type);
+    setReportTeamId(configuration.filters.teamId ?? '');
+    setReportPlayerId(configuration.filters.playerId ?? '');
+    setReportSetterPosition(configuration.filters.setterPosition ? String(configuration.filters.setterPosition) : '');
     setReportChartTitle('');
+    reportChartTypeRef.current?.focus();
+    reportChartTypeRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 
   async function removeReportChart(id: string) {
@@ -127,11 +164,12 @@ export function MatchAnalyticsPanel({
   }
 
   function reportChartMatchesScope(configuration: ReportChartConfiguration, type: ReportChartType) {
+    const filters = chartFilters(type);
     return (
       configuration.type === type &&
-      (type === 'win_probability' || configuration.filters.teamId === teamId) &&
-      (!selectedPlayerId || configuration.filters.playerId === selectedPlayerId) &&
-      (!setterPosition || configuration.filters.setterPosition === setterPosition)
+      (type === 'win_probability' || configuration.filters.teamId === filters.teamId) &&
+      (!['setter_distribution', 'setter_repetition'].includes(type) || configuration.filters.playerId === filters.playerId) &&
+      (!['setter_distribution', 'attack_evenness'].includes(type) || configuration.filters.setterPosition === filters.setterPosition)
     );
   }
 
@@ -145,10 +183,11 @@ export function MatchAnalyticsPanel({
     if (!onSaveReportChartConfiguration) return;
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= orderedReportCharts.length) return;
-    const current = orderedReportCharts[index];
-    const target = orderedReportCharts[targetIndex];
-    await onSaveReportChartConfiguration({ ...current, order: target.order });
-    await onSaveReportChartConfiguration({ ...target, order: current.order });
+    const reordered = [...orderedReportCharts];
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+    for (const [order, configuration] of reordered.entries()) {
+      if (configuration.order !== order) await onSaveReportChartConfiguration({ ...configuration, order });
+    }
   }
 
   async function renameReportChart(configuration: ReportChartConfiguration, title: string) {
@@ -165,7 +204,8 @@ export function MatchAnalyticsPanel({
       <div className="tactical-analytics-heading">
         <div>
           <p className="eyebrow">Estatísticas da partida</p>
-          <h2 id="match-analytics-title">Análise</h2>
+          <h2 id="match-analytics-title">{sequenceAnalytics ? 'Caminhos do rally' : 'Análise'}</h2>
+          {sequenceAnalytics && <p className="analysis-lede">Explore o que acontece depois de cada ação.</p>}
         </div>
         <label>
           Equipe
@@ -181,6 +221,7 @@ export function MatchAnalyticsPanel({
       <nav className="analysis-tabs" aria-label="Seções da análise">
         {([
           ['court', 'Quadra'],
+          ...(sequenceAnalytics ? [['sequences', 'Sequências'] as const] : []),
           ['performance', 'Desempenho'],
           ['distribution', 'Distribuição'],
           ['evolution', 'Evolução'],
@@ -223,12 +264,17 @@ export function MatchAnalyticsPanel({
           </p>
         )}
       </section>
+      {sequenceAnalytics && (
+        <section className="analysis-section" hidden={activeSection !== 'sequences'} aria-labelledby="sequence-analysis-section-title">
+          <SequenceAnalyticsPanel key={`rally-paths-${teamId}`} analytics={sequenceAnalytics} teams={report.teams} teamId={teamId} players={report.players} />
+        </section>
+      )}
       {onSaveReportChartConfiguration && (
         <section className="report-chart-selection" aria-labelledby="report-chart-selection-title">
           <div className="analytics-section-heading">
             <p className="eyebrow">Relatório PDF</p>
             <h3 id="report-chart-selection-title">Gráficos selecionados</h3>
-            <p>Adicione o gráfico com os filtros atuais. O mesmo tipo pode ser adicionado mais de uma vez.</p>
+            <p>Inclua o mesmo gráfico quantas vezes precisar, com filtros e títulos diferentes. Cada versão fica salva separadamente.</p>
           </div>
           <label>
             Título personalizado
@@ -236,8 +282,17 @@ export function MatchAnalyticsPanel({
               value={reportChartTitle}
               onChange={(event) => setReportChartTitle(event.target.value)}
               placeholder="Opcional"
+              maxLength={120}
             />
           </label>
+          <label>Gráfico para adicionar<select ref={reportChartTypeRef} value={reportChartType} onChange={(event) => setReportChartType(event.target.value as ReportChartType)}>{REPORT_CHART_OPTIONS.map((option) => <option key={option.type} value={option.type}>{option.label}</option>)}</select></label>
+          <div className="tactical-filters" aria-label="Filtros dos gráficos do relatório">
+            <label>Equipe do relatório<select value={reportTeamId} onChange={(event) => { setReportTeamId(event.target.value); setReportPlayerId(''); }}><option value="">Todas as equipes</option>{report.teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+            <label>Atacante do relatório<select value={reportTeamPlayers.some((player) => player.id === reportPlayerId) ? reportPlayerId : ''} onChange={(event) => setReportPlayerId(event.target.value)}><option value="">Todos os atacantes</option>{reportTeamPlayers.map((player) => <option key={player.id} value={player.id}>#{player.number} {player.name}</option>)}</select></label>
+            <label>Posição do levantador no relatório<select value={reportSetterPosition} onChange={(event) => setReportSetterPosition(event.target.value)}><option value="">Todas as posições</option>{[1,2,3,4,5,6].map((position) => <option key={position} value={position}>P{position}</option>)}</select></label>
+          </div>
+          <p className="summary-note">Atacante: distribuição e repetição. Posição: distribuição e equilíbrio. Equipe: todos exceto probabilidade, que considera o placar da partida.</p>
+          <button className="button primary" type="button" disabled={addingReportChart} onClick={() => void addReportChart(reportChartType, REPORT_CHART_OPTIONS.find((option) => option.type === reportChartType)?.label ?? reportChartType)}>{addingReportChart ? 'Adicionando gráfico…' : 'Adicionar gráfico com estes filtros'}</button>
           <div className="report-chart-options" aria-label="Gráficos disponíveis para o relatório">
             {REPORT_CHART_OPTIONS.map((option) => {
               const included = orderedReportCharts.some((configuration) =>
@@ -248,6 +303,7 @@ export function MatchAnalyticsPanel({
                   <input
                     type="checkbox"
                     checked={included}
+                    disabled={addingReportChart}
                     onChange={(event) => void toggleReportChart(option.type, option.label, event.target.checked)}
                   />
                   <span>Incluir no relatório · {option.label}</span>
@@ -270,7 +326,10 @@ export function MatchAnalyticsPanel({
                   <small>
                     {REPORT_CHART_OPTIONS.find((option) => option.type === configuration.type)?.label ?? configuration.type}
                     {configuration.filters.teamId ? ` · ${report.teams.find((team) => team.id === configuration.filters.teamId)?.name ?? configuration.filters.teamId}` : ''}
+                    {['setter_distribution', 'setter_repetition'].includes(configuration.type) && configuration.filters.playerId ? ` · ${report.players.find((player) => player.id === configuration.filters.playerId)?.name ?? configuration.filters.playerId}` : ''}
+                    {['setter_distribution', 'attack_evenness'].includes(configuration.type) && configuration.filters.setterPosition ? ` · P${configuration.filters.setterPosition}` : ''}
                   </small>
+                  <button type="button" onClick={() => prepareReportVariation(configuration)}>Criar variação</button>
                   <button type="button" onClick={() => void moveReportChart(index, -1)} disabled={index === 0}>↑</button>
                   <button type="button" onClick={() => void moveReportChart(index, 1)} disabled={index === orderedReportCharts.length - 1}>↓</button>
                   {onDeleteReportChartConfiguration && (

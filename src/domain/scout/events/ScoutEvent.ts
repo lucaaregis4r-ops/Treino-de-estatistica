@@ -2,7 +2,11 @@ import type { ScoreSnapshot } from '../../match/score/Score';
 import type { Skill } from '../entities/Skill';
 import type { PlayerLineupContext } from '../../match/lineup/SetLineup';
 import type { CompletenessResult } from '../completeness/CompletenessResult';
-import type { TacticalCaptureDraft, TacticalMetadata } from '../tactical/TacticalMetadata';
+import type {
+  AttackBlockOutcome,
+  TacticalCaptureDraft,
+  TacticalMetadata,
+} from '../tactical/TacticalMetadata';
 import type { CourtRotationPosition } from '../../match/lineup/SetLineup';
 import type { FormationState } from '../../match/tactical/TacticalState';
 import type { SpatialMetadata } from '../spatial/SpatialMetadata';
@@ -29,6 +33,9 @@ export interface ScoutEventMetadata {
   /** Derived terminal semantics kept alongside the canonical point/error outcome. */
   readonly terminalCause?: 'attack_out' | 'block_out';
   readonly blockTouch?: boolean;
+  /** Structured block outcome attached to an attack; absent means legacy/no block. */
+  readonly blockOutcome?: AttackBlockOutcome;
+  readonly blockerIds?: readonly string[];
   /** Canonical tactical metadata. Legacy flat fields below remain readable during V1 compatibility. */
   readonly schemaVersion?: '2.0.0';
   readonly tactical?: TacticalMetadata;

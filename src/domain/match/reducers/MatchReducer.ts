@@ -140,13 +140,20 @@ export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState
     case 'rally_started':
       return { ...base, substitutionWindows: Object.freeze({}) };
     case 'rally_result':
-    case 'match_correction': {
+    case 'match_correction':
+    case 'fault': {
       const winnerTeamId =
-        event.type === 'rally_result' ? event.winnerTeamId : event.correction.teamId;
+        event.type === 'rally_result'
+          ? event.winnerTeamId
+          : event.type === 'match_correction'
+            ? event.correction.teamId
+            : event.pointFor;
       const recordedPreviousServingTeamId =
         event.type === 'rally_result'
           ? event.previousServingTeamId
-          : event.correction.previousServingTeamId;
+          : event.type === 'match_correction'
+            ? event.correction.previousServingTeamId
+            : event.previousServingTeamId;
       const previousServingTeamId =
         previous.servingTeamId ??
         previous.metadata.initialServingTeamId ??

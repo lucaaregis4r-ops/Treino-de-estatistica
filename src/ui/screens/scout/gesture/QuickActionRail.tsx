@@ -2,16 +2,14 @@ export type QuickAction =
   | 'free_ball'
   | 'net_touch'
   | 'invasion'
-  | 'double_contact'
-  | 'rotation_error'
-  | 'other';
+  | 'double_touch'
+  | 'rotation_error';
 
 const secondaryActions: readonly [QuickAction, string][] = [
   ['net_touch', 'Toque na rede'],
   ['invasion', 'Invasão'],
-  ['double_contact', 'Dois toques'],
+  ['double_touch', 'Dois toques'],
   ['rotation_error', 'Erro de rotação'],
-  ['other', 'Outro'],
 ];
 
 export function QuickActionRail({

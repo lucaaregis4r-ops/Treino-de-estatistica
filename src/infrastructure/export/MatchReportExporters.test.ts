@@ -7,6 +7,13 @@ import { DEFAULT_INDOOR_SCORING_RULES } from '../../domain/match/rules/SetScorin
 import { createReportChartConfiguration } from '../../domain/reporting/ReportChartConfiguration';
 import { StatisticsCsvExporter } from './csv/StatisticsCsvExporter';
 import { MatchPdfRenderer } from './pdf/MatchPdfRenderer';
+import { createReportDraft } from '../../application/reporting/ReportDraft';
+import { matchPdfPreviewPages } from './pdf/MatchPdfPreview';
+import { buildReportChartModel } from '../../application/reporting/ReportChartModel';
+import { parseReportDraft } from '../../application/reporting/ReportDraft';
+import { PdfDocument } from './pdf/PdfDocument';
+
+const decoded = (pdf: string) => pdf.replace(/\\([0-7]{3})/g, (_, octal: string) => String.fromCharCode(parseInt(octal, 8)));
 
 const rate = (numerator: number, denominator: number): AuditableMetric => ({
   value: denominator ? numerator / denominator : null,
@@ -241,21 +248,17 @@ const report: MatchReportModel = {
 };
 
 describe('Match report exporters', () => {
-  it('renders a valid six-page PDF from the report model', () => {
+  it('renders a valid paginated PDF with accented names and auditable metrics', () => {
     const pdf = new MatchPdfRenderer().render(report);
 
     expect(pdf).toMatch(/^%PDF-1\.4/);
-    expect(pdf).toContain('/Type /Pages /Count 6');
-    expect(pdf).toContain('1. RESUMO');
-    expect(pdf).toContain('2. BOX SCORE POR ATLETA');
-    expect(pdf).toContain('6. DISTRIBUICAO DA BOLA P1-P6');
+    expect(decoded(pdf)).toContain('Relatório pós-jogo');
+    expect(decoded(pdf)).not.toContain('Desempenho por atleta');
+    expect(decoded(pdf)).not.toContain('Distribuição da bola / P1-P6');
+    expect(decoded(pdf)).toContain('Nenhum gráfico selecionado');
     expect(pdf).toContain('/BaseFont /Helvetica-Bold');
-    expect(pdf).toContain('DIRECIONAMENTO DO ATAQUE EM CADA P');
-    expect(pdf).toContain('ANALYTICS AVANCADO');
-    expect(pdf).toContain('Expected Sideout');
-    expect(pdf).toContain('Setter Attack Conversion');
-    expect(pdf).toContain('indisponivel');
-    expect(pdf).toContain('insufficient_reference_sample');
+    expect(pdf).not.toContain('DIRECIONAMENTO DO ATAQUE EM CADA P');
+    expect(pdf).not.toContain('ANALYTICS AVANCADO');
     expect(pdf).toContain('20.0% [2/10]');
     expect(pdf).toMatch(/xref[\s\S]+startxref[\s\S]+%%EOF$/);
     expect([...pdf].every((character) => character.charCodeAt(0) < 128)).toBe(true);
@@ -274,10 +277,107 @@ describe('Match report exporters', () => {
       }),
     ]);
 
-    expect(pdf).toContain('/Type /Pages /Count 3');
-    expect(pdf).toContain('Rotacao de saque');
+    expect(pdf).toContain('/Type /Pages /Count 2');
+    expect(decoded(pdf)).toContain('Rotação de saque');
     expect(pdf).toContain('Sideout');
     expect(pdf).not.toContain('3. ATAQUE POR POSICAO DO LEVANTADOR');
+    expect(matchPdfPreviewPages(pdf)[1]).toContain('<polyline');
+  });
+
+  it('renders exactly the selected graphics in saved order, keeping filters and negative bars', () => {
+    const configuration = (type: 'setter_distribution' | 'team_performance', order: number, title: string) => createReportChartConfiguration({ id: title, matchId: 'match_1', type, title, order, filters: { teamId: 'team_a', playerId: 'player_a', setterPosition: 1 }, sample: { totalActions: 150, identifiedActions: 150, unidentifiedActions: 0 } });
+    const first = configuration('setter_distribution', 0, 'Bolas de João em P1');
+    const second = configuration('team_performance', 1, 'Performance escolhida');
+    const filtered = buildReportChartModel({ ...report, setterDistribution: [...report.setterDistribution, { ...report.setterDistribution[0], setterPosition: 2, volume: 999 }] }, first);
+    expect(filtered.categories).toEqual(['P1']);
+    expect(filtered.series[0].values).toEqual([10]);
+    const pdf = new MatchPdfRenderer().render(report, [second, first], undefined, { ...createReportDraft(), sections: ['charts'] });
+    const pages = matchPdfPreviewPages(pdf);
+    expect(pages).toHaveLength(2);
+    expect(pages[0]).toContain('Bolas de João em P1');
+    expect(pages[1]).toContain('Performance escolhida');
+    expect(decoded(pdf)).not.toContain('Probabilidade de vitória');
+    expect(decoded(pdf)).not.toContain('Desempenho por atleta');
+    const negative = { ...report, teamSummary: [{ ...report.teamSummary[0], attackEfficiency: rate(-2, 10) }] };
+    const negativePdf = new MatchPdfRenderer().render(negative, [second], undefined, { ...createReportDraft(), sections: ['charts'] });
+    expect(negativePdf).toContain('-20.0%');
+    expect(negativePdf).not.toMatch(/NaN|Infinity/);
+  });
+
+  it('keeps old draft text but removes formerly automatic tables', () => {
+    const draft = parseReportDraft({ ...createReportDraft(), notes: 'Minha análise', sections: ['summary', 'players', 'attack', 'serve', 'rotations', 'distribution', 'charts'] });
+    expect(draft?.notes).toBe('Minha análise');
+    expect(draft?.sections).toEqual(['summary', 'charts']);
+  });
+
+  it('keeps separate values for two versions of the same chart', () => {
+    const data: MatchReportModel = { ...report, setterDistribution: [
+      ...report.setterDistribution,
+      { ...report.setterDistribution[0], setterPosition: 2, volume: 7 },
+    ] };
+    const versions = [1, 2].map((position, index) => createReportChartConfiguration({ id: `variation_${position}`, matchId: 'match_1', type: 'setter_distribution', title: `Distribuição P${position}`, filters: { teamId: 'team_a', playerId: 'player_a', setterPosition: position }, order: index, sample: { totalActions: 150, identifiedActions: 150, unidentifiedActions: 0 } }));
+    expect(buildReportChartModel(data, versions[0]).series[0].values).toEqual([10]);
+    expect(buildReportChartModel(data, versions[1]).series[0].values).toEqual([7]);
+    const pdf = new MatchPdfRenderer().render(data, versions, undefined, { ...createReportDraft(), sections: ['charts'] });
+    const pages = matchPdfPreviewPages(pdf);
+    expect(pages).toHaveLength(2);
+    expect(pages[0]).toContain('Distribuição P1');
+    expect(pages[1]).toContain('Distribuição P2');
+    expect(versions[0].filters.setterPosition).toBe(1);
+  });
+
+  it.each(['win_probability', 'team_performance', 'rotation_performance', 'setter_distribution', 'attack_evenness', 'setter_repetition'] as const)('draws the selected %s as vector graphics in PDF and preview', (type) => {
+    const chart = createReportChartConfiguration({ id: type, matchId: 'match_1', type, title: `Gráfico ${type}`, filters: { teamId: 'team_a' }, order: 0, sample: { totalActions: 150, identifiedActions: 150, unidentifiedActions: 0 } });
+    const data: MatchReportModel = { ...report,
+      advanced: { ...report.advanced, attackEvenness: [{ ...report.advanced.attackEvenness[0], setterPosition: 1 }] },
+      winProbability: { teamA: .6, teamB: .4, setTeamA: .6, setTeamB: .4, points: [
+        { sequence: 1, setNumber: 1, scoreTeamA: 0, scoreTeamB: 0, teamA: .5, teamB: .5 },
+        { sequence: 2, setNumber: 1, scoreTeamA: 1, scoreTeamB: 0, teamA: .6, teamB: .4 },
+      ] },
+    };
+    const pdf = new MatchPdfRenderer().render(data, [chart], undefined, { ...createReportDraft(), sections: ['charts'] });
+    const pages = matchPdfPreviewPages(pdf);
+    expect(pages).toHaveLength(1);
+    expect(pages[0]).toContain('<polyline');
+    expect(decoded(pdf)).not.toContain('Sem amostra suficiente');
+    expect(decoded(pdf)).toContain(`Gráfico ${type}`);
+    expect(decoded(pdf)).not.toContain('BOX SCORE');
+    if (type === 'win_probability') expect(pdf).toMatch(/RG 2 w [^\n]+ l S Q/);
+  });
+
+  it('retains every row across page breaks and writes byte-correct xref offsets', () => {
+    const players = Array.from({ length: 100 }, (_, i) => ({ id: `player_${i}`, teamId: 'team_a', number: i, name: `Atleta ${i} com nome bastante longo para quebrar linha` }));
+    const document = new PdfDocument('Teste de paginação');
+    document.page('Tabela extensa');
+    document.table(['Atleta', 'Número'], players.map((player) => [player.name, String(player.number)]));
+    const pdf = document.build();
+    expect(Number(pdf.match(/\/Type \/Pages \/Count (\d+)/)?.[1])).toBeGreaterThan(1);
+    for (let i = 0; i < 100; i++) expect(pdf).toContain(`Atleta ${i}`);
+    const xref = Number(pdf.match(/startxref\n(\d+)/)?.[1]);
+    expect(pdf.slice(xref, xref + 4)).toBe('xref');
+    const offsets = pdf.slice(xref).split('\n').slice(3).filter((line) => /^\d{10} 00000 n/.test(line));
+    offsets.forEach((line, index) => expect(pdf.slice(Number(line.slice(0, 10)))).toMatch(new RegExp(`^${index + 1} 0 obj`)));
+    for (const match of pdf.matchAll(/\/Length (\d+) >>\nstream\n([\s\S]*?)\nendstream/g)) expect(match[2].length).toBe(Number(match[1]));
+  });
+
+  it('exports edited text and selected sections without changing the report data', () => {
+    const original = JSON.stringify(report);
+    const pdf = new MatchPdfRenderer().render(report, [], undefined, { ...createReportDraft(), title: 'Revisão técnica', author: 'Comissão', notes: 'Ajustar (bloqueio) e saque.\nÚltima observação.', sections: ['summary'] });
+    expect(decoded(pdf)).toContain('Revisão técnica');
+    expect(decoded(pdf)).toContain('Comissão');
+    expect(decoded(pdf)).toContain('Ajustar \\(bloqueio\\) e saque.');
+    expect(decoded(pdf)).toContain('Última observação.');
+    expect(decoded(pdf)).not.toContain('Desempenho por atleta');
+    expect(JSON.stringify(report)).toBe(original);
+  });
+
+  it('previews the exported pages with accented text and escaped XML', () => {
+    const pdf = new MatchPdfRenderer().render(report, [], undefined, { ...createReportDraft(), title: 'Análise <Equipe> & comissão', sections: ['summary'] });
+    const pages = matchPdfPreviewPages(pdf);
+    expect(pages).toHaveLength(Number(pdf.match(/\/Type \/Pages \/Count (\d+)/)?.[1]));
+    expect(pages.join('')).toContain('Análise &lt;Equipe&gt; &amp; comissão');
+    expect(pages.join('')).toContain('20.0% [2/10]');
+    expect(pages.join('')).not.toContain('<Equipe>');
   });
 
   it('exports the same auditable report values to statistics CSV', () => {

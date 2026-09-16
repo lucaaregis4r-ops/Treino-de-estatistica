@@ -312,16 +312,14 @@ describe('usable MVP flow', () => {
 
     fireEvent.click(screen.getAllByText('Substituição')[0]);
     const playerOut = screen.getByLabelText<HTMLSelectElement>('Equipe A: atleta que sai');
-    const playerIn = screen.getByLabelText<HTMLSelectElement>('Equipe A: atleta que entra');
+    const playerIn = screen.getByLabelText('Equipe A: atleta que entra');
     const outgoingOption = [...playerOut.options].find((option) =>
       option.textContent?.includes('#01'),
     );
-    const incomingOption = [...playerIn.options].find((option) =>
-      option.textContent?.includes('#07'),
-    );
-    if (!outgoingOption || !incomingOption) throw new Error('Substitution options were not found.');
+    const incomingOption = within(playerIn).getByRole('button', { name: /#07/ });
+    if (!outgoingOption) throw new Error('Substitution options were not found.');
     fireEvent.change(playerOut, { target: { value: outgoingOption.value } });
-    fireEvent.change(playerIn, { target: { value: incomingOption.value } });
+    fireEvent.click(incomingOption);
     fireEvent.click(screen.getAllByRole('button', { name: 'Substituir' })[0]);
 
     const teamACourt = screen.getByLabelText('Quadra de Equipe A');

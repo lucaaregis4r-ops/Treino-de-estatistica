@@ -23,6 +23,8 @@ export interface SpatialSample {
   readonly skill: ScoutEvent['skill'];
   readonly evaluation?: string;
   readonly outcome?: ScoutEvent['outcome'];
+  readonly blockOutcome?: import('../tactical/TacticalMetadata').AttackBlockOutcome;
+  readonly blockerIds?: readonly string[];
   readonly sideout?: boolean;
   readonly setNumber: number;
   readonly rotation?: CourtRotationPosition;
@@ -159,6 +161,12 @@ export class SpatialProjection {
            ...(event.evaluation ? { evaluation: event.evaluation } : {}),
           source: spatial ? 'spatial' : 'legacy',
           ...(event.outcome ? { outcome: event.outcome } : {}),
+          ...(event.skill === 'attack' && tacticalValue.blockOutcome(event.metadata)
+            ? { blockOutcome: tacticalValue.blockOutcome(event.metadata) }
+            : {}),
+          ...(event.skill === 'attack' && tacticalValue.blockerIds(event.metadata)?.length
+            ? { blockerIds: tacticalValue.blockerIds(event.metadata) }
+            : {}),
           ...(event.skill === 'reception' && rally
             ? {
                 sideout:

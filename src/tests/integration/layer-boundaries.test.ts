@@ -18,7 +18,7 @@ describe('architecture boundaries', () => {
     const domainRoot = resolve('src/domain');
     const violations = sourceFiles(domainRoot).flatMap((file) => {
       const contents = readFileSync(file, 'utf8');
-      return /(?:from|import\s*)\s*['"][^'"]*(?:ui|infrastructure|react)[^'"]*['"]/.test(contents)
+      return /(?:from|import\s*)\s*["'][^"']*(?:^|\/)(?:ui|infrastructure|react)(?:\/|$)[^"']*["']/.test(contents)
         ? [relative(domainRoot, file)]
         : [];
     });

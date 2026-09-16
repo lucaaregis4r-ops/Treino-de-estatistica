@@ -2,6 +2,14 @@
 
 Todas as mudanças relevantes do Scout Trainer são registradas neste arquivo.
 
+## [Não lançado] — Caminhos do rally — 2026-09-15
+
+- Substituída a apresentação técnica de Sequências/Markov pelo explorador visual `Caminhos do rally`.
+- Adicionados potencial por absorção, frequência observada por rally distinto, fluxo de prefixos reais, comparação por qualidade, quadra proporcional e detalhe auditável dos rallies.
+- Filtros de atleta, qualidade, rotação e posição atuam sobre a ocorrência inicial; contatos intermediários permanecem na leitura.
+- Exibição responsiva para desktop e móvel, com tabelas técnicas recolhidas e mensagens de cobertura/amostra.
+- Sem alteração de registro, schema, persistência ou regras matemáticas existentes; o modelo continua de primeira ordem.
+
 ## [Não lançado] — Registro rápido — 2026-09-14
 
 - Números e nomes mais legíveis no Gestual, ação/equipe em destaque e opção explícita de registrar ao soltar a trajetória.

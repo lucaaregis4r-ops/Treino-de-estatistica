@@ -1,0 +1,28 @@
+{
+  "package": "Scout Trainer 0.45 — Luna",
+  "generated": "2026-09-14",
+  "target_repo": "lucaaregis4r-ops/Treino-de-estatistica",
+  "files": [
+    "CONTRATO_ANALYTICS.md",
+    "DECISOES_DE_ESCOPO.md",
+    "ESTADO_ATUAL.md",
+    "LEIA_PRIMEIRO.md",
+    "MARKOV_ESPACIAL.md",
+    "MAPA_DE_ARQUIVOS.md",
+    "PACOTE_CONSOLIDADO_0_45.md",
+    "PLANO_MESTRE_0_45.md",
+    "PROMPTS_LUNA.md",
+    "STATUS_0_45_TEMPLATE.md",
+    "VALIDACAO_0_45.md",
+    "etapas/M0.md",
+    "etapas/M1.md",
+    "etapas/M2.md",
+    "etapas/M3.md",
+    "etapas/M4.md",
+    "etapas/M5.md",
+    "etapas/M6.md",
+    "etapas/M7.md"
+  ],
+  "revision": "spatial-markov-x-y-v2",
+  "notes": "0.45 revised to include spatial Markov/value analysis using x,y as context, not raw state IDs."
+}

@@ -10,6 +10,7 @@ import './VolleyballVisualScout.css';
 import { visualSuggestion } from './visualSuggestion';
 import { visualCourtPlayers } from './visualCourtPlayers';
 import { evaluationLabel, SKILL_LABELS } from './presentationLabels';
+import { AttackBlockSelector, type AttackBlockerOption } from './AttackBlockSelector';
 
 const labels = SKILL_LABELS;
 
@@ -39,6 +40,8 @@ export function VolleyballVisualScout({
   const [skill, setSkill] = useState<Skill | undefined>(suggestion.skill);
   const [evaluation, setEvaluation] = useState('');
   const [detail, setDetail] = useState('');
+  const [blockOutcome, setBlockOutcome] = useState<import('../../../domain/scout/tactical/TacticalMetadata').AttackBlockOutcome>('none');
+  const [blockerIds, setBlockerIds] = useState<readonly string[]>([]);
   const [spatial, setSpatial] = useState<SpatialMetadata>();
   const [cycle, setCycle] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -53,6 +56,25 @@ export function VolleyballVisualScout({
   const setterId = workspace.state.tacticalStateByTeamId?.[teamId]?.activeSetterPlayerId;
   const courtPlayers = visualCourtPlayers(workspace,teamId,automaticLibero ? liberoId : undefined);
   const bench = lineup ? players.filter(p => !courtPlayers.some(c => c.player?.id === p.id)) : players;
+  const opponentTeamId = workspace.teams.find((team) => team.id !== teamId)?.id;
+  const opponentLineupPlayers = opponentTeamId
+    ? visualCourtPlayers(workspace, opponentTeamId).map(({ position, player }) => ({ position, player }))
+    : [];
+  const blockerOptions: readonly AttackBlockerOption[] = [
+    ...opponentLineupPlayers
+      .filter(({ position, player }) => [2, 3, 4].includes(position) && player)
+      .map(({ position, player }) => ({
+        id: player!.id,
+        position,
+        label: `#${player!.number} ${player!.name ?? `Jogador ${player!.number}`}`,
+      })),
+    ...(opponentTeamId
+      ? workspace.players
+          .filter((player) => player.teamId === opponentTeamId && player.active !== false)
+          .filter((player) => !opponentLineupPlayers.some(({ player: current }) => current?.id === player.id))
+          .map((player) => ({ id: player.id, label: `#${player.number} ${player.name ?? `Jogador ${player.number}`}` }))
+      : []),
+  ];
   const recent = (workspace.timeline ?? []).slice(-5).reverse();
   const missing = [
     !skill && 'ação',
@@ -78,6 +100,7 @@ export function VolleyballVisualScout({
         evaluation,
         spatial,
         ...(detail ? { skillType: detail } : {}),
+        ...(skill === 'attack' && blockOutcome !== 'none' ? { blockOutcome, blockerIds } : {}),
       });
     } catch {
       setSubmitError('Não foi possível registrar a ação. O rascunho foi preservado; tente novamente.');
@@ -150,6 +173,10 @@ export function VolleyballVisualScout({
                 onClick={() => {
                   setSkill(value);
                   setDetail('');
+                  if (value !== 'attack') {
+                    setBlockOutcome('none');
+                    setBlockerIds([]);
+                  }
                 }}
               >
                 {SKILL_LABELS[value]}
@@ -240,6 +267,18 @@ export function VolleyballVisualScout({
               </button>
             ))}
           </div>
+        )}
+        {skill === 'attack' && (
+          <AttackBlockSelector
+            value={blockOutcome}
+            blockerIds={blockerIds}
+            blockers={blockerOptions}
+            onChange={(value) => {
+              setBlockOutcome(value);
+              if (value === 'none') setBlockerIds([]);
+            }}
+            onBlockersChange={setBlockerIds}
+          />
         )}
         <footer className="volley-submit">
           <p aria-live="polite">

@@ -163,6 +163,52 @@ describe('MatchReducer', () => {
     expect(duplicate).toBe(next);
   });
 
+  it('applies an infraction as a terminal point and fully reverses it through undo', () => {
+    const fault: MatchEvent = {
+      type: 'fault',
+      id: 'fault_1',
+      matchId: metadata.id,
+      sequence: 2,
+      timestamp: 2,
+      faultType: 'net_touch',
+      teamId: metadata.teamAId,
+      athleteId: 'team_a_08',
+      rallyId: 'fault_rally',
+      terminal: true,
+      pointFor: metadata.teamBId,
+      previousServingTeamId: metadata.teamAId,
+    };
+    const started: MatchEvent = {
+      type: 'rally_started',
+      id: 'fault_start',
+      matchId: metadata.id,
+      rallyId: 'fault_rally',
+      sequence: 1,
+      timestamp: 1,
+      sourceHistoryEventId: fault.id,
+    };
+    const undo: MatchEvent = {
+      type: 'scout_undone',
+      id: 'fault_undo',
+      matchId: metadata.id,
+      targetHistoryEventId: fault.id,
+      sequence: 3,
+      timestamp: 3,
+    };
+
+    const state = replayMatch(metadata, [started, fault]);
+    expect(state).toMatchObject({
+      score: { teamA: 0, teamB: 1 },
+      servingTeamId: metadata.teamBId,
+      currentRally: { status: 'ended', winningTeamId: metadata.teamBId },
+    });
+    expect(replayMatch(metadata, [started, fault, undo])).toMatchObject({
+      score: { teamA: 0, teamB: 0 },
+      servingTeamId: metadata.teamAId,
+      currentRally: { status: 'idle' },
+    });
+  });
+
   it('tolerates simplified scout without an explicit rally-start event', () => {
     const state = replayMatch(metadata, [{ type: 'scout_registered', event: scout }]);
 

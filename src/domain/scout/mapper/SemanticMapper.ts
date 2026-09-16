@@ -6,6 +6,7 @@ import type { ParsedScoutCode } from '../parser/ParsedScoutCode';
 import type { ScoutEventMetadata } from '../events/ScoutEvent';
 import type { CanonicalScoutEventCandidate } from './CanonicalScoutEventCandidate';
 import { normalizeTacticalMetadata } from '../tactical/TacticalMetadataAdapter';
+import { tacticalValue } from '../tactical/TacticalMetadataAdapter';
 
 export class SemanticMapper {
   map(
@@ -26,7 +27,17 @@ export class SemanticMapper {
       );
     }
 
-    const outcome = profile.outcomeMappings?.[skill]?.[parsed.evaluationCode] ?? evaluation;
+    const normalizedMetadata = metadata
+      ? normalizeTacticalMetadata(metadata, skill, profile.tacticalInput?.zoneSystem)
+      : undefined;
+    const blockOutcome = skill === 'attack' ? tacticalValue.blockOutcome(normalizedMetadata) : undefined;
+    const outcome = blockOutcome === 'point'
+      ? 'blocked'
+      : blockOutcome === 'tool'
+        ? 'point'
+        : blockOutcome === 'soft_touch'
+          ? 'continuation'
+          : profile.outcomeMappings?.[skill]?.[parsed.evaluationCode] ?? evaluation;
 
     return success({
       playerNumber: parsed.playerNumber,
@@ -37,7 +48,7 @@ export class SemanticMapper {
       normalizedCode: input.normalizedCode,
       ...(metadata
         ? {
-            metadata: normalizeTacticalMetadata(metadata, skill, profile.tacticalInput?.zoneSystem),
+            metadata: normalizedMetadata,
           }
         : {}),
     });

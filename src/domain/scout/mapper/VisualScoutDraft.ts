@@ -1,6 +1,10 @@
 import type { Skill } from '../entities/Skill';
 import type { RallyPhase, ReceptionGrade } from '../events/ScoutEvent';
-import type { CourtLocation, TrajectoryCaptureMethod } from '../tactical/TacticalMetadata';
+import type {
+  AttackBlockOutcome,
+  CourtLocation,
+  TrajectoryCaptureMethod,
+} from '../tactical/TacticalMetadata';
 import type { CourtOrientation } from '../tactical/CourtGeometry';
 import type { SpatialMetadata } from '../spatial/SpatialMetadata';
 
@@ -22,6 +26,8 @@ export interface VisualScoutDraft {
   readonly attackTempo?: string;
   readonly attackCombination?: string;
   readonly blockersCount?: number;
+  readonly blockOutcome?: AttackBlockOutcome;
+  readonly blockerIds?: readonly string[];
   readonly phase?: RallyPhase;
   readonly captureMethod?: TrajectoryCaptureMethod;
   readonly orientation?: CourtOrientation;

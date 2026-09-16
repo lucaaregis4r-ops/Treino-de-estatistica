@@ -21,7 +21,10 @@ import type { VisualScoutDraft } from '../../../domain/scout/mapper/VisualScoutD
 import type { InputCandidateState } from '../../../domain/scout/input/InputCandidateState';
 import type { Skill } from '../../../domain/scout/entities/Skill';
 import { tacticalValue } from '../../../domain/scout/tactical/TacticalMetadataAdapter';
-import type { CourtLocation } from '../../../domain/scout/tactical/TacticalMetadata';
+import type {
+  AttackBlockOutcome,
+  CourtLocation,
+} from '../../../domain/scout/tactical/TacticalMetadata';
 import { DirectionResolver } from '../../../domain/scout/tactical/DirectionResolver';
 import { TacticalInputInterpreter } from '../../../domain/scout/input/TacticalInputInterpreter';
 import type { SpatialMetadata } from '../../../domain/scout/spatial/SpatialMetadata';
@@ -47,12 +50,19 @@ import {
   failGestureCommit,
   selectGesturePlayer,
   setGestureOutcome,
+  setGestureBlock,
+  setGestureBlockers,
   setGestureTrajectory,
   type GestureDraftState,
 } from '../../../domain/rally/gesture/GestureDraftState';
 import { shouldCommitGestureKey } from './gesture/gestureCommitKey';
 import { GestureRotationCard } from './gesture/GestureRotationCard';
 import { SKILL_LABELS } from './presentationLabels';
+import type { FaultType } from '../../../domain/match/events/MatchEvent';
+import { isHistoryActionActive } from '../../../domain/match/events/ScoutTimeline';
+import type { QuickAction } from './gesture/QuickActionRail';
+import { AttackBlockSelector, type AttackBlockerOption } from './AttackBlockSelector';
+import { visualCourtPlayers } from './visualCourtPlayers';
 
 interface ScoutScreenProps {
   readonly workspace: MatchWorkspace;
@@ -68,6 +78,11 @@ interface ScoutScreenProps {
     rawCode: string,
     draft: VisualScoutDraft,
   ) => Promise<void>;
+  readonly onRegisterFault: (input: {
+    readonly teamId: string;
+    readonly faultType: FaultType;
+    readonly athleteId?: string;
+  }) => Promise<void>;
   readonly onCorrect: (
     sourceEventId: string,
     rawCode: string,
@@ -101,6 +116,7 @@ export function ScoutScreen({
   onRegister,
   onRegisterVisual,
   onRegisterHybrid,
+  onRegisterFault,
   onCorrect,
   onUndo,
   onRedo,
@@ -125,6 +141,7 @@ export function ScoutScreen({
     createGestureDraftState(),
   );
   const [gestureDraftKey, setGestureDraftKey] = useState(0);
+  const [pendingFault, setPendingFault] = useState<FaultType>();
   const gestureCommittingRef = useRef(false);
   const handledSubstitutionRef = useRef<string | undefined>(undefined);
   const [visualPlayerNumber, setVisualPlayerNumber] = useState(
@@ -151,6 +168,8 @@ export function ScoutScreen({
   const [attackTempo, setAttackTempo] = useState('');
   const [attackCombination, setAttackCombination] = useState('');
   const [blockersCount, setBlockersCount] = useState('');
+  const [attackBlockOutcome, setAttackBlockOutcome] = useState<AttackBlockOutcome>('none');
+  const [attackBlockerIds, setAttackBlockerIds] = useState<readonly string[]>([]);
   const [phase, setPhase] = useState<'' | 'sideout' | 'breakpoint' | 'transition'>('');
   const [drawnOrigin, setDrawnOrigin] = useState<CourtLocation>();
   const [drawnTarget, setDrawnTarget] = useState<CourtLocation>();
@@ -269,6 +288,25 @@ export function ScoutScreen({
     : gestureExpected?.teamId ?? activeTeamId;
   const gestureLineup = workspace.currentLineups.find((lineup) => lineup.teamId === gestureTeamId);
   const gestureTeam = workspace.teams.find((team) => team.id === gestureTeamId);
+  const gestureOpponentId = workspace.teams.find((team) => team.id !== gestureTeamId)?.id;
+  const gestureOpponentNet = gestureOpponentId
+    ? visualCourtPlayers(workspace, gestureOpponentId).filter(({ position, player }) =>
+        [2, 3, 4].includes(position) && player,
+      )
+    : [];
+  const gestureBlockers: readonly AttackBlockerOption[] = [
+    ...gestureOpponentNet.map(({ position, player }) => ({
+      id: player!.id,
+      position,
+      label: `#${player!.number} ${player!.name ?? `Jogador ${player!.number}`}`,
+    })),
+    ...(gestureOpponentId
+      ? workspace.players
+          .filter((player) => player.teamId === gestureOpponentId && player.active !== false)
+          .filter((player) => !gestureOpponentNet.some(({ player: netPlayer }) => netPlayer?.id === player.id))
+          .map((player) => ({ id: player.id, label: `#${player.number} ${player.name ?? `Jogador ${player.number}`}` }))
+      : []),
+  ];
   const gestureSuggestion = new GesturePlayerSuggestionResolver().resolve(gestureLineup, gestureSkill);
   const gesturePlayerLabels = Object.fromEntries(
     workspace.players.map((player) => [player.id, `#${String(player.number).padStart(2, '0')}`]),
@@ -287,6 +325,28 @@ export function ScoutScreen({
   const selectedVisualEvaluation = visualEvaluations.includes(visualEvaluation)
     ? visualEvaluation
     : (visualEvaluations[0] ?? '');
+  const visualOpponentId = workspace.teams.find((team) => team.id !== activeTeamId)?.id;
+  const visualOpponentNet = visualOpponentId
+    ? visualCourtPlayers(workspace, visualOpponentId).filter(({ position, player }) =>
+        [2, 3, 4].includes(position) && player,
+      )
+    : [];
+  const attackBlockers: readonly AttackBlockerOption[] = [
+    ...visualOpponentNet.map(({ position, player }) => ({
+      id: player!.id,
+      position,
+      label: `#${player!.number} ${player!.name ?? `Jogador ${player!.number}`}`,
+    })),
+    ...(visualOpponentId
+      ? workspace.players
+          .filter((player) => player.teamId === visualOpponentId && player.active !== false)
+          .filter((player) => !visualOpponentNet.some(({ player: netPlayer }) => netPlayer?.id === player.id))
+          .map((player) => ({
+            id: player.id,
+            label: `#${player.number} ${player.name ?? `Jogador ${player.number}`}`,
+          }))
+      : []),
+  ];
 
   useEffect(() => {
     if (!gestureMode) return;
@@ -327,6 +387,7 @@ export function ScoutScreen({
   }, [workspace.events, workspace.players]);
   function clearGestureDraft() {
     setRecoveryAction(undefined);
+    setPendingFault(undefined);
     setGestureDraft(createGestureDraftState());
     setGestureDraftKey((key) => key + 1);
   }
@@ -341,6 +402,28 @@ export function ScoutScreen({
 
   async function commitCurrentGesture(preparedDraft = gestureDraft) {
     if (gestureCommittingRef.current || busy) return;
+    if (pendingFault) {
+      const playerId = preparedDraft.playerSelection === 'unidentified'
+        ? undefined
+        : preparedDraft.playerId ?? gestureSuggestion.automatic;
+      gestureCommittingRef.current = true;
+      try {
+        await onRegisterFault({
+          teamId: gestureTeamId,
+          faultType: pendingFault,
+          ...(playerId ? { athleteId: playerId } : {}),
+        });
+        clearGestureDraft();
+      } catch (error) {
+        setGestureDraft(failGestureCommit(
+          preparedDraft,
+          error instanceof Error ? error.message : 'Não foi possível registrar a infração.',
+        ));
+      } finally {
+        gestureCommittingRef.current = false;
+      }
+      return;
+    }
     let draft = preparedDraft;
     if (!draft.expectedAction) {
       draft = createGestureDraftState(
@@ -373,6 +456,9 @@ export function ScoutScreen({
         skill: gestureSkill,
         evaluation: checked.outcome === '#' ? 'excellent' : checked.outcome === '=' ? 'error' : 'neutral',
         spatial: checked.trajectory,
+        ...(gestureSkill === 'attack' && checked.blockOutcome && checked.blockOutcome !== 'none'
+          ? { blockOutcome: checked.blockOutcome, blockerIds: checked.blockerIds ?? [] }
+          : {}),
       });
       clearGestureDraft();
     } catch {
@@ -485,6 +571,9 @@ export function ScoutScreen({
             ...(phase ? { phase } : {}),
           }
         : {}),
+      ...(activeCaptureSkill === 'attack' && attackBlockOutcome !== 'none'
+        ? { blockOutcome: attackBlockOutcome, blockerIds: attackBlockerIds }
+        : {}),
     };
     return Object.keys(captureDraft).length > 0 || confirmedSpatial
       ? { coverage: scoutCoverage(workspace.teams, coverageMode),
@@ -549,6 +638,8 @@ export function ScoutScreen({
     setAttackTempo('');
     setAttackCombination('');
     setBlockersCount('');
+    setAttackBlockOutcome('none');
+    setAttackBlockerIds([]);
     setPhase('');
     setDrawnOrigin(undefined);
     setDrawnTarget(undefined);
@@ -607,6 +698,9 @@ export function ScoutScreen({
       ...(capture?.tempo ? { attackTempo: capture.tempo } : {}),
       ...(capture?.combination ? { attackCombination: capture.combination } : {}),
       ...(capture?.blockersCount !== undefined ? { blockersCount: capture.blockersCount } : {}),
+      ...(visualSkill === 'attack' && attackBlockOutcome !== 'none'
+        ? { blockOutcome: attackBlockOutcome, blockerIds: attackBlockerIds }
+        : {}),
       ...(capture?.phase ? { phase: capture.phase } : {}),
       ...(capture?.captureMethod ? { captureMethod: capture.captureMethod } : {}),
     };
@@ -774,6 +868,8 @@ export function ScoutScreen({
     setAttackTempo(tacticalValue.attackTempo(eventMetadata) ?? '');
     setAttackCombination(tacticalValue.attackCombination(eventMetadata) ?? '');
     setBlockersCount(tacticalValue.blockersCount(eventMetadata, skill)?.toString() ?? '');
+    setAttackBlockOutcome(skill === 'attack' ? tacticalValue.blockOutcome(eventMetadata) ?? 'none' : 'none');
+    setAttackBlockerIds(skill === 'attack' ? tacticalValue.blockerIds(eventMetadata) ?? [] : []);
     setPhase(tacticalValue.phase(eventMetadata) ?? '');
     inputRef.current?.focus();
   }
@@ -848,6 +944,11 @@ export function ScoutScreen({
 
   function handleScreenKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
     const target = event.target as HTMLElement;
+    if (tactical && tacticalInput && matchesShortcut(event, tacticalInput.shortcuts.quickEditor)) {
+      event.preventDefault();
+      openQuickEditor();
+      return;
+    }
     if (target.closest('button,input,select,textarea,[contenteditable="true"],[data-native-keys]')) {
       return;
     }
@@ -869,11 +970,6 @@ export function ScoutScreen({
     }
     if (!tactical || !tacticalInput || event.defaultPrevented) return;
     const shortcuts = tacticalInput.shortcuts;
-    if (matchesShortcut(event, shortcuts.quickEditor)) {
-      event.preventDefault();
-      openQuickEditor();
-      return;
-    }
     if (matchesShortcut(event, shortcuts.focusScout)) {
       event.preventDefault();
       inputRef.current?.focus();
@@ -1000,6 +1096,9 @@ export function ScoutScreen({
             selectedPlayerId={gestureDraft.playerId}
             playerSelection={gestureDraft.playerSelection}
             outcome={gestureDraft.outcome}
+            blockOutcome={gestureDraft.blockOutcome}
+            blockerIds={gestureDraft.blockerIds}
+            blockers={gestureBlockers}
             committing={busy || gestureDraft.status === 'committing'}
             error={gestureDraft.error}
             draftKey={gestureDraftKey}
@@ -1020,9 +1119,29 @@ export function ScoutScreen({
             onAttackOutcome={(outcome) => {
               setGestureDraft((current) => setGestureOutcome(current, outcome));
             }}
+            onBlockOutcome={(outcome) => {
+              setGestureDraft((current) => setGestureBlock(current, outcome));
+            }}
+            onBlockersChange={(ids) => {
+              setGestureDraft((current) => setGestureBlockers(current, ids));
+            }}
             onQuickAction={(action) => {
+              const faultByAction: Partial<Record<QuickAction, FaultType>> = {
+                net_touch: 'net_touch',
+                invasion: 'invasion',
+                double_touch: 'double_touch',
+                rotation_error: 'rotation_error',
+              };
+              const fault = faultByAction[action];
+              if (fault) {
+                setPendingFault((current) => current === fault ? undefined : fault);
+                return;
+              }
+              setPendingFault(undefined);
               if (action === 'free_ball') chooseGestureAction(gestureSkill === 'free_ball' ? undefined : 'free_ball');
             }}
+            faultPointTeamName={workspace.teams.find((team) => team.id !== gestureTeamId)?.name}
+            onCancelQuickAction={() => setPendingFault(undefined)}
             onUndo={() => void onUndo()}
             onCommit={() => void commitCurrentGesture()}
           />}
@@ -1060,9 +1179,24 @@ export function ScoutScreen({
                 setVisualPlayerNumber(String(first?.number ?? ''));
               }}
               onPlayerChange={(value) => { setVisualPlayerNumber(value); setSpatialCapture(undefined); setHybridSubmitStatus(''); setHybridSubmitError(''); }}
-              onSkillChange={(value) => { setVisualSkill(value); setSpatialCapture(undefined); setHybridSubmitStatus(''); setHybridSubmitError(''); }}
+              onSkillChange={(value) => {
+                setVisualSkill(value);
+                if (value !== 'attack') {
+                  setAttackBlockOutcome('none');
+                  setAttackBlockerIds([]);
+                }
+                setSpatialCapture(undefined); setHybridSubmitStatus(''); setHybridSubmitError('');
+              }}
               onEvaluationChange={(value) => { setVisualEvaluation(value); setSpatialCapture(undefined); setHybridSubmitStatus(''); setHybridSubmitError(''); }}
               onHybridCodeChange={(value) => { setHybridCode(value); setSpatialCapture(undefined); setHybridSubmitStatus(''); setHybridSubmitError(''); }}
+              blockOutcome={attackBlockOutcome}
+              blockerIds={attackBlockerIds}
+              blockers={attackBlockers}
+              onBlockOutcomeChange={(value) => {
+                setAttackBlockOutcome(value);
+                if (value === 'none') setAttackBlockerIds([]);
+              }}
+              onBlockersChange={setAttackBlockerIds}
               onSubmit={(event) => void submitVisual(event)}
             />
           )}
@@ -1093,6 +1227,18 @@ export function ScoutScreen({
                 />
               )}
               <div className="tactical-fields">
+                {activeCaptureSkill === 'attack' && inputMode === 'typed' && (
+                  <AttackBlockSelector
+                    value={attackBlockOutcome}
+                    blockerIds={attackBlockerIds}
+                    blockers={attackBlockers}
+                    onChange={(value) => {
+                      setAttackBlockOutcome(value);
+                      if (value === 'none') setAttackBlockerIds([]);
+                    }}
+                    onBlockersChange={setAttackBlockerIds}
+                  />
+                )}
                 <label>
                   {activeCaptureSkill === 'attack' && inputMode === 'typed'
                     ? 'Exceção de origem'
@@ -1324,6 +1470,10 @@ export function ScoutScreen({
         </section>
         <EventTimeline
           timeline={workspace.timeline}
+          faults={workspace.events.filter(
+            (event): event is import('../../../domain/match/events/MatchEvent').FaultEvent =>
+              event.type === 'fault' && isHistoryActionActive(event.id, workspace.events),
+          )}
           teams={workspace.teams}
           players={workspace.players}
           historyLimit={historyLimit}

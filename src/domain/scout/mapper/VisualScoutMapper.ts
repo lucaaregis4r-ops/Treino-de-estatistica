@@ -6,6 +6,11 @@ import type { CanonicalScoutEventCandidate } from './CanonicalScoutEventCandidat
 import type { VisualScoutDraft } from './VisualScoutDraft';
 
 function outcomeFor(draft: VisualScoutDraft, profile: CodeProfile): string {
+  if (draft.skill === 'attack') {
+    if (draft.blockOutcome === 'point') return 'blocked';
+    if (draft.blockOutcome === 'tool') return 'point';
+    if (draft.blockOutcome === 'soft_touch') return 'continuation';
+  }
   const evaluationCode = Object.entries(profile.evaluations).find(
     ([, evaluation]) => evaluation === draft.evaluation,
   )?.[0];
@@ -43,6 +48,12 @@ function metadataFor(
     ...(draft.attackTempo ? { tempo: draft.attackTempo } : {}),
     ...(draft.attackCombination ? { combination: draft.attackCombination } : {}),
     ...(draft.blockersCount !== undefined ? { blockersCount: draft.blockersCount } : {}),
+    ...(draft.skill === 'attack' && draft.blockOutcome !== undefined
+      ? {
+          blockOutcome: draft.blockOutcome,
+          ...(draft.blockerIds?.length ? { blockerIds: draft.blockerIds } : {}),
+        }
+      : {}),
     ...(draft.phase ? { phase: draft.phase } : {}),
     ...(draft.orientation ? { orientation: draft.orientation } : {}),
     ...(draft.origin || draft.target || draft.contactLocation

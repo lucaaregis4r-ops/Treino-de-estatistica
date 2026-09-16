@@ -109,6 +109,25 @@ describe('VisualScoutMapper', () => {
   });
 
   it.each([
+    ['point', 'blocked'],
+    ['tool', 'point'],
+    ['soft_touch', 'continuation'],
+  ] as const)('mapeia bloqueio de ataque %s como %s', (blockOutcome, outcome) => {
+    const candidate = mapper.map({
+      teamId: 'a',
+      playerNumber: 7,
+      skill: 'attack',
+      evaluation: 'error',
+      blockOutcome,
+      blockerIds: ['middle-1'],
+    }, defaultCompactV1);
+    expect(candidate.outcome).toBe(outcome);
+    expect(candidate.metadata).toMatchObject({
+      tactical: { attack: { block: { outcome: blockOutcome, blockerIds: ['middle-1'] } } },
+    });
+  });
+
+  it.each([
     {
       evaluation: 'error',
       outcome: 'error',

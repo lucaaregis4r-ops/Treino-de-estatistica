@@ -90,7 +90,8 @@ export function projectEffectiveMatchEvents(events: readonly MatchEvent[]): read
     if (
       event.type === 'match_correction' ||
       event.type === 'score_adjustment' ||
-      event.type === 'substitution_made'
+      event.type === 'substitution_made' ||
+      event.type === 'fault'
     )
       return actionIsActive(event.id, activity);
     if (event.type === 'rally_started' && event.sourceHistoryEventId) {
@@ -146,9 +147,10 @@ export function findUndoTarget(events: readonly MatchEvent[]): string | undefine
     .reverse()
     .find(
       (event) =>
-        (event.type === 'scout_registered' ||
-          event.type === 'scout_corrected' ||
-          event.type === 'match_correction' ||
+      (event.type === 'scout_registered' ||
+        event.type === 'scout_corrected' ||
+        event.type === 'fault' ||
+        event.type === 'match_correction' ||
           event.type === 'score_adjustment' ||
           event.type === 'substitution_made') &&
         actionIsActive(matchEventId(event), activity),

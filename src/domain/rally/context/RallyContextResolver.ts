@@ -172,7 +172,8 @@ export class RallyContextResolver {
       if (
         event.type === 'rally_result' ||
         event.type === 'rally_ended' ||
-        event.type === 'match_correction'
+        event.type === 'match_correction' ||
+        event.type === 'fault'
       ) {
         expected = undefined;
         const rallyId =
@@ -190,7 +191,9 @@ export class RallyContextResolver {
             ? event.winnerTeamId
             : event.type === 'match_correction'
               ? event.correction.teamId
-              : event.winningTeamId;
+              : event.type === 'fault'
+                ? event.pointFor
+                : event.winningTeamId;
         const summary = rallies.get(rallyId);
         if (summary && winnerTeamId) rallies.set(rallyId, { ...summary, winnerTeamId });
       }

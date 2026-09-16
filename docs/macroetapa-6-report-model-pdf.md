@@ -1,5 +1,9 @@
 # Macroetapa 6 — Report Model e PDF
 
+> Atualização: o relatório agora tem editor, prévia e paginação dinâmica. Veja
+> [Relatório editável](relatorio-editavel.md). A descrição de seis páginas fixas
+> e texto transliterado abaixo registra a implementação inicial.
+
 ## Resultado
 
 O produto agora gera um relatório pós-jogo em PDF diretamente do `MatchReportModel`. O PDF não captura nem replica a árvore visual da `SummaryScreen`: ele é uma saída independente do mesmo modelo auditável usado pela tela e pelo CSV estatístico.

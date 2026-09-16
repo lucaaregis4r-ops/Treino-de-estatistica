@@ -206,6 +206,23 @@ describe('canonical court geometry and spatial projection', () => {
     });
   });
 
+  it('projects structured attack block information with the spatial sample', () => {
+    const projected = new SpatialProjection().project([
+      {
+        ...event('blocked_attack', 'attack', {
+          attack: {
+            block: { outcome: 'point', blockerIds: ['middle-1'] },
+            trajectory: { origin: { x: 0.2, y: 0.5 }, target: { x: 0.8, y: 0.5 } },
+          },
+        }, 'blocked'),
+      },
+    ]);
+    expect(projected.samples[0]).toMatchObject({
+      blockOutcome: 'point',
+      blockerIds: ['middle-1'],
+    });
+  });
+
   it('calculates reception sideout rate from the existing rally winners', () => {
     const receptions = Array.from({ length: 10 }, (_, index) =>
       event(

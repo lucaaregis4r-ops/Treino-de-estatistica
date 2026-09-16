@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import type { SetLineup } from '../../../../domain/match/lineup/SetLineup';
 import type { Skill } from '../../../../domain/scout/entities/Skill';
 import type { SpatialMetadata } from '../../../../domain/scout/spatial/SpatialMetadata';
+import type { AttackBlockOutcome } from '../../../../domain/scout/tactical/TacticalMetadata';
 import { GestureCourtInput } from '../GestureCourtInput';
 import { AttackOutcomeBar } from './AttackOutcomeBar';
 import { PlayerQuickPicker } from './PlayerQuickPicker';
 import { QuickActionRail, type QuickAction } from './QuickActionRail';
+import { AttackBlockSelector, type AttackBlockerOption } from '../AttackBlockSelector';
 import { SKILL_LABELS } from '../presentationLabels';
 import './gesture.css';
 
@@ -35,13 +37,20 @@ export interface GestureScoutProps {
   readonly selectedPlayerId?: string;
   readonly playerSelection?: 'identified' | 'unidentified';
   readonly outcome?: '#' | '=';
+  readonly blockOutcome?: AttackBlockOutcome;
+  readonly blockerIds?: readonly string[];
+  readonly blockers?: readonly AttackBlockerOption[];
   readonly committing?: boolean;
   readonly error?: string;
   readonly draftKey?: number;
   readonly onTrajectory?: (trajectory: SpatialMetadata) => void;
   readonly onPlayerSelected?: (playerId?: string) => void;
   readonly onAttackOutcome?: (outcome?: '#' | '=') => void;
+  readonly onBlockOutcome?: (outcome: AttackBlockOutcome) => void;
+  readonly onBlockersChange?: (ids: readonly string[]) => void;
   readonly onQuickAction?: (action: QuickAction) => void;
+  readonly faultPointTeamName?: string;
+  readonly onCancelQuickAction?: () => void;
   readonly onUndo?: () => void;
   readonly onCommit?: () => void;
 }
@@ -51,7 +60,6 @@ export function GestureScout({
   skill,
   teamName,
   trajectoryReady,
-  attackOutcomeAvailable,
   suggestion,
   playerLabels,
   playerTitles,
@@ -66,13 +74,20 @@ export function GestureScout({
   selectedPlayerId,
   playerSelection,
   outcome,
+  blockOutcome = 'none',
+  blockerIds = [],
+  blockers = [],
   committing,
   error,
   draftKey,
   onTrajectory,
   onPlayerSelected,
   onAttackOutcome,
+  onBlockOutcome,
+  onBlockersChange,
   onQuickAction,
+  faultPointTeamName,
+  onCancelQuickAction,
   onUndo,
   onCommit,
 }: GestureScoutProps) {
@@ -84,7 +99,24 @@ export function GestureScout({
     ? undefined
     : selectedPlayerId ?? suggestion.automatic;
   const playerLabel = effectivePlayerId ? playerTitles?.[effectivePlayerId] : undefined;
-  const instruction = !trajectoryReady
+  const selectedFault = selectedQuickAction && selectedQuickAction !== 'free_ball'
+    ? selectedQuickAction
+    : undefined;
+  const faultLabel = selectedFault
+    ? ({
+        net_touch: 'Toque na rede',
+        invasion: 'Invasão',
+        double_touch: 'Dois toques',
+        rotation_error: 'Erro de rotação',
+      } as const)[selectedFault]
+    : undefined;
+  function cancelQuickAction() {
+    setSelectedQuickAction(undefined);
+    onCancelQuickAction?.();
+  }
+  const instruction = selectedFault
+    ? `${faultLabel} — ${teamName ?? 'Equipe não identificada'} · ponto: ${faultPointTeamName ?? 'adversário'}`
+    : !trajectoryReady
     ? 'Trace a trajetória da bola'
     : !effectivePlayerId
       ? 'Trajetória pronta · Sem atleta identificado'
@@ -98,7 +130,7 @@ export function GestureScout({
       onKeyDown={(event) => {
         const target = event.target as HTMLElement;
         if (target.closest('input,select,textarea,[data-native-keys]') || event.nativeEvent.isComposing) return;
-        if ((skill === 'serve' || skill === 'attack' || attackOutcomeAvailable) &&
+        if (
           (event.key === '#' || event.key === '=') && !event.repeat && onAttackOutcome) {
           event.preventDefault();
           onAttackOutcome(outcome === event.key ? undefined : event.key);
@@ -129,13 +161,15 @@ export function GestureScout({
         </div>
         {error && <p className="gesture-scout-error" role="alert">{error}</p>}
       </div>
-      <GestureCourtInput key={draftKey} onTrajectory={onTrajectory} teamNames={courtTeamNames} />
+      {!selectedFault && (
+        <GestureCourtInput key={draftKey} onTrajectory={onTrajectory} teamNames={courtTeamNames} />
+      )}
       <div className="gesture-action-options">
         <label className="gesture-rapid-control"><input type="checkbox" checked={rapid ?? false}
           onChange={(event) => onRapidChange?.(event.target.checked)} />Registrar ao soltar
           <small>{rapid ? 'Escolha atleta e qualidade antes de arrastar. Soltar salva.' : 'Arraste e confirme com Registrar. O modo rápido é opcional.'}</small>
         </label>
-        {(skill === 'serve' || skill === 'attack' || attackOutcomeAvailable) && (
+        {!selectedFault && (
           <div className="gesture-control-group">
             <strong>Qualidade</strong>
             <AttackOutcomeBar
@@ -144,6 +178,17 @@ export function GestureScout({
               onOutcome={(outcome) => {
                 onAttackOutcome?.(outcome);
               }}
+            />
+          </div>
+        )}
+        {!selectedFault && skill === 'attack' && (
+          <div className="gesture-control-group">
+            <AttackBlockSelector
+              value={blockOutcome}
+              blockerIds={blockerIds}
+              blockers={blockers}
+              onChange={onBlockOutcome ?? (() => undefined)}
+              onBlockersChange={onBlockersChange ?? (() => undefined)}
             />
           </div>
         )}
@@ -159,8 +204,8 @@ export function GestureScout({
         </div>
       </div>
       <div className="gesture-operation-bar" aria-label="Confirmação da ação">
-        <span>{trajectoryReady ? 'Trajetória pronta' : 'Trace a trajetória para registrar'}</span>
-        <button className="gesture-scout-undo" type="button" onClick={onUndo}>
+        <span>{selectedFault ? `${faultLabel} — ${teamName ?? 'Equipe não identificada'} · Ponto: ${faultPointTeamName ?? 'adversário'}` : trajectoryReady ? 'Trajetória pronta' : 'Trace a trajetória para registrar'}</span>
+        <button className="gesture-scout-undo" type="button" onClick={selectedFault ? cancelQuickAction : onUndo}>
           ↶ Desfazer
         </button>
         <button className="gesture-scout-commit" type="button" disabled={committing} onClick={onCommit}>
