@@ -1075,6 +1075,7 @@ export function ScoutScreen({
             }}
           />
           {gestureMode && <GestureScout
+            sport={workspace.state.metadata.sport}
             phase={gestureSkill}
             skill={gestureSkill}
             teamName={gestureTeam?.name}

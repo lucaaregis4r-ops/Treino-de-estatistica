@@ -16,8 +16,11 @@ import type { CodeProfile, CompetitionProfile, ComplexityProfile } from '../../.
 import type { DerivedAnalyticsReport } from '../../../application/reporting/DerivedAnalyticsReport';
 import { ProfileValidator } from '../../../profiles/ProfileValidator';
 import { isSkill } from '../../../domain/scout/entities/Skill';
+import type { CanonicalFootballEvent } from '../../../domain/football/StatsBombContract';
+import { isValidFootballAssistedRecording } from '../../../domain/football/FootballAssistedRecording';
 
-export const MATCH_EXPORT_SCHEMA_VERSION = '1.0.0';
+export const MATCH_EXPORT_SCHEMA_VERSION = '1.2.0';
+export const LEGACY_MATCH_EXPORT_SCHEMA_VERSIONS = new Set(['1.0.0', '1.1.0']);
 export const MAX_MATCH_IMPORT_BYTES = 50_000_000;
 
 export interface MatchProfileSnapshot {
@@ -28,6 +31,8 @@ export interface MatchProfileSnapshot {
 
 export interface MatchExport {
   readonly schemaVersion: typeof MATCH_EXPORT_SCHEMA_VERSION;
+  readonly modality: 'volleyball' | 'football' | 'unknown';
+  readonly compatibility: MatchCompatibilityManifest;
   readonly match: MatchMetadata;
   readonly teams: readonly Team[];
   readonly players: readonly Player[];
@@ -39,9 +44,30 @@ export interface MatchExport {
   readonly derivedAnalytics?: DerivedAnalyticsReport;
 }
 
+export interface MatchCompatibilityManifest {
+  readonly backupContract: typeof MATCH_EXPORT_SCHEMA_VERSION;
+  readonly footballEventContract: 'statsbomb-open-data-4.0.0-subset' | 'not_applicable';
+  readonly extrasNamespace: 'scout_trainer';
+  readonly preservesUnknownEventFields: true;
+  readonly limitations: readonly string[];
+}
+
+function manifest(modality: MatchExport['modality']): MatchCompatibilityManifest {
+  return {
+    backupContract: MATCH_EXPORT_SCHEMA_VERSION,
+    footballEventContract: modality === 'football' ? 'statsbomb-open-data-4.0.0-subset' : 'not_applicable',
+    extrasNamespace: 'scout_trainer',
+    preservesUnknownEventFields: true,
+    limitations: modality === 'football'
+      ? ['Scout Trainer backup is lossless; pure StatsBomb export only includes the documented observed subset.', 'Missing coordinates, players, possession and outcomes remain absent.']
+      : ['Scout Trainer JSON is the lossless backup format; provider interchange is not implied.'],
+  };
+}
+
 export class JsonMatchExporter {
-  export(data: Omit<MatchExport, 'schemaVersion'>): string {
-    return JSON.stringify({ schemaVersion: MATCH_EXPORT_SCHEMA_VERSION, ...data }, null, 2);
+  export(data: Omit<MatchExport, 'schemaVersion' | 'modality' | 'compatibility'>): string {
+    const modality = data.match.sport ?? 'unknown';
+    return JSON.stringify({ schemaVersion: MATCH_EXPORT_SCHEMA_VERSION, modality, compatibility: manifest(modality), ...data }, null, 2);
   }
 }
 
@@ -151,6 +177,49 @@ function validScoutEvent(
   );
 }
 
+function validStatsBombEntity(value: unknown): boolean {
+  return isRecord(value) && Number.isFinite(value.id) && isText(value.name);
+}
+
+function validStatsBombLocation(value: unknown): boolean {
+  return Array.isArray(value) && (value.length === 2 || value.length === 3) && value.every(isFiniteNumber) &&
+    value[0] >= 0 && value[0] <= 120 && value[1] >= 0 && value[1] <= 80 && (value.length === 2 || value[2] >= 0);
+}
+
+function validCanonicalFootballEvent(value: unknown, matchId: string): value is CanonicalFootballEvent {
+  if (!isRecord(value) || !isRecord(value.scout_trainer)) return false;
+  const extension = value.scout_trainer;
+  if (!isText(value.id) || !Number.isSafeInteger(value.index) || (value.index as number) < 1 ||
+      (value.period !== 1 && value.period !== 2) || typeof value.timestamp !== 'string' ||
+      !/^\d{2}:\d{2}:\d{2}\.\d{3}$/.test(value.timestamp) || !Number.isSafeInteger(value.minute) ||
+      !Number.isSafeInteger(value.second) || !validStatsBombEntity(value.type) ||
+      !['1.0.0', '1.1.0'].includes(String(extension.schema_version)) || extension.modality !== 'football' ||
+      extension.match_id !== matchId || !Number.isSafeInteger(extension.capture_sequence)) return false;
+  if (value.team !== undefined && !validStatsBombEntity(value.team)) return false;
+  if (value.player !== undefined && !validStatsBombEntity(value.player)) return false;
+  if (value.possession_team !== undefined && !validStatsBombEntity(value.possession_team)) return false;
+  if (value.possession !== undefined && (!Number.isSafeInteger(value.possession) || (value.possession as number) < 1)) return false;
+  if (value.location !== undefined && !validStatsBombLocation(value.location)) return false;
+  for (const detailName of ['pass', 'carry', 'shot'] as const) {
+    const detail = value[detailName];
+    if (detail !== undefined && (!isRecord(detail) || (detail.end_location !== undefined && !validStatsBombLocation(detail.end_location)))) return false;
+  }
+  const observation = extension.observation;
+  if (extension.assisted_recording !== undefined && !isValidFootballAssistedRecording(extension.assisted_recording)) return false;
+  if (observation !== undefined) {
+    if (!isRecord(observation)) return false;
+    if (observation.position !== undefined && !validStatsBombLocation(observation.position)) return false;
+    if (observation.precision !== undefined && observation.precision !== 'point' && observation.precision !== 'zone') return false;
+    if (observation.coverage !== undefined && observation.coverage !== 'continuous' && observation.coverage !== 'suspended') return false;
+    if (observation.protocol !== undefined &&
+      (!isRecord(observation.protocol) || observation.protocol.name !== 'scout_trainer.possession' || observation.protocol.version !== '1.0.0' || observation.protocol.mode !== 'control_mark')) return false;
+    if (observation.context !== undefined &&
+      (!isRecord(observation.context) || !['observed', 'partial', 'not_observed'].includes(String(observation.context.validity)) ||
+        (observation.context.outcome !== undefined && (typeof observation.context.outcome !== 'string' || !['continuing', 'lost', 'recovered', 'shot', 'goal', 'stopped'].includes(observation.context.outcome))))) return false;
+  }
+  return true;
+}
+
 function validAnalysisConfiguration(
   value: unknown,
   matchId: string,
@@ -251,12 +320,17 @@ const MATCH_EVENT_TYPES = new Set([
   'set_finished',
   'match_correction',
   'substitution_made',
+  'football_event_registered',
+  'football_event_corrected',
+  'football_event_undone',
+  'football_clock_changed',
 ]);
 
 function validateMatchExport(
   value: Record<string, unknown>,
 ): value is Record<string, unknown> & MatchExport {
   if (!isRecord(value.match) || !isRecord(value.profiles)) return false;
+  if (!['volleyball', 'football', 'unknown'].includes(String(value.modality)) || !isRecord(value.compatibility) || value.compatibility.backupContract !== MATCH_EXPORT_SCHEMA_VERSION) return false;
   const match = value.match;
   if (
     !isText(match.id) ||
@@ -271,6 +345,12 @@ function validateMatchExport(
     !isText(match.complexityProfileId)
   )
     return false;
+  if (
+    match.sport !== undefined &&
+    match.sport !== 'volleyball' &&
+    match.sport !== 'football'
+  ) return false;
+  if ((match.sport === 'football' || match.sport === 'volleyball') && value.modality !== match.sport) return false;
 
   if (!Array.isArray(value.teams) || value.teams.length !== 2) return false;
   const teams = value.teams;
@@ -379,6 +459,10 @@ function validateMatchExport(
       !validScoutEvent(item.replacementEvent, match.id, teamIds, playerIds)
     )
       return false;
+    if (item.type === 'football_event_registered' && (!validCanonicalFootballEvent(item.event, match.id) || item.event.id !== item.id)) return false;
+    if (item.type === 'football_event_corrected' && (!isText(item.targetEventId) || !validCanonicalFootballEvent(item.replacementEvent, match.id) || item.replacementEvent.id !== item.targetEventId)) return false;
+    if (item.type === 'football_event_undone' && !isText(item.targetHistoryEventId)) return false;
+    if (item.type === 'football_clock_changed' && ((item.period !== 1 && item.period !== 2) || !isFiniteNumber(item.elapsedMs) || item.elapsedMs < 0 || typeof item.running !== 'boolean' || !isFiniteNumber(item.referenceTimestamp))) return false;
     if (item.type === 'match_correction') {
       if (
         !isRecord(item.correction) ||
@@ -457,6 +541,11 @@ function validateMatchExport(
         return false;
     }
   }
+  for (const item of value.events) {
+    if (!isRecord(item)) return false;
+    if (item.type === 'football_event_corrected' && (!isText(item.targetEventId) || !eventIds.has(item.targetEventId))) return false;
+    if (item.type === 'football_event_undone' && (!isText(item.targetHistoryEventId) || !eventIds.has(item.targetHistoryEventId))) return false;
+  }
   if (
     value.analysisConfigurations !== undefined &&
     (!Array.isArray(value.analysisConfigurations) ||
@@ -490,6 +579,10 @@ export class JsonMatchImporter {
       return failure(new ImportError('invalid_json', 'The match export is not valid JSON.', error));
     }
 
+    if (isRecord(parsed) && LEGACY_MATCH_EXPORT_SCHEMA_VERSIONS.has(String(parsed.schemaVersion)) && isRecord(parsed.match)) {
+      const modality = parsed.match.sport === 'football' || parsed.match.sport === 'volleyball' ? parsed.match.sport : 'unknown';
+      parsed = { ...parsed, schemaVersion: MATCH_EXPORT_SCHEMA_VERSION, modality, compatibility: manifest(modality) };
+    }
     if (
       !isRecord(parsed) ||
       parsed.schemaVersion !== MATCH_EXPORT_SCHEMA_VERSION ||
@@ -501,7 +594,7 @@ export class JsonMatchImporter {
       !validateMatchExport(parsed)
     ) {
       return failure(
-        new ImportError('invalid_schema', 'The match export does not match schema version 1.0.0.'),
+        new ImportError('invalid_schema', `The match export does not match schema version ${MATCH_EXPORT_SCHEMA_VERSION}.`),
       );
     }
 

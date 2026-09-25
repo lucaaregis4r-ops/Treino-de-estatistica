@@ -1,0 +1,8 @@
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+
+const fixture = JSON.parse(fs.readFileSync(new URL('../test/fixtures/statsbomb-15946-sample.json', import.meta.url)));
+const shots = fixture.filter((event) => event.type?.id === 16 && event.shot?.outcome);
+const reference = { schema_version: '1.0.0', source_repo: 'hudl/open-data', specification: 'Open Data Events v4.0.0', attribution: 'StatsBomb Open Data; see repository terms', match_ids: ['15946'], competition_ids: [], season_ids: [], selection: 'fixture sample only; all observed shots with outcome', coverage: { matches: 1, shots_valid: shots.length, statsbomb_xg_present: shots.filter((event) => typeof event.shot.statsbomb_xg === 'number').length }, shots: { all: { chutes: shots.length, gols: shots.filter((event) => event.shot.outcome.name === 'Goal').length, goal_rate: shots.length ? shots.filter((event) => event.shot.outcome.name === 'Goal').length / shots.length : null, mean_statsbomb_xg: shots.length ? shots.reduce((sum, event) => sum + (event.shot.statsbomb_xg ?? 0), 0) / shots.length : null } }, progression: { state: 'generic_observable_possession', outcomes: { shot: shots.length, end: 0 }, eligible_possessions: new Set(shots.map((event) => event.possession)).size }, rules: { alpha: 10, combined_only_when_state_and_coverage_match: true, no_parameter_for_build_structure: true }, generated_by: 'reference/generate-statsbomb-reference.mjs', fixture_sha256: crypto.createHash('sha256').update(fs.readFileSync(new URL('../test/fixtures/statsbomb-15946-sample.json', import.meta.url))).digest('hex') };
+fs.mkdirSync(new URL('./', import.meta.url), { recursive: true });
+fs.writeFileSync(new URL('./statsbomb-reference-v1.json', import.meta.url), JSON.stringify(reference, null, 2) + '\n');

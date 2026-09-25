@@ -1,0 +1,20 @@
+.football-analysis { max-width: 1400px; margin: auto; }
+.football-analytics-panel { display: grid; gap: 1rem; min-width: 0; }
+.football-filters, .football-metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: .75rem; }
+.football-filters label { display: grid; gap: .3rem; }
+.football-metrics article { display: grid; gap: .4rem; padding: 1rem; border: 1px solid #526f62; border-radius: .6rem; }
+.football-metrics strong { font-size: 1.8rem; color: #8be0c0; }
+.football-analysis-tabs { display: flex; flex-wrap: wrap; gap: .5rem; }
+.football-analytics-panel button, .football-analytics-panel select { min-height: 44px; padding: .5rem; }
+.football-analytics-panel button[aria-pressed=true] { background: #8be0c0; color: #132b21; }
+.football-pitch-plot { width: 100%; max-height: 520px; }
+.football-analytics-panel table { width: 100%; border-collapse: collapse; text-align: left; }
+.football-analytics-panel th, .football-analytics-panel td { padding: .6rem; border-bottom: 1px solid #526f62; overflow-wrap: anywhere; }
+.football-analytics-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.football-model-note { font-size: .85rem; opacity: .85; }
+.football-analytics-panel svg g:focus { outline: 1px solid #fff; }
+.football-markov { border: 1px solid #526f62; border-radius: .6rem; padding: .5rem; background: #10271f; }
+.football-markov svg { width: 100%; max-height: 560px; }
+.football-markov g[role=button] { cursor: pointer; }
+.football-heatmap-legend { display: flex; justify-content: center; gap: .75rem; align-items: center; font-size: .85rem; }
+.football-heatmap-legend i { width: 140px; height: 12px; background: linear-gradient(to right, #347f73, #e8bc50, #ee6b42); border-radius: 4px; }

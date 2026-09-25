@@ -1,0 +1,65 @@
+import { test, expect } from '@playwright/test';
+import fs from 'node:fs';
+const output = 'output/posse-v0.5';
+test('records pressure, corrects without duplicating, reloads and opens actual maps', async ({ page }) => {
+  test.setTimeout(180000);
+  fs.mkdirSync(output, { recursive: true });
+  await page.setViewportSize({width:1366,height:768});
+  await page.goto('/');
+  await page.getByRole('button',{name:'Nova partida'}).last().click();
+  await page.getByLabel('Modalidade').selectOption('football');
+  await page.getByRole('button',{name:'Iniciar partida'}).click();
+  await page.getByRole('button',{name:'Modo detalhado',exact:true}).click();
+  await page.getByRole('button',{name:'Iniciar',exact:true}).click();
+  await page.getByLabel('Ataque da equipe executora').selectOption('x120');
+  await page.getByRole('button',{name:'Passe',exact:true}).click();
+  await page.getByRole('button',{name:'Completo',exact:true}).click();
+  await page.getByRole('button',{name:'Coletiva',exact:true}).click();
+  await page.getByLabel('Superou a pressão?').selectOption('yes');
+  const frame=page.getByRole('application');
+  let box=await frame.boundingBox(); if(!box) throw Error('field missing');
+  await frame.click({position:{x:box.width*.2,y:box.height*.5}});
+  await frame.click({position:{x:box.width*.65,y:box.height*.4}});
+  await page.getByRole('button',{name:'Confirmar evento'}).click();
+  await expect(page.locator('.football-history li')).toHaveCount(1);
+  await page.locator('.football-history li').first().getByRole('button',{name:'Editar'}).click();
+  await expect(page.getByRole('button',{name:'Coletiva',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('.football-marker').first()).toBeVisible();
+  await page.getByRole('button',{name:'Drible',exact:true}).click();
+  await page.getByRole('button',{name:'Completo',exact:true}).click();
+  box=await frame.boundingBox(); if(!box) throw Error('field missing');
+  await frame.click({position:{x:box.width*.4,y:box.height*.4}});
+  await page.getByRole('button',{name:'Salvar correção'}).click();
+  await expect(page.locator('.football-history li')).toHaveCount(1);
+  await page.reload();
+  await page.getByRole('button',{name:'Continuar registro'}).click();
+  await page.getByRole('button',{name:'Análise',exact:true}).click();
+  await expect(page.getByRole('img',{name:'Mapa do campo de futebol 120 por 80'})).toBeVisible();
+  await page.getByRole('button',{name:'Pressão e resposta',exact:true}).click();
+  await expect(page.locator('.football-analysis p').filter({hasText:'cobertura 1/1'})).toBeVisible();
+  await page.screenshot({path:`${output}/analysis-pressure.png`,fullPage:true});
+  await page.getByRole('button',{name:'Registro',exact:true}).click();
+  await page.getByRole('button',{name:'Modo detalhado',exact:true}).click();
+  const timings:number[]=[];
+  for(let i=0;i<20;i++) {
+    const start=Date.now();
+    await page.getByRole('button',{name:'Passe',exact:true}).click();
+    box=await frame.boundingBox(); if(!box) throw Error('field missing');
+    await frame.click({position:{x:box.width*.2,y:box.height*.5}});
+    await frame.click({position:{x:box.width*.6,y:box.height*.5}});
+    await page.getByRole('button',{name:'Completo',exact:true}).click();
+    await page.getByRole('button',{name:'Confirmar evento'}).click();
+    await expect(page.locator('.football-history li')).toHaveCount(i+2);
+    timings.push(Date.now()-start);
+  }
+  fs.writeFileSync(`${output}/automated-timings.json`,JSON.stringify({kind:'Playwright automated interaction latency; not operator UX time',n:20,medianMs:[...timings].sort((a,b)=>a-b)[10],samples:timings},null,2));
+  for(const width of [1366,1024,390,320]) {
+    const height=width<=390?844:768;
+    await page.setViewportSize({width,height});
+    await page.getByRole('button',{name:'Passe',exact:true}).click();
+    await page.evaluate(()=>window.scrollTo(0,0));
+    await page.screenshot({path:`${output}/recorder-${width}x${height}.png`,fullPage:true});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true);
+    await page.getByRole('button',{name:'Cancelar evento'}).click();
+  }
+});

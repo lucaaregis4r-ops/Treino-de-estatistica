@@ -17,9 +17,25 @@
 }
 
 .gesture-court-frame[data-dragging='true'] { cursor: grabbing; }
+.gesture-court-frame[data-disabled='true'] { cursor: default; }
+.gesture-court-frame[data-disabled='true'] > .football-surface { filter: saturate(.82) brightness(.9); }
 
 .gesture-court-frame > .spatial-v2-surface {
   pointer-events: none;
+}
+.gesture-court-frame > .football-surface { pointer-events: none; }
+
+.gesture-court[data-sport='football'] {
+  max-width: none;
+  margin: 0;
+}
+
+.gesture-court-frame[data-sport='football'] {
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid rgb(255 255 255 / 72%);
+  border-radius: 0.6rem;
+  background: #174c32;
 }
 
 .gesture-court-hint { margin: 8px 0; color: var(--st-muted); font-size: 13px; }

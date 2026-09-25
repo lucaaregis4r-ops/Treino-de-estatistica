@@ -50,6 +50,55 @@ afterEach(async () => {
 });
 
 describe('usable MVP flow', () => {
+  it('creates, reopens, and routes football without volleyball state or controls', async () => {
+    const { service, trainingService, profileEditorService } = createService();
+    const created = await service.createMatch({
+      sport: 'football', teamAName: 'Azul FC', teamBName: 'Verde FC',
+      teamAPlayers: [], teamBPlayers: [], complexityProfileId: 'basic',
+    });
+    if (!created.ok) throw created.error;
+    expect(created.value.state.metadata.sport).toBe('football');
+    expect(created.value.state.metadata.initialServingTeamId).toBeUndefined();
+    expect(created.value.state.metadata.scoringRules).toBeUndefined();
+    expect(created.value.players).toEqual([]);
+    expect(created.value.events.some((event) => event.type === 'set_lineup_confirmed')).toBe(false);
+
+    const reopened = await service.loadMatch(created.value.state.metadata.id);
+    if (!reopened.ok) throw reopened.error;
+    expect(reopened.value.state.metadata.sport).toBe('football');
+
+    render(<App service={service} trainingService={trainingService} profileEditorService={profileEditorService} />);
+    const openButton = await screen.findByRole('button', { name: 'Continuar registro' }, { timeout: 5000 });
+    await waitFor(() => expect(openButton).toBeEnabled());
+    fireEvent.click(openButton);
+    expect(await screen.findByLabelText('Registro de ação e jogador')).toBeInTheDocument();
+    expect(screen.getByLabelText('Placar da partida')).toHaveTextContent('Azul FC x Verde FC');
+    expect(screen.getByLabelText('Jogador da ação')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Modo detalhado' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Líbero|Rotação: R1|Quem começa sacando|SET 1/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Quadra de Azul FC')).not.toBeInTheDocument();
+  });
+
+  it('keeps explicit volleyball on the existing volleyball recorder', async () => {
+    const { service, trainingService, profileEditorService } = createService();
+    const created = await service.createMatch({
+      sport: 'volleyball', teamAName: 'Vôlei A', teamBName: 'Vôlei B',
+      teamAPlayers: [1, 2, 3, 4, 5, 6], teamBPlayers: [7, 8, 9, 10, 11, 12],
+      complexityProfileId: 'basic', initialServingTeam: 'teamA',
+    });
+    if (!created.ok) throw created.error;
+    expect(created.value.state.metadata.sport).toBe('volleyball');
+    expect(created.value.state.metadata.initialServingTeamId).toBe(created.value.teams[0].id);
+
+    render(<App service={service} trainingService={trainingService} profileEditorService={profileEditorService} />);
+    const openButton = await screen.findByRole('button', { name: 'Continuar registro' });
+    await waitFor(() => expect(openButton).toBeEnabled());
+    fireEvent.click(openButton);
+    expect(await screen.findByLabelText('Contexto atual da partida')).toHaveTextContent('Rotação: R1');
+    expect(screen.getByLabelText('Quadra de Vôlei A')).toBeInTheDocument();
+    expect(screen.queryByText('Registro de futebol')).not.toBeInTheDocument();
+  });
+
   it('opens a permanent code manual from the main navigation', async () => {
     const { service, trainingService, profileEditorService } = createService();
     render(
@@ -59,7 +108,7 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Manual' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ajuda' }));
     expect(screen.getByRole('heading', { name: 'Códigos' })).toBeInTheDocument();
     expect(screen.getByText('*08S#a12R+*03E+*10A#')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Fundamentos' })).toBeInTheDocument();
@@ -82,6 +131,7 @@ describe('usable MVP flow', () => {
     );
     fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('radio', { name: /Operacional/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     const scoutInput = await screen.findByLabelText<HTMLInputElement>(
@@ -114,7 +164,8 @@ describe('usable MVP flow', () => {
     await waitFor(() => expect(scoutInput).toHaveFocus());
     await waitFor(() => expect(scoutInput.selectionStart).toBe(scoutInput.value.length));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+    fireEvent.click(screen.getByText('Mais'));
+    fireEvent.click(screen.getByRole('button', { name: 'Ajuda' }));
     expect(await screen.findByRole('heading', { name: 'Códigos' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Voltar' }));
     expect(await screen.findByText('*01A#')).toBeInTheDocument();
@@ -300,13 +351,11 @@ describe('usable MVP flow', () => {
       />,
     );
     fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
-    const rosterFields = screen.getAllByLabelText('Atletas (camisa e nome)');
-    fireEvent.change(rosterFields[0], {
-      target: {
-        value:
-          '1 Jogador 1, 2 Jogador 2, 3 Jogador 3, 4 Jogador 4, 5 Jogador 5, 6 Jogador 6, 7 Reserva | levantador',
-      },
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Adicionar atleta' })[0]);
+    fireEvent.change(screen.getByLabelText('Camisa Equipe A 7'), { target: { value: '7' } });
+    fireEvent.change(screen.getByLabelText('Nome Equipe A 7'), { target: { value: 'Reserva' } });
+    fireEvent.change(screen.getByLabelText('Posição Equipe A 7'), { target: { value: 'setter' } });
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     await screen.findByLabelText('Quadra de Equipe A', undefined, { timeout: 20_000 });
 
@@ -403,6 +452,7 @@ describe('usable MVP flow', () => {
       />,
     );
     fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
     await waitFor(() => expect(input).toHaveValue('*01S'));
@@ -437,6 +487,7 @@ describe('usable MVP flow', () => {
       />,
     );
     fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
 
@@ -459,6 +510,7 @@ describe('usable MVP flow', () => {
       />,
     );
     fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('radio', { name: /Tático/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
@@ -489,6 +541,7 @@ describe('usable MVP flow', () => {
       />,
     );
     fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('radio', { name: /Tático/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
@@ -547,6 +600,7 @@ describe('usable MVP flow', () => {
       />,
     );
     fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('radio', { name: /Tático/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
@@ -578,14 +632,15 @@ describe('usable MVP flow', () => {
       />,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Cadastros' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Perfis' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Equipes e atletas' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Configurações de perfis' }));
     expect(await screen.findByRole('heading', { name: 'Editor de perfis' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Validar e salvar perfil' }));
     expect(await screen.findByText('Perfil Meu perfil salvo e ativado.')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Partidas' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Nova partida' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     const language = await screen.findByLabelText('Linguagem de código');
     fireEvent.change(language, { target: { value: 'meu_profile' } });
     expect(language).toHaveValue('meu_profile');

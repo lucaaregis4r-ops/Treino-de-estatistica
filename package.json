@@ -2,7 +2,7 @@
   "name": "scout-trainer",
   "private": true,
   "version": "0.4.0",
-  "description": "Registro, treinamento e análise de scout de voleibol.",
+  "description": "Registro, treinamento e análise de scout de voleibol e futebol.",
   "author": "Lucas Novo",
   "type": "module",
   "scripts": {
@@ -50,7 +50,6 @@
   "build": {
     "appId": "br.com.scouttrainer.app",
     "productName": "Scout Trainer",
-    "electronDist": "node_modules/electron/dist",
     "artifactName": "Scout-Trainer-${version}-Portable.${ext}",
     "directories": {
       "output": "distribuicao"

@@ -1,0 +1,584 @@
+[
+  {
+    "origem": "PLANO_IMPLEMENTACAO_SCOUT_TRAINER_0_2 (1).md",
+    "destino": "docs/versoes/v0.2/PLANO_IMPLEMENTACAO.md",
+    "versao_escopo": "0.2",
+    "sha256_original": "606192a9c6a4b80e1d457d583c07df2d5ddd66dc2660252d96f21582315055e7"
+  },
+  {
+    "origem": "docs/COMECE_AQUI.md",
+    "destino": "docs/versoes/v0.4/futebol/base-f1-f5/INSTRUCOES_PACOTE_ORIGINAL.md",
+    "versao_escopo": "Base do app 0.4.0; pacote Futebol 0.1",
+    "sha256_original": "9cd2e20e34ff8c40c822a38c04c31f89d8e3ed6bdc306dcaa654f50c96b6f0b6"
+  },
+  {
+    "origem": "docs/COMPATIBILIDADE_DADOS_FUTEBOL.md",
+    "destino": "docs/referencia/COMPATIBILIDADE_DADOS_FUTEBOL.md",
+    "versao_escopo": "Transversal; base documentada 0.4.0 / backup 1.1.0",
+    "sha256_original": "c72b1dc5d29f3b92fa4789d768387b16370e3ec787c1e2feff570fa1059e06bd"
+  },
+  {
+    "origem": "docs/CORRECAO_MACRO_20_MINI_QUADRA_CONTEXTUAL.md",
+    "destino": "docs/versoes/v0.3/CORRECAO_MACRO_20_MINI_QUADRA_CONTEXTUAL.md",
+    "versao_escopo": "0.3",
+    "sha256_original": "018734296873245748752dbcd701af31f82a488ebe3c6a1d0c4001260cbfca87"
+  },
+  {
+    "origem": "docs/Plano_Unico_Luna_Markov (1).md",
+    "destino": "docs/historico/sem-versao-de-release/PLANO_EXPLORADOR_MARKOV.md",
+    "versao_escopo": "Release não declarado; relacionado ao registro não lançado de 15/09/2026 no CHANGELOG",
+    "sha256_original": "7d21d51b2a1cf3ae20f7483997f49c515d1db2afa00370362206eaf07e0e8d6e"
+  },
+  {
+    "origem": "docs/REGISTRO_RAPIDO.md",
+    "destino": "docs/versoes/v0.4/REGISTRO_RAPIDO.md",
+    "versao_escopo": "Base 0.4.0; ajuste de 14/09/2026",
+    "sha256_original": "b267499305dbd954c858172b935b433e7026fb90b25af8c23f0c3eb687ea6e15"
+  },
+  {
+    "origem": "docs/SCOUT_TRAINER_0.4_CORRECAO_QUADRA_SEQUENCIA.md",
+    "destino": "docs/versoes/v0.4/SCOUT_TRAINER_0.4_CORRECAO_QUADRA_SEQUENCIA.md",
+    "versao_escopo": "0.4",
+    "sha256_original": "7efa4c238aaf147132bd403f63842d2068888b0190bb9b3b1bf1afc5f54a9740"
+  },
+  {
+    "origem": "docs/SCOUT_TRAINER_0.4_PLANO_CONSOLIDADO.md",
+    "destino": "docs/versoes/v0.4/SCOUT_TRAINER_0.4_PLANO_CONSOLIDADO.md",
+    "versao_escopo": "0.4",
+    "sha256_original": "de5b7ee8ddf55a31be6e949119027fe4dc982f2c9f7066c22f87f0266e75ab80"
+  },
+  {
+    "origem": "docs/SCOUT_TRAINER_0.4_PLANO_REFINAMENTO_CODEX.md",
+    "destino": "docs/versoes/v0.4/SCOUT_TRAINER_0.4_PLANO_REFINAMENTO_CODEX.md",
+    "versao_escopo": "0.4",
+    "sha256_original": "123b4fcefbf1f7331a6d7b87b3173afecb9916d61961cdfc057afd48624f516e"
+  },
+  {
+    "origem": "docs/SCOUT_TRAINER_0.4_PLANO_REFINO_GESTUAL_DESKTOP (1).md",
+    "destino": "docs/versoes/v0.4/SCOUT_TRAINER_0.4_PLANO_REFINO_GESTUAL_DESKTOP.md",
+    "versao_escopo": "0.4",
+    "sha256_original": "96eb86dc6bcb27d230ae6be8201e786465ad88ecdcffcd039dd0ed586576eabf"
+  },
+  {
+    "origem": "docs/SCOUT_TRAINER_GUIA_SEMANTICA_VOLEIBOL.md",
+    "destino": "docs/referencia/SEMANTICA_VOLEIBOL.md",
+    "versao_escopo": "Transversal ao vôlei; sem release exclusivo declarado",
+    "sha256_original": "abc657128a7a0bb4dde31761ee6de67e6584fde0c8e5e0be28a5b24e9bd3a0fb"
+  },
+  {
+    "origem": "docs/SCOUT_TRAINER_V0.3_PLANO_REESTRUTURACAO_ENXUTO (1).md",
+    "destino": "docs/versoes/v0.3/SCOUT_TRAINER_V0.3_PLANO_REESTRUTURACAO_ENXUTO.md",
+    "versao_escopo": "0.3",
+    "sha256_original": "44f702014a1a879aa7f30b82bf36b38ab053a4e263f2c4575e3db17a7489ee84"
+  },
+  {
+    "origem": "docs/SCOUT_TRAINER_V0.4_PLANO_GESTUAL_MOBILE_LUNA.md",
+    "destino": "docs/versoes/v0.4/SCOUT_TRAINER_V0.4_PLANO_GESTUAL_MOBILE_LUNA.md",
+    "versao_escopo": "0.4",
+    "sha256_original": "9cfa976f57fce700b7564ad84cd67a0ccc6b4ef5e837be76f77dbe9690c4bb34"
+  },
+  {
+    "origem": "docs/SCOUT_TRAINER_V0.4_ROTEIRO_CORRECAO_ROTACAO_GESTUAL.md",
+    "destino": "docs/versoes/v0.4/SCOUT_TRAINER_V0.4_ROTEIRO_CORRECAO_ROTACAO_GESTUAL.md",
+    "versao_escopo": "0.4",
+    "sha256_original": "b3bda53d7dd152212e9424a09d42b60fcee0c2c000e7f80b5ee7ac08abaa3ba1"
+  },
+  {
+    "origem": "docs/Scout_Trainer_Plano_Recuperacao_Funcional_Luna.md",
+    "destino": "docs/versoes/v0.4/recuperacao/Scout_Trainer_Plano_Recuperacao_Funcional_Luna.md",
+    "versao_escopo": "Base 0.4.0; recuperação funcional de 19–20/09/2026",
+    "sha256_original": "6b8fa636dbe77497f848794adb2d0c619821b46a74a15811fff0d741a71d2228"
+  },
+  {
+    "origem": "docs/VALIDACAO_RECUPERACAO_ETAPA5.md",
+    "destino": "docs/versoes/v0.4/recuperacao/VALIDACAO_RECUPERACAO_ETAPA5.md",
+    "versao_escopo": "Base 0.4.0; recuperação funcional de 19–20/09/2026",
+    "sha256_original": "a3dc16da53844a4aa1b867f611003c74267ca41fe66105f2a9eeb6b94354ca58"
+  },
+  {
+    "origem": "docs/audit-v0.2.md",
+    "destino": "docs/versoes/v0.2/AUDITORIA.md",
+    "versao_escopo": "0.2",
+    "sha256_original": "e3292c9c60dbf1742c6251d05c270f8c493be762e94afca13802282284b78d91"
+  },
+  {
+    "origem": "docs/docs/scout-trainer-futebol/Scout_Trainer_Futebol_F1_Base_StatsBomb.md",
+    "destino": "docs/versoes/v0.4/futebol/base-f1-f5/Scout_Trainer_Futebol_F1_Base_StatsBomb.md",
+    "versao_escopo": "Base do app 0.4.0; pacote Futebol 0.1 (numeração própria do módulo)",
+    "sha256_original": "b744d6dabeb9435b8e8be8cc1324a3abf7497995785704a2cbafc8576aed3b34"
+  },
+  {
+    "origem": "docs/docs/scout-trainer-futebol/Scout_Trainer_Futebol_F2_Registro_StatsBomb.md",
+    "destino": "docs/versoes/v0.4/futebol/base-f1-f5/Scout_Trainer_Futebol_F2_Registro_StatsBomb.md",
+    "versao_escopo": "Base do app 0.4.0; pacote Futebol 0.1 (numeração própria do módulo)",
+    "sha256_original": "61fe96cfe24dd4cf37dd4aa7c95fde0f920e12dc9f67a3139351fd3b9a46df99"
+  },
+  {
+    "origem": "docs/docs/scout-trainer-futebol/Scout_Trainer_Futebol_F3_Contexto_Chutes.md",
+    "destino": "docs/versoes/v0.4/futebol/base-f1-f5/Scout_Trainer_Futebol_F3_Contexto_Chutes.md",
+    "versao_escopo": "Base do app 0.4.0; pacote Futebol 0.1 (numeração própria do módulo)",
+    "sha256_original": "1b51f250e05b22515825f8bcb7535367a684ccadd5903b08b2f1e2da65f02438"
+  },
+  {
+    "origem": "docs/docs/scout-trainer-futebol/Scout_Trainer_Futebol_F4_Leitura.md",
+    "destino": "docs/versoes/v0.4/futebol/base-f1-f5/Scout_Trainer_Futebol_F4_Leitura.md",
+    "versao_escopo": "Base do app 0.4.0; pacote Futebol 0.1 (numeração própria do módulo)",
+    "sha256_original": "47a1bead86c28597cbb2428a69fceb34744ce433cf567fe06f3ce5b65011579c"
+  },
+  {
+    "origem": "docs/docs/scout-trainer-futebol/Scout_Trainer_Futebol_F5_Intercambio_Referencias.md",
+    "destino": "docs/versoes/v0.4/futebol/base-f1-f5/Scout_Trainer_Futebol_F5_Intercambio_Referencias.md",
+    "versao_escopo": "Base do app 0.4.0; pacote Futebol 0.1 (numeração própria do módulo)",
+    "sha256_original": "9b8fb61f001745deea0415c366a8d3a56428f667818beb9c6e2894f33f8e0d0d"
+  },
+  {
+    "origem": "docs/docs/scout-trainer-futebol/Scout_Trainer_Futebol_Plano_0_1_Luna.md",
+    "destino": "docs/versoes/v0.4/futebol/base-f1-f5/Scout_Trainer_Futebol_Plano_0_1_Luna.md",
+    "versao_escopo": "Base do app 0.4.0; pacote Futebol 0.1 (numeração própria do módulo)",
+    "sha256_original": "af22d08a4b92864fd4c15f68604b90915843c7dd36808ed4e11909e6e7244377"
+  },
+  {
+    "origem": "docs/macroetapa-18-advanced-analytics.md",
+    "destino": "docs/versoes/v0.2/macroetapa-18-advanced-analytics.md",
+    "versao_escopo": "0.2 — macroetapas; V3 Analytics é nome de evolução, não release 0.3",
+    "sha256_original": "881ea23a66fc8233ab379fafbaae9b000493aa669613294ccf16cc99efd6be86"
+  },
+  {
+    "origem": "docs/macroetapa-19-visual-analytics.md",
+    "destino": "docs/versoes/v0.2/macroetapa-19-visual-analytics.md",
+    "versao_escopo": "0.2 — macroetapas; V3 Analytics é nome de evolução, não release 0.3",
+    "sha256_original": "7154849efd7b2c4a78aceeb3797d8baa178420d77c450b3107d6d9aa03e801dd"
+  },
+  {
+    "origem": "docs/macroetapa-2-motor-partida.md",
+    "destino": "docs/versoes/v0.2/macroetapa-2-motor-partida.md",
+    "versao_escopo": "0.2 — macroetapas; V3 Analytics é nome de evolução, não release 0.3",
+    "sha256_original": "ae8f5e9119ee267e084518ea7516e915db1d9c24e7e68f41b3f18965dff0ad0a"
+  },
+  {
+    "origem": "docs/macroetapa-3-lineup-rotacao-substituicoes.md",
+    "destino": "docs/versoes/v0.2/macroetapa-3-lineup-rotacao-substituicoes.md",
+    "versao_escopo": "0.2 — macroetapas; V3 Analytics é nome de evolução, não release 0.3",
+    "sha256_original": "dd56f420505278736abfdc2026b4adf719bf7cbc0234dedbb4e17aa11f856fa4"
+  },
+  {
+    "origem": "docs/macroetapa-4-match-workspace.md",
+    "destino": "docs/versoes/v0.2/macroetapa-4-match-workspace.md",
+    "versao_escopo": "0.2 — macroetapas; V3 Analytics é nome de evolução, não release 0.3",
+    "sha256_original": "d7e99757855778d81b1d0502699fa613c4693cdfd2a7e405c16ff42b2eb5f805"
+  },
+  {
+    "origem": "docs/macroetapa-5-analytics.md",
+    "destino": "docs/versoes/v0.2/macroetapa-5-analytics.md",
+    "versao_escopo": "0.2 — macroetapas; V3 Analytics é nome de evolução, não release 0.3",
+    "sha256_original": "ebc1187ff200a91b43fdbc024be541775f3707876b2f6c5c5833c66988e10f55"
+  },
+  {
+    "origem": "docs/macroetapa-6-report-model-pdf.md",
+    "destino": "docs/versoes/v0.2/macroetapa-6-report-model-pdf.md",
+    "versao_escopo": "0.2 — macroetapas; V3 Analytics é nome de evolução, não release 0.3",
+    "sha256_original": "601d4ce586a84a9dcd6f3036c82b6a3e30f887e4d6842c4c82536f2fe5292be4"
+  },
+  {
+    "origem": "docs/relatorio-editavel.md",
+    "destino": "docs/referencia/RELATORIO_EDITAVEL.md",
+    "versao_escopo": "Transversal; funcionalidade descrita no README da base 0.4.0",
+    "sha256_original": "4933c8e48b767b4527c03a17d595ca4fafa1f1d57118a6e80915824ed14682fd"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/ADR-BYOK-IA.md",
+    "destino": "docs/versoes/v0.45/ADR-BYOK-IA.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "d61dc2ecd99ebb290f433f7bbfd78128bab100f2250cc22f12e35b45b40b6ff2"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/ADR-SequenceAnalyticsProfile.md",
+    "destino": "docs/versoes/v0.45/ADR-SequenceAnalyticsProfile.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "9a2767a8a041e685bce0f7635c5bdb6a9be68f0fe9bf7172b6e0325b130707e3"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/ADR-SpatialAnalyticsProfile.md",
+    "destino": "docs/versoes/v0.45/ADR-SpatialAnalyticsProfile.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "38d8ab4e3ca85f90c8af3f1c0e8294d4d5feb2cfebe4ce954a12f3f8af57ad75"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/CONTRATO_ANALYTICS.md",
+    "destino": "docs/versoes/v0.45/CONTRATO_ANALYTICS.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "8180cc4bf7ec6c6cd308a3084b72cdd2896fc046e6dd76598d671d48f8a271c1"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/CONTRATO_CARGA_FUTURA.md",
+    "destino": "docs/versoes/v0.45/CONTRATO_CARGA_FUTURA.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "d5a9e00f67c4ea74e73d0996a9e8b25936325af62c45838bb9db758b3e4679e5"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/DECISOES_DE_ESCOPO.md",
+    "destino": "docs/versoes/v0.45/DECISOES_DE_ESCOPO.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "c855a87ead47faefcbc562994e319cd635bd156e775782869192d253aa2ae7e2"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/ESTADO_ATUAL.md",
+    "destino": "docs/versoes/v0.45/ESTADO_ATUAL.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "f97dff5230e604ed28b6c3dc4bc76341bbf3a559d5451d1bf644281ac8194a36"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/LEIA_PRIMEIRO.md",
+    "destino": "docs/versoes/v0.45/LEIA_PRIMEIRO.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "6b592136725332c8b7cadf125591e15ce1aa86bd486b3ef87615c1d6eb8c9a50"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/MANIFEST.json",
+    "destino": "docs/versoes/v0.45/MANIFEST.json",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "bc156f4648a9eb6254f2d3b8e749af329d3cadfb0f2d7a795539aa544e8424db"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/MAPA_DE_ARQUIVOS.md",
+    "destino": "docs/versoes/v0.45/MAPA_DE_ARQUIVOS.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "2f745511f6e143250a7bae027988f4b2cfd0ffe8989cedabaff0dd13c14addaf"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/MARKOV_ESPACIAL.md",
+    "destino": "docs/versoes/v0.45/MARKOV_ESPACIAL.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "e73f432ffc796b62ebcaa6443873e38eb1bdb970b264f544ba6a9f5bf692be59"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/PACOTE_CONSOLIDADO_0_45.md",
+    "destino": "docs/versoes/v0.45/PACOTE_CONSOLIDADO_0_45.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "3280db26de03d423c13dff6dd5e9d51756772a66f25ecbf61ff00f0cf7c668b6"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/PLANO_MESTRE_0_45.md",
+    "destino": "docs/versoes/v0.45/PLANO_MESTRE_0_45.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "0084888b61e49d5bc3bebf1965ead81e9b70700e2dd17597dce5b3843393c58f"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/PROMPTS_LUNA.md",
+    "destino": "docs/versoes/v0.45/PROMPTS_LUNA.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "1989af92c50b94660b25ac4483f4c3a10d277d80aae714d8a8475fcb1a7b1aed"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/STATUS_0_45.md",
+    "destino": "docs/versoes/v0.45/STATUS_0_45.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "d038740344a97aa50a36e991b2c18256e5bcf0a04c988b46a60650714e96817b"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/STATUS_0_45_TEMPLATE.md",
+    "destino": "docs/versoes/v0.45/STATUS_0_45_TEMPLATE.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "7f2aaac9770518653c2c91f5533454da08528cb569edfb99ad42374c41aa24db"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/Scout_Trainer_Plano_0.46_Luna.md",
+    "destino": "docs/versoes/v0.46/PLANO_IMPLEMENTACAO_LUNA.md",
+    "versao_escopo": "0.46 — plano de motor, bloqueio e sequências",
+    "sha256_original": "fdb6643f3e57f3049bb48b9c6adb398fbb62c6689a6c527dfc60b626c22d39a2"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/VALIDACAO_0_45.md",
+    "destino": "docs/versoes/v0.45/VALIDACAO_0_45.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "5ca14a190d731b80820e52eb4c32c3d8d0409b7da38850d5f3827459aba266bf"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/etapas/M0.md",
+    "destino": "docs/versoes/v0.45/etapas/M0.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "58ae7712dce10c24003bfad4f194e4fa578fca69228e9fa18a05f4e977387456"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/etapas/M1.md",
+    "destino": "docs/versoes/v0.45/etapas/M1.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "1aa186ec27d6f7056b217beb281aef59c34021aab386e686227c0268c1454ba8"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/etapas/M2.md",
+    "destino": "docs/versoes/v0.45/etapas/M2.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "4c8be46c872975e98bd3f7cf8e1b485855a10de1384e9a9e2da07301c144b5e2"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/etapas/M3.md",
+    "destino": "docs/versoes/v0.45/etapas/M3.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "77b51a14d83088770ebd3c9329022e4c5d8913a2c2992b978c58519c0b715a06"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/etapas/M4.md",
+    "destino": "docs/versoes/v0.45/etapas/M4.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "e750e2536f2a0dfd6b21995d201fd4be8417c8be6ea65315a38d185a5a56a2ae"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/etapas/M5.md",
+    "destino": "docs/versoes/v0.45/etapas/M5.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "205df3a977151f0174ff3d2a7542f8df47bbb1096edf19821cdc1650eca97742"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/etapas/M6.md",
+    "destino": "docs/versoes/v0.45/etapas/M6.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "72ef4cad8defc56ced77514af51f60a5b0d0c2954ae7d78f3343838630ba7cb9"
+  },
+  {
+    "origem": "docs/scout-trainer-0.45/etapas/M7.md",
+    "destino": "docs/versoes/v0.45/etapas/M7.md",
+    "versao_escopo": "0.45 (roadmap; correspondência SemVer proposta no pacote: 0.4.5)",
+    "sha256_original": "6915913dd6fd157f2aa1c09bdf5004ba8d09d56cb35a649dd479102718fe8fe1"
+  },
+  {
+    "origem": "docs/scout-trainer-futebol/PLANO_REDESIGN_FUTEBOL_TERRA.md",
+    "destino": "docs/versoes/v0.4/futebol/PLANO_REDESIGN_FUTEBOL_TERRA.md",
+    "versao_escopo": "Base 0.4.0; revisão do futebol em 20/09/2026",
+    "sha256_original": "e8e14472eaee39dbe61582ff3767251b776fd867c9e1517a2104a75758f2e57b"
+  },
+  {
+    "origem": "docs/scout-trainer-futebol/PLANO_SCOUT_POR_POSSE.md",
+    "destino": "docs/versoes/v0.5-proposta/REFERENCIA_SCOUT_POR_POSSE.md",
+    "versao_escopo": "0.5 proposta — versão de planejamento, não release",
+    "sha256_original": "9225bf29d458fc47e30d4fbc48a997987c23a6ed9036fe7f9c329618dcc83257"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/CONTRATO_DESIGN.md",
+    "destino": "docs/versoes/v0.4/interface/CONTRATO_DESIGN.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "b7e7ac73b8dfc209892912b3fc86858808a55aebc97b3abab9cc1015198bbc57"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/ENTREGA.md",
+    "destino": "docs/versoes/v0.4/interface/ENTREGA.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "5a993d95beeb1f14bb7e07b43de84acdb983e3940935fc7b5b57b19c124e2f65"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/ESTADO.md",
+    "destino": "docs/versoes/v0.4/interface/ESTADO.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "1450f5d3ecf34ddbe6f071361adb8f51f18fde04ebc245ecc6d5852358372d69"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/LEIA_PRIMEIRO.md",
+    "destino": "docs/versoes/v0.4/interface/LEIA_PRIMEIRO.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "f9a4030abbadb687d1edf19bd6039c85b86b16effd70199035e21d651bc2952f"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/MAPA_LOCAL.md",
+    "destino": "docs/versoes/v0.4/interface/MAPA_LOCAL.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "a3281e65f5717d74ae24a8a268980d9ec1068ee0667a63b1ac0a99e7532ca955"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/MAPA_TECNICO.md",
+    "destino": "docs/versoes/v0.4/interface/MAPA_TECNICO.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "7fb4c591b6cee633c103dec98b7c2d23e369167865380032a20f661f220aa469"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/PLANO_COMPLETO.md",
+    "destino": "docs/versoes/v0.4/interface/PLANO_COMPLETO.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "42a479949582a67233a299642bd988b661545447c118b41be2f738ebca858880"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/PROMPTS.md",
+    "destino": "docs/versoes/v0.4/interface/PROMPTS.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "09fefb84f98400e2843a3258363613f1c1d2452b363af5e35ce9fb3f56814ca5"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/VALIDACAO.md",
+    "destino": "docs/versoes/v0.4/interface/VALIDACAO.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "8b35720d55cb49f535c4d21191023f8c15f56f848608e58ee87eb8d11f069e14"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/VERIFICACAO_DO_PACOTE.md",
+    "destino": "docs/versoes/v0.4/interface/VERIFICACAO_DO_PACOTE.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "276e96e6b1fddbf8674b4758463c8bf19e47c3b57ad8aa5896a697d8cee0a884"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/etapas/U0.md",
+    "destino": "docs/versoes/v0.4/interface/etapas/U0.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "88cefc6e20d4665c8f67800bcc69a56868f3a35cf0b1ef469d4a32278adfeb27"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/etapas/U1.md",
+    "destino": "docs/versoes/v0.4/interface/etapas/U1.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "4696e2661df4b0c3c187e450dfc658dee4a5b5b26efb18a740d43a891cba5bbf"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/etapas/U2.md",
+    "destino": "docs/versoes/v0.4/interface/etapas/U2.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "e273368aade49d45fe3a5025993c2a9070fd7166ad76a9a3d8d89f8a16864dd7"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/etapas/U3.md",
+    "destino": "docs/versoes/v0.4/interface/etapas/U3.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "73f1fb01dbbcc170f9a97e938fb2698ac6e8e040b54494b52f5618bb709dbd25"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/etapas/U4.md",
+    "destino": "docs/versoes/v0.4/interface/etapas/U4.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "df817b8ba2c282ab6a327507289a4c7fe0fd72f945892bbe47de769143cd7cc8"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/etapas/U5.md",
+    "destino": "docs/versoes/v0.4/interface/etapas/U5.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "a31bcce0e6d34c9b19b57cd4f68942b54a15b57d978c580259ac5cf16a6d81be"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/etapas/U6.md",
+    "destino": "docs/versoes/v0.4/interface/etapas/U6.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "4ec218324383b186dc334cd2963f55475889634e9e300a2a1560248ebc82ce75"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/etapas/U7.md",
+    "destino": "docs/versoes/v0.4/interface/etapas/U7.md",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "7867cbb8b709c725f115edea87c8e0501ca97acdc3eedec340f62c48f1a9604c"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/referencia/interface.html",
+    "destino": "docs/versoes/v0.4/interface/referencia/interface.html",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "64b5ccd2fd0ecd6d4a8096337fab7b3ce192ce9b627e384932f1bcbd0f654982"
+  },
+  {
+    "origem": "docs/scout-trainer-interface-0.4/referencia/tokens.css",
+    "destino": "docs/versoes/v0.4/interface/referencia/tokens.css",
+    "versao_escopo": "0.4 — interface e registros históricos posteriores",
+    "sha256_original": "464b783dee459ee43e99a9c1a25a183c3b337fb38ed70aa9b51b50908b6bd076"
+  },
+  {
+    "origem": "vibecoding/IMPLEMENTATION_STATUS.md",
+    "destino": "docs/versoes/v0.4/STATUS_LEGADO_VIBECODING.md",
+    "versao_escopo": "0.4 — status histórico do refinamento",
+    "sha256_original": "322c2d3f98996fbaf60d533f762809ad348dd9372e52caf384b2191070f6a278"
+  },
+  {
+    "origem": "vibecoding/SCOUT_TRAINER_IMPLEMENTATION_PLAN.md",
+    "destino": "docs/versoes/v0.1/PLANO_IMPLEMENTACAO.md",
+    "versao_escopo": "0.1 — versão declarada no plano original",
+    "sha256_original": "8305f0a3736d520cb21bc2e1edb0e9fc70251a4d5ae1d502e6c77ab5986a869c"
+  },
+  {
+    "origem": "vibecoding/docs/PROJECT_CONTEXT.md",
+    "destino": "docs/historico/fundacao/PROJECT_CONTEXT.md",
+    "versao_escopo": "Fundação histórica; release não declarado",
+    "sha256_original": "50eea6030d8a202013980d621d5327b3886eff4fa1008945385abb196dfab087"
+  },
+  {
+    "origem": "vibecoding/docs/ROADMAP.md",
+    "destino": "docs/historico/fundacao/ROADMAP.md",
+    "versao_escopo": "Fundação histórica; release não declarado",
+    "sha256_original": "1ec04bef139f1657177ccc428afe309ab0412d4eab7f3a5d0103ff92319dd05f"
+  },
+  {
+    "origem": "vibecoding/docs/SCOUT_TRAINER_EVOLUTION_V2_2.md",
+    "destino": "docs/historico/evolucao-v2/PLANO_EVOLUCAO_V2.md",
+    "versao_escopo": "Documento 1.2 / Evolução V2; correspondência de release não declarada",
+    "sha256_original": "8836306167d2c967a7be51b7518574b0df7f6ffec7071a82f6b928c16d8e1abb"
+  },
+  {
+    "origem": "vibecoding/docs/SCOUT_TRAINER_EVOLUTION_V3_ANALYTICS.md",
+    "destino": "docs/versoes/v0.2/EVOLUCAO_V3_ANALYTICS.md",
+    "versao_escopo": "Base 0.2.0 explicitada no documento; V3 designa a evolução analítica",
+    "sha256_original": "fd9bdf799c12cee7a28c5b99e7775c20c3bee7e5ea9edcc48a8e9b7696230542"
+  },
+  {
+    "origem": "vibecoding/docs/architecture/PIPELINES.md",
+    "destino": "docs/arquitetura/PIPELINES.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "3a162b16570c050f1dd473f8869896dbfaad001a15be8e4d65424825ce68199a"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-001-canonical-event.md",
+    "destino": "docs/arquitetura/decisoes/ADR-001-canonical-event.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "876f1e50a4be53d0f09f47b93a9d8e19f72fadae026c8d9ae32269ea8c7627e3"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-002-profile-separation.md",
+    "destino": "docs/arquitetura/decisoes/ADR-002-profile-separation.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "9fe54a983d1718a0addced7439305b245dac0ed50a79e9b8d230a482f799c9b2"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-003-event-sourcing.md",
+    "destino": "docs/arquitetura/decisoes/ADR-003-event-sourcing.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "a7c409297fe7ad0aa1cfc17bca6374a520c5ae64416c50e5d45a18b1a5465c65"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-004-local-first.md",
+    "destino": "docs/arquitetura/decisoes/ADR-004-local-first.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "f4e55c3e6536de88e9d8a985edc826d066722731ed032aba17f9b345ba3e2f9c"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-005-continuous-input-framing.md",
+    "destino": "docs/arquitetura/decisoes/ADR-005-continuous-input-framing.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "a5836a8eb281ad4a5d2a98e0904017e1594d975d81eefe3703b4856ace8869c3"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-008-late-event-enrichment.md",
+    "destino": "docs/arquitetura/decisoes/ADR-008-late-event-enrichment.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "089837a90f68f06b2a0c4a6fdfc827002cf3c7e8dd187b18721bcc37f639225d"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-010-rally-result-score-rotation.md",
+    "destino": "docs/arquitetura/decisoes/ADR-010-rally-result-score-rotation.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "3400b822bfe7723414612e5e2b3a289a965a9235d61dd2cb3e91986091e8da6e"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-011-player-lineup-slot-model.md",
+    "destino": "docs/arquitetura/decisoes/ADR-011-player-lineup-slot-model.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "c080d573e5c063d00cc5e6edb5d7707ee66729590e6696699186d27056f14c80"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-012-visual-input-shared-canonical-pipeline.md",
+    "destino": "docs/arquitetura/decisoes/ADR-012-visual-input-shared-canonical-pipeline.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "f746d5b773b2918f2d05c341f808ab73084257273cf334aac4ae2a6251be061f"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-013-derived-setter-context.md",
+    "destino": "docs/arquitetura/decisoes/ADR-013-derived-setter-context.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "cd58c21d754daa17c1892ae64d1316fd75007749f50849c7275971f697b8ad77"
+  },
+  {
+    "origem": "vibecoding/docs/decisions/ADR-014-analytics-snapshot-cache.md",
+    "destino": "docs/arquitetura/decisoes/ADR-014-analytics-snapshot-cache.md",
+    "versao_escopo": "Transversal; versões e datas registradas no conteúdo original",
+    "sha256_original": "6727375830d84e3731e913ac8b54f53378c17457c50d1cdc0a6d0f57e0d0af07"
+  }
+]

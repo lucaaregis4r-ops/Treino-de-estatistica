@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { MatchMetadata, MatchStatus } from '../../../domain/match/entities/MatchMetadata';
+import { resolveMatchSport, type MatchSport } from '../../../domain/match/entities/MatchSport';
 import {
   MATCH_STATUS_LABELS,
   matchDateLabel,
@@ -9,29 +10,55 @@ import {
 } from './matchPresentation';
 
 type MatchFilter = 'all' | MatchStatus;
+type SportFilter = 'all' | MatchSport | 'unknown';
+
+export interface MatchFilters {
+  readonly query: string;
+  readonly status: MatchFilter;
+  readonly sport: SportFilter;
+}
+
+export const DEFAULT_MATCH_FILTERS: MatchFilters = {
+  query: '',
+  status: 'all',
+  sport: 'all',
+};
 
 export function MatchesScreen({
   matches,
   busy,
   onNewMatch,
   onOpenMatch,
+  filters,
+  onFiltersChange,
 }: {
   readonly matches: readonly MatchMetadata[];
   readonly busy: boolean;
   readonly onNewMatch: () => void;
   readonly onOpenMatch: (id: string, summary?: boolean) => Promise<void>;
+  readonly filters?: MatchFilters;
+  readonly onFiltersChange?: (filters: MatchFilters) => void;
 }) {
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<MatchFilter>('all');
-  const normalizedQuery = normalizeMatchSearch(query);
+  const [localFilters, setLocalFilters] = useState<MatchFilters>(DEFAULT_MATCH_FILTERS);
+  const currentFilters = filters ?? localFilters;
+  const updateFilters = (next: MatchFilters) => {
+    if (onFiltersChange) onFiltersChange(next);
+    else setLocalFilters(next);
+  };
+  const normalizedQuery = normalizeMatchSearch(currentFilters.query);
   const filteredMatches = useMemo(
     () =>
       sortMatchesByCreation(matches).filter((match) => {
         const matchesName = normalizeMatchSearch(match.name).includes(normalizedQuery);
-        const matchesStatus = statusFilter === 'all' || match.status === statusFilter;
-        return matchesName && matchesStatus;
+        const matchesStatus =
+          currentFilters.status === 'all' || match.status === currentFilters.status;
+        const matchesSport =
+          currentFilters.sport === 'all' ||
+          resolveMatchSport(match) ===
+            (currentFilters.sport === 'unknown' ? undefined : currentFilters.sport);
+        return matchesName && matchesStatus && matchesSport;
       }),
-    [matches, normalizedQuery, statusFilter],
+    [currentFilters.sport, currentFilters.status, matches, normalizedQuery],
   );
 
   return (
@@ -51,21 +78,39 @@ export function MatchesScreen({
           Buscar por nome
           <input
             type="search"
-            value={query}
+            value={currentFilters.query}
             placeholder="Ex.: semifinal"
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) =>
+              updateFilters({ ...currentFilters, query: event.target.value })
+            }
           />
         </label>
         <label>
           Estado
           <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as MatchFilter)}
+            value={currentFilters.status}
+            onChange={(event) =>
+              updateFilters({ ...currentFilters, status: event.target.value as MatchFilter })
+            }
           >
             <option value="all">Todas</option>
             <option value="in_progress">Em andamento</option>
             <option value="finished">Finalizadas</option>
             <option value="created">Criadas</option>
+          </select>
+        </label>
+        <label>
+          Modalidade
+          <select
+            value={currentFilters.sport}
+            onChange={(event) =>
+              updateFilters({ ...currentFilters, sport: event.target.value as SportFilter })
+            }
+          >
+            <option value="all">Todas</option>
+            <option value="volleyball">Vôlei</option>
+            <option value="football">Futebol</option>
+            <option value="unknown">Não identificada</option>
           </select>
         </label>
         <p className="matches-count" aria-live="polite">
