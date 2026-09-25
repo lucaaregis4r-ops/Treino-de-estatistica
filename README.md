@@ -1,4 +1,4 @@
-﻿# Scout Trainer
+# Scout Trainer
 
 Aplicação desktop para treinamento e registro estatístico de partidas de **voleibol e futebol**, com armazenamento local. O projeto foi criado para praticar a velocidade, a lógica e a consistência do trabalho de scout em um ambiente educacional.
 
@@ -98,6 +98,19 @@ Os testes E2E usam Google Chrome instalado e iniciam um servidor na porta `4175`
 Na verificação de 25/09/2026, o build, 62 testes dirigidos de futebol/cadastros/backups e um cenário E2E de futebol (registro, pressão, jogador, mapas e recarga) passaram. O E2E passou na repetição com limite de 120 segundos, após a tentativa inicial expirar. A validação global continua pendente: foram observadas falhas em testes de fluxo da interface, e o lint completo foi interrompido por consumo de memória. Isso se soma ao piloto humano ainda pendente no plano de implementação.
 
 Consulte o [CHANGELOG.md](CHANGELOG.md) para o histórico completo entre as versões 0.1.0 e 0.4.0.
+
+## Usar no Windows e compartilhar pelo Drive
+
+O executável portátil da revisão de **25/09/2026** está preparado para **Windows de 64 bits**. A versão do aplicativo permanece **0.4.0**.
+
+1. Baixe `Scout-Trainer-0.4.0-2026-09-25.zip` quando ele for disponibilizado pelo responsável pelo projeto.
+2. Extraia o ZIP para uma pasta no computador.
+3. Abra `Scout-Trainer-0.4.0-Portable.exe`. Não é necessário instalar Node.js, npm ou o projeto para usar o aplicativo.
+4. Escolha a modalidade, cadastre ou reutilize as equipes e crie uma partida.
+
+O pacote preparado localmente fica em `Para Google Drive/Scout-Trainer-0.4.0-2026-09-25.zip` e contém o executável, `LEIA-ME.txt`, `DIVULGACAO.txt` e o checksum SHA-256 do executável. A data distingue esta revisão de outros pacotes com a mesma versão. O upload e o link de download do Drive são separados do envio do código ao GitHub.
+
+O pacote foi gerado em Linux e ainda precisa de uma verificação de abertura no Windows. Os resultados dos testes e as pendências estão descritos na seção Desenvolvimento.
 
 ## Gerar o executável Windows
 
