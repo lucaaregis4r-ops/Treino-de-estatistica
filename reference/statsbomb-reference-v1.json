@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "source_repo": "hudl/open-data",
+  "specification": "Open Data Events v4.0.0",
+  "attribution": "StatsBomb Open Data; see repository terms",
+  "match_ids": [
+    "15946"
+  ],
+  "competition_ids": [],
+  "season_ids": [],
+  "selection": "fixture sample only; all observed shots with outcome",
+  "coverage": {
+    "matches": 1,
+    "shots_valid": 1,
+    "statsbomb_xg_present": 1
+  },
+  "shots": {
+    "all": {
+      "chutes": 1,
+      "gols": 0,
+      "goal_rate": 0,
+      "mean_statsbomb_xg": 0.07699243
+    }
+  },
+  "progression": {
+    "state": "generic_observable_possession",
+    "outcomes": {
+      "shot": 1,
+      "end": 0
+    },
+    "eligible_possessions": 1
+  },
+  "rules": {
+    "alpha": 10,
+    "combined_only_when_state_and_coverage_match": true,
+    "no_parameter_for_build_structure": true
+  },
+  "generated_by": "reference/generate-statsbomb-reference.mjs",
+  "fixture_sha256": "f93856d9a3f88dfc8302d97892bf7744f68765164ee068c98d9bd7e8e9cf0678"
+}

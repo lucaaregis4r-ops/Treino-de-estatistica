@@ -10,6 +10,9 @@ import { QuickActionRail, type QuickAction } from './QuickActionRail';
 import { AttackBlockSelector, type AttackBlockerOption } from '../AttackBlockSelector';
 import { SKILL_LABELS } from '../presentationLabels';
 import './gesture.css';
+import '../football/FootballActionPanel.css';
+import { FootballContextDrawer } from '../football/FootballContextDrawer';
+import '../football/FootballContext.css';
 
 export interface GesturePlayerSuggestion {
   readonly automatic?: string;
@@ -18,6 +21,7 @@ export interface GesturePlayerSuggestion {
 }
 
 export interface GestureScoutProps {
+  readonly sport?: 'volleyball' | 'football';
   readonly phase: string;
   readonly skill: Skill;
   readonly teamName?: string;
@@ -56,6 +60,7 @@ export interface GestureScoutProps {
 }
 
 export function GestureScout({
+  sport = 'volleyball',
   phase,
   skill,
   teamName,
@@ -161,8 +166,9 @@ export function GestureScout({
         </div>
         {error && <p className="gesture-scout-error" role="alert">{error}</p>}
       </div>
+      {sport === 'football' && <FootballContextDrawer />}
       {!selectedFault && (
-        <GestureCourtInput key={draftKey} onTrajectory={onTrajectory} teamNames={courtTeamNames} />
+        <GestureCourtInput key={draftKey} onTrajectory={onTrajectory} teamNames={courtTeamNames} sport={sport} />
       )}
       <div className="gesture-action-options">
         <label className="gesture-rapid-control"><input type="checkbox" checked={rapid ?? false}

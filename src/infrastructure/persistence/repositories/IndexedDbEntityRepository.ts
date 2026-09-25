@@ -24,6 +24,24 @@ export class IndexedDbEntityRepository<
     }
   }
 
+  /**
+   * Saves a roster as one IndexedDB transaction. Repeating the same entity ids
+   * is an upsert, which makes retrying a failed UI submission idempotent.
+   */
+  async saveMany(entities: readonly T[]): Promise<Result<void, RepositoryError>> {
+    if (!entities.length) return success(undefined);
+    try {
+      const database = await this.database.open();
+      const transaction = database.transaction(this.storeName, 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+      for (const entity of entities) store.put(entity);
+      await transactionDone(transaction, `save many ${this.storeName}`);
+      return success(undefined);
+    } catch (error) {
+      return failure(this.repositoryError(error, `Could not save ${this.storeName} entities.`));
+    }
+  }
+
   async findById(id: string): Promise<Result<T | undefined, RepositoryError>> {
     try {
       const database = await this.database.open();

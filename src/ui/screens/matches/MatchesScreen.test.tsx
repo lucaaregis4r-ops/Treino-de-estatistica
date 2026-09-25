@@ -25,6 +25,7 @@ const matches: readonly MatchMetadata[] = [
     codeProfileId: 'default',
     codeProfileVersion: '1',
     complexityProfileId: 'tactical',
+    sport: 'football',
   },
   {
     id: 'active',
@@ -40,7 +41,7 @@ const matches: readonly MatchMetadata[] = [
 ];
 
 describe('MatchesScreen', () => {
-  it('normalizes search, filters status, and opens the selected match id', () => {
+  it('normalizes search, filters status and modality, and opens the selected match id', () => {
     const onOpenMatch = vi.fn().mockResolvedValue(undefined);
     render(<MatchesScreen matches={matches} busy={false} onNewMatch={vi.fn()} onOpenMatch={onOpenMatch} />);
 
@@ -56,6 +57,7 @@ describe('MatchesScreen', () => {
 
     fireEvent.change(screen.getByLabelText('Buscar por nome'), { target: { value: '' } });
     fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'finished' } });
+    fireEvent.change(screen.getByLabelText('Modalidade'), { target: { value: 'football' } });
     fireEvent.click(screen.getByRole('button', { name: 'Resumo' }));
 
     expect(onOpenMatch).toHaveBeenCalledWith('finished', true);

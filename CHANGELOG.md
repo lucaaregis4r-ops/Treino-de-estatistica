@@ -2,6 +2,20 @@
 
 Todas as mudanças relevantes do Scout Trainer são registradas neste arquivo.
 
+## [Não lançado] — Futebol, cadastros e empacotamento — 2026-09-25
+
+- Registro mínimo de futebol por controle da bola, posições, ações e finalizações, com pressão, detalhes opcionais, sugestões locais e revisão voluntária.
+- Cadastro por modalidade, entrada de atletas por linhas e reaproveitamento de equipes e elencos.
+- Documentação reorganizada por versão, arquitetura, referência e histórico; README atualizado com os recursos e as pendências de piloto e análise por posse.
+- Empacotamento Windows seleciona a distribuição de Electron do destino, sem reutilizar obrigatoriamente o Electron instalado no sistema de desenvolvimento.
+- Mantida a versão `0.4.0`; o pacote desta revisão não encerra o piloto humano de T10 nem as etapas T11/T12.
+
+## [Não lançado] — Futebol F5 — 2026-09-19
+
+- Adicionados adaptadores de importação/exportação de eventos StatsBomb Open Data v4.0.0 com preservação de campos crus, desconhecidos, extras e manifesto de compatibilidade.
+- Adicionada fixture pinada de teste da partida 15946 e referência offline reproduzível de chutes/progressão, com cobertura, fonte, SHA e `alpha=10` documentado.
+- Relatórios de futebol distinguem referência pública, observado local e combinação suavizada; a combinação é desativada quando estados/cobertura não são equivalentes. Nenhum parâmetro externo é aplicado a `3+1`.
+
 ## [Não lançado] — Caminhos do rally — 2026-09-15
 
 - Substituída a apresentação técnica de Sequências/Markov pelo explorador visual `Caminhos do rally`.
@@ -15,7 +29,7 @@ Todas as mudanças relevantes do Scout Trainer são registradas neste arquivo.
 - Números e nomes mais legíveis no Gestual, ação/equipe em destaque e opção explícita de registrar ao soltar a trajetória.
 - Bola de graça registra seu próprio contato espacial e prepara a defesa adversária no Gestual, sem corrigir indevidamente o ataque anterior.
 - Ajuste conjunto de rotação via P1, equipe sacadora e placar, com escrita atômica usando os eventos existentes; retomada pelo saque somente quando solicitada.
-- Falhas de gravação mantêm rascunho/escolhas; ausência de atleta e confirmação manual preservadas. Guia em `docs/REGISTRO_RAPIDO.md`.
+- Falhas de gravação mantêm rascunho/escolhas; ausência de atleta e confirmação manual preservadas. Guia em `docs/versoes/v0.4/REGISTRO_RAPIDO.md`.
 
 ## [Não lançado] — Interface local — 2026-09-13
 
@@ -24,7 +38,7 @@ Todas as mudanças relevantes do Scout Trainer são registradas neste arquivo.
 - Detalhes da partida e ferramentas de correção com entradas maiores, conteúdo no fluxo da página e fechamento por Escape com retorno de foco.
 - Seletor gestual segue a rotação real: Rede P4/P3/P2 e Fundo P5/P6/P1, sugestão distinta da seleção, nome ao passar o cursor e ao selecionar, um botão de líbero e acesso às reservas.
 - Análises organizadas em abas, filtros salvos e seleção persistente de gráficos para o relatório, usando a persistência e os exporters existentes.
-- Evidências e limites da verificação U7 em `docs/scout-trainer-interface-0.4/ENTREGA.md`; suíte global ainda não está limpa. Sem mudança automática de versão, métricas ou regras esportivas nesta revisão.
+- Evidências e limites da verificação U7 em `docs/versoes/v0.4/interface/ENTREGA.md`; suíte global ainda não está limpa. Sem mudança automática de versão, métricas ou regras esportivas nesta revisão.
 
 ## [0.4.0] - 2026-09-10
 

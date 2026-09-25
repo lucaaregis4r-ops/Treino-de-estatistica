@@ -3,6 +3,7 @@ import type { ScoutEvent } from '../../scout/events/ScoutEvent';
 import type { CourtRotationPosition, SetLineup } from '../lineup/SetLineup';
 import type { PlayerRole } from '../roles/PlayerRole';
 import type { CourtOrientation } from '../state/CourtOrientation';
+import type { CanonicalFootballEvent } from '../../football/StatsBombContract';
 
 interface MatchSystemEvent {
   readonly id: string;
@@ -135,6 +136,30 @@ export interface SubstitutionEvent extends MatchSystemEvent {
   readonly playerInRole: PlayerRole;
 }
 
+export interface FootballEventRegisteredEvent extends MatchSystemEvent {
+  readonly type: 'football_event_registered';
+  readonly event: CanonicalFootballEvent;
+}
+
+export interface FootballEventCorrectedEvent extends MatchSystemEvent {
+  readonly type: 'football_event_corrected';
+  readonly targetEventId: string;
+  readonly replacementEvent: CanonicalFootballEvent;
+}
+
+export interface FootballEventUndoneEvent extends MatchSystemEvent {
+  readonly type: 'football_event_undone';
+  readonly targetHistoryEventId: string;
+}
+
+export interface FootballClockChangedEvent extends MatchSystemEvent {
+  readonly type: 'football_clock_changed';
+  readonly period: 1 | 2;
+  readonly elapsedMs: number;
+  readonly running: boolean;
+  readonly referenceTimestamp: number;
+}
+
 export type MatchEvent =
   | FaultEvent
   | ScoutRegisteredEvent
@@ -151,7 +176,11 @@ export type MatchEvent =
   | RallyResultEvent
   | SetFinishedEvent
   | MatchCorrectionEvent
-  | SubstitutionEvent;
+  | SubstitutionEvent
+  | FootballEventRegisteredEvent
+  | FootballEventCorrectedEvent
+  | FootballEventUndoneEvent
+  | FootballClockChangedEvent;
 
 export function matchEventId(event: MatchEvent): string {
   return event.type === 'scout_registered' ? event.event.id : event.id;

@@ -491,6 +491,64 @@ h2 {
   gap: 1.2rem;
   align-items: center;
 }
+.match-sport-select {
+  grid-column: 1 / -1;
+  max-width: 24rem;
+}
+.football-recorder-layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1fr) minmax(32rem, 2fr);
+  gap: var(--st-space-4);
+  align-items: start;
+}
+.football-scout-screen {
+  width: min(100%, 1500px);
+  margin-inline: auto;
+  padding: var(--st-space-4);
+}
+.football-scout-screen .capture-heading h1 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.2vw, 2rem);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+.football-scout-screen .capture-heading .eyebrow { margin-bottom: .25rem; }
+.football-recorder-selection {
+  display: grid;
+  gap: var(--st-space-3);
+}
+.football-recorder-field {
+  min-width: 0;
+  align-self: center;
+}
+.football-recorder-field > .gesture-court {
+  width: min(100%, calc((100vh - 20.5rem) * 1.5));
+  margin-left: auto;
+}
+.football-field-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--st-space-3);
+  align-items: center;
+  margin-bottom: var(--st-space-2);
+  color: var(--muted);
+  font-size: .9rem;
+}
+.football-field-toolbar button {
+  min-height: 44px;
+  padding-inline: .8rem;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-control);
+  color: var(--st-text);
+  background: #182722;
+  font-weight: 700;
+}
+.football-field-toolbar button:hover,
+.football-field-toolbar button:focus-visible { border-color: var(--st-accent); color: #fff; }
+@media (max-width: 860px) {
+  .football-recorder-layout { grid-template-columns: 1fr; }
+  .football-recorder-field > .gesture-court { width: 100%; }
+}
 .team-form-card {
   position: relative;
   display: grid;
@@ -3448,7 +3506,7 @@ kbd {
 
 .matches-toolbar {
   display: grid;
-  grid-template-columns: minmax(14rem, 1fr) 12rem auto;
+  grid-template-columns: minmax(14rem, 1fr) 12rem 12rem auto;
   gap: 12px;
   align-items: end;
   margin-bottom: 20px;
@@ -4533,6 +4591,7 @@ kbd {
 .match-workspace-tabs {
   display: flex;
   gap: 0.35rem;
+  align-items: stretch;
 }
 
 .match-workspace-tabs button {
@@ -4559,6 +4618,56 @@ kbd {
   font-weight: 650;
 }
 
+.match-workspace-more {
+  position: relative;
+  align-self: stretch;
+}
+
+.match-workspace-more summary {
+  display: grid;
+  min-height: 44px;
+  align-items: center;
+  padding: 0.45rem 0.25rem;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.match-workspace-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.match-workspace-more summary::after {
+  content: '⌄';
+  margin-left: 0.35rem;
+}
+
+.match-workspace-more[open] summary,
+.match-workspace-more summary:hover {
+  color: var(--ink);
+}
+
+.match-workspace-more > div {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  display: grid;
+  min-width: 11.5rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--panel-strong);
+  box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 20%);
+}
+
+.match-workspace-more > div button {
+  justify-content: start;
+  width: 100%;
+  padding-inline: 0.6rem;
+  text-align: left;
+}
+
 .win-probability-card { margin: 1.2rem 0; padding: 1.1rem 1.25rem; border: 1px solid var(--line); border-radius: .8rem; background: var(--panel); }
 .win-probability-heading { display:flex; justify-content:space-between; align-items:start; gap:1rem; }
 .win-probability-heading h3 { margin:.25rem 0 0; }
@@ -4574,6 +4683,23 @@ kbd {
 .probability-impacts { display:flex; gap:1rem; flex-wrap:wrap; margin-top:.7rem; color:var(--muted); font-size:.72rem; }
 
 @media (max-width: 640px) {
+  .app-nav {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .app-nav nav {
+    grid-column: 1;
+    width: 100%;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-nav nav button {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
   .match-workspace-nav {
     gap: 0.5rem;
     padding: 0.55rem 0.75rem;

@@ -154,7 +154,10 @@ export function ManualScreen({ onBack }: ManualScreenProps) {
       <div className="section-heading">
         <div>
           <h1 id="manual-title">Códigos</h1>
-          <p>Perfil Data Volley — registro básico.</p>
+          <p>Ajuda de códigos do vôlei — perfil Data Volley.</p>
+          <p className="section-support">
+            Para futebol, use os controles e a ajuda contextual no Registro da partida.
+          </p>
         </div>
         <button className="button ghost" type="button" onClick={onBack}>
           Voltar

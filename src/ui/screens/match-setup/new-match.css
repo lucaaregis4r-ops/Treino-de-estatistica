@@ -1,0 +1,47 @@
+.match-roster-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: var(--st-space-5);
+  align-items: start;
+}
+.match-roster {
+  display: grid;
+  gap: var(--st-space-3);
+  min-width: 0;
+  padding: var(--st-space-4);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-surface);
+}
+.match-roster h2 { margin: 0; }
+.match-roster > label,
+.match-paste > label,
+.team-search { display: grid; gap: var(--st-space-2); }
+.match-roster-header,
+.match-roster-row {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, .45fr) minmax(9rem, 1.3fr) minmax(8rem, 1fr) auto;
+  gap: var(--st-space-2);
+  align-items: end;
+}
+.match-roster-header { font-weight: 700; }
+.match-roster-row { position: relative; padding-top: var(--st-space-2); border-top: 1px solid var(--st-border); }
+.match-roster-row label { display: grid; }
+.match-roster-row .row-error { grid-column: 1 / -1; margin: 0; color: var(--st-danger); }
+.match-paste { display: grid; gap: var(--st-space-3); margin: var(--st-space-5) 0; }
+.match-paste summary { cursor: pointer; font-weight: 700; }
+.match-paste textarea { min-height: 7rem; }
+.match-searches { display: flex; flex-wrap: wrap; gap: var(--st-space-3); }
+.team-search { flex: 1 1 16rem; max-width: 28rem; }
+
+@media (max-width: 800px) {
+  .match-roster-grid { grid-template-columns: 1fr; }
+  .match-roster-grid .versus { display: none; }
+}
+@media (max-width: 560px) {
+  .match-roster-header { display: none; }
+  .match-roster-row { grid-template-columns: 1fr; padding: var(--st-space-3) 0; }
+  .match-roster-row label::before { margin-bottom: var(--st-space-1); font-weight: 700; }
+  .match-roster-row label:nth-child(1)::before { content: 'Camisa'; }
+  .match-roster-row label:nth-child(2)::before { content: 'Nome'; }
+  .match-roster-row label:nth-child(3)::before { content: 'Posição/função'; }
+}

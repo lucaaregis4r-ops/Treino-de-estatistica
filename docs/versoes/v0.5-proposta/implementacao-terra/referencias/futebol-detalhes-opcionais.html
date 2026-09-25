@@ -1,0 +1,109 @@
+<style>
+#st-minimo{--st-bg:light-dark(#f5f6f2,#111d18);--st-text:light-dark(#20332b,#edf2eb);--st-sub:light-dark(#55695f,#a7b8ae);--st-line:light-dark(#cdd5cd,#3e5146);--st-field:light-dark(#e3ebe0,#233c2e);--st-mark:light-dark(#7d9480,#829b85);--st-button:light-dark(#fff,#1b2d23);--st-active:light-dark(#263e2e,#d4eb88);--st-active-text:light-dark(#fff,#172619);--st-a:light-dark(#225b9a,#80b9f0);--st-b:light-dark(#8b4b23,#e5b392);background:var(--st-bg);color:var(--st-text);font:14px/1.45 system-ui,sans-serif;padding:20px;border-radius:12px;box-sizing:border-box}
+#st-minimo *{box-sizing:border-box}#st-minimo button{font:inherit;color:var(--st-text);background:var(--st-button);border:1px solid var(--st-line);border-radius:7px;min-height:44px;padding:9px 14px}#st-minimo button:disabled{opacity:.45}#st-minimo button[aria-pressed=true],#st-minimo .shot-button{background:var(--st-active);color:var(--st-active-text);border-color:var(--st-active)}#st-minimo .quiet{background:transparent;border-color:transparent;color:var(--st-sub)}#st-minimo header{display:flex;gap:16px;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1px solid var(--st-line)}#st-minimo .brand{font-weight:600}#st-minimo small{font-size:12px;color:var(--st-sub)}#st-minimo .score{display:flex;align-items:center;gap:12px;font-size:16px}#st-minimo .score strong{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}#st-minimo .clock{display:flex;align-items:center;gap:10px;font-variant-numeric:tabular-nums}#st-minimo .clock button{padding:8px}#st-minimo .field-head{display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:624px;margin:16px auto 10px;color:var(--st-sub);font-size:12px}#st-minimo .pitch{display:block;width:100%;max-width:624px;aspect-ratio:3/2;min-height:0;margin:0 auto;padding:0;border:0;border-radius:2px;background:var(--st-field);position:relative;overflow:hidden;touch-action:manipulation}#st-minimo .pitch svg{display:block;width:100%;height:100%;pointer-events:none}#st-minimo .pitch .lines{stroke:var(--st-mark);stroke-width:.45;fill:none}#st-minimo .trail{fill:none;stroke-width:.65;stroke-dasharray:1.2 1.4;opacity:.6}#st-minimo .toolbar{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 auto;max-width:900px}#st-minimo .teams{display:flex;align-items:center;gap:5px}#st-minimo .teams small{margin-right:4px}#st-minimo .commands{display:flex;gap:5px;align-items:center;flex-wrap:wrap}#st-minimo .tray{min-height:66px;display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;padding:10px 0}#st-minimo .tray button{padding:7px 10px;min-height:38px}#st-minimo .tray [hidden]{display:none}#st-minimo .tray .results{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}#st-minimo .hint{color:var(--st-sub);margin:0;text-align:center}#st-minimo footer{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--st-sub);margin-top:16px;padding-top:10px;border-top:1px solid var(--st-line);font-size:12px}#st-minimo .live-status{min-width:0}#st-minimo .pending{border:0;background:transparent;text-decoration:underline;padding:0;min-height:28px;color:var(--st-sub);font-size:12px}#st-minimo .score-a{color:var(--st-a)}#st-minimo .score-b{color:var(--st-b)}
+@media(max-width:580px){#st-minimo{padding:12px}#st-minimo header{flex-wrap:wrap;gap:8px}#st-minimo .brand{font-size:12px}#st-minimo .score{gap:7px;font-size:14px}#st-minimo .clock{width:100%;justify-content:space-between}#st-minimo .clock button{min-height:32px;padding:4px 8px}#st-minimo .toolbar{gap:8px}#st-minimo .teams,#st-minimo .commands{justify-content:center;width:100%}#st-minimo .toolbar button{padding:9px 10px}#st-minimo .tray{min-height:90px}#st-minimo footer{align-items:flex-start}}
+#st-minimo .extras{display:flex;gap:5px;justify-content:center;align-items:center;flex-wrap:wrap;width:100%}#st-minimo .extras-label{color:var(--st-sub);margin-right:5px}#st-minimo .player-name{font-size:12px;color:var(--st-sub);margin-left:6px}#st-minimo .detail-entry{background:transparent;border-color:transparent;color:var(--st-sub);text-decoration:underline}#st-minimo .tray{min-height:66px}#st-minimo .extras button{min-height:44px;padding:7px 10px}
+#st-minimo [hidden]{display:none !important}
+</style>
+<section id="st-minimo" aria-label="Registro minimalista com detalhes opcionais">
+ <header>
+  <div><div class="brand">Scout Trainer</div><small>Registro · prévia</small></div>
+  <div class="score"><span class="score-a">Azul</span><strong data-score>0 × 0</strong><span class="score-b">Branco</span></div>
+  <div class="clock"><span>1º T · <span data-clock>12:34</span></span><button type="button" class="quiet cursor-interaction" data-pause>Pausar coleta</button></div>
+ </header>
+ <div class="field-head"><span data-control>Azul com a bola</span><span>Azul ataca →</span></div>
+ <button type="button" class="pitch cursor-interaction" aria-label="Campo: toque para marcar a bola; use as setas e Enter no teclado" data-pitch>
+  <svg viewBox="0 0 120 80" aria-hidden="true">
+   <g class="lines"><rect x="3" y="3" width="114" height="74"/><path d="M60 3V77"/><circle cx="60" cy="40" r="9"/><circle cx="60" cy="40" r=".5"/><path d="M3 19H20V61H3 M117 19H100V61H117 M3 30H9V50H3 M117 30H111V50H117 M20 33Q27 40 20 47 M100 33Q93 40 100 47"/><circle cx="15" cy="40" r=".5"/><circle cx="105" cy="40" r=".5"/></g>
+   <g data-marks></g>
+  </svg>
+ </button>
+ <div class="tray" aria-live="polite">
+  <p class="hint" data-hint>Toque no campo para mover a bola.</p>
+  <button type="button" class="detail-entry cursor-interaction" data-details aria-expanded="false" aria-controls="st-opcionais">Detalhes</button>
+  <div id="st-opcionais" class="extras" data-extras hidden aria-label="Detalhe opcional"></div>
+  <div class="results" data-results hidden aria-label="Resultado da finalização">
+   <button type="button" class="cursor-interaction" data-result="goal">Gol</button><button type="button" class="cursor-interaction" data-result="saved">Defendida</button><button type="button" class="cursor-interaction" data-result="off">Fora</button><button type="button" class="cursor-interaction" data-result="blocked">Bloqueada</button><button type="button" class="cursor-interaction" data-result="post">Trave</button><button type="button" class="quiet cursor-interaction" data-later>Depois</button>
+  </div>
+ </div>
+ <div class="toolbar" aria-label="Registro rápido">
+  <div class="teams" aria-label="Quem tem a posse"><small>Posse</small><button type="button" class="cursor-interaction" data-team="A" aria-pressed="true">Azul</button><button type="button" class="cursor-interaction" data-team="B" aria-pressed="false">Branco</button><button type="button" class="quiet cursor-interaction" data-free aria-pressed="false">Disputa</button></div>
+  <div class="commands"><button type="button" class="shot-button cursor-interaction" data-shot>Finalizar</button><button type="button" class="quiet cursor-interaction" data-dead aria-pressed="false">Parada</button><button type="button" class="quiet cursor-interaction" data-undo disabled>Desfazer</button></div>
+ </div>
+ <footer><span class="live-status" data-status>Última posição observada · Azul</span><button type="button" class="pending cursor-interaction" data-pending hidden></button><span data-note>Dados fictícios</span></footer>
+</section>
+<script>
+(()=>{
+ const root=document.getElementById('st-minimo');const q=s=>root.querySelector(s);
+ const names={A:'Azul',B:'Branco'};const options={trail:true,details:true};
+ const players={A:[{n:4,name:'Rafael'},{n:5,name:'Bruno'},{n:8,name:'Caio'},{n:9,name:'Diego'},{n:10,name:'Lucas'},{n:11,name:'Pedro'}],B:[{n:3,name:'André'},{n:6,name:'João'},{n:7,name:'Mateus'},{n:8,name:'Paulo'},{n:9,name:'Rui'},{n:10,name:'Vitor'}]};
+ let state={control:'A',last:{x:30,y:47,team:'A',possession:1},trail:[{x:30,y:47,team:'A'}],events:[],activeShot:null,armed:false,paused:false,message:'Última posição observada · Azul',sequence:0,possession:1,chainTeam:'A',closed:false,lastTurnover:null};
+ let lastSaved=null;let undo=[];let focusPoint={x:60,y:40};const started=Date.now();let panel=null;
+ const known=t=>['A','B'].includes(t);
+ const snapshot=()=>JSON.parse(JSON.stringify(state));
+ const pointEvent=()=>state.events.find(e=>e.id===state.last?.eventId&&e.kind==='point'&&e.possession===state.possession&&e.team===state.control);
+ function remember(){undo.push(snapshot());undo=undo.slice(-20)}
+ function save(){if(!window.openai?.setWidgetState)return;const copy=snapshot();copy.events=copy.events.slice(-35);const payload={modelContent:{proposta:'Campo mínimo com detalhes opcionais',controle:state.control,marcacoes:state.events.length,ultimoDetalhe:state.events.filter(e=>e.kind==='annotation').at(-1)??null,trilha:options.trail},privateContent:{version:2,state:copy,trail:options.trail,details:options.details}};if(JSON.stringify(payload).length<15000){lastSaved=JSON.stringify(payload.privateContent);window.openai.setWidgetState(payload).catch(()=>{})}}
+ function restore(saved){const v=saved?.privateContent;if(v&&JSON.stringify(v)===lastSaved)return;if(v?.version===2&&Array.isArray(v.state?.events)&&['A','B','free','dead','unknown'].includes(v.state.control)){state=v.state;undo=[];panel=null;options.trail=v.trail!==false;options.details=v.details!==false;render()}}
+ function add(kind,extra={}){const e={id:++state.sequence,kind,team:known(state.control)?state.control:null,possession:state.possession,at:Date.now(),...extra};state.events.push(e);return e}
+ function closeDetails(){panel=null}
+ function target(){const point=pointEvent();const recovery=state.events.find(e=>e.id===state.lastTurnover&&e.possession===state.possession&&e.control===state.control);return{team:state.control,possession:state.possession,pointId:point?.id,recoveryId:recovery?.id}}
+ function annotation(kind,t){return [...state.events].reverse().find(e=>e.kind==='annotation'&&e.category===kind&&e.possession===t.possession&&e.team===t.team&&(kind==='player'?e.targetId===t.pointId:kind==='recovery'?e.targetId===t.recoveryId:true))}
+ function choose(category,value,label){if(!panel)return;const t=panel.target;if(!known(t.team)||t.possession!==state.possession||t.team!==state.control){closeDetails();render();return}remember();add('annotation',{category,value,label,team:t.team,possession:t.possession,...(category==='player'?{targetId:t.pointId}:category==='recovery'?{targetId:t.recoveryId}:{})});if(category==='exit'&&value==='transition')add('annotation',{category:'structure',value:null,label:'Não se aplica',team:t.team,possession:t.possession});state.message=category==='player'?(value?`Neste ponto: #${value} · ${names[t.team]}`:'Jogador não identificado'):category==='recovery'?`Recuperação de ${names[t.team]} · ${label}`:category==='pressure'?`Pressão observada em ${names[t.team]} · ${label}`:category==='structure'?`Estrutura da saída · ${label}`:`Saída de ${names[t.team]} · ${label}`;closeDetails();render();save()}
+ function renderExtras(){const box=q('[data-extras]');box.replaceChildren();if(!panel)return;
+  const t=panel.target;const category=panel.kind;const label=document.createElement('span');label.className='extras-label';label.textContent=category==='menu'?'Opcional':({pressure:`Pressão agora · ${names[t.team]}`,exit:`Saída · ${names[t.team]}`,structure:`Estrutura · ${names[t.team]}`,recovery:`Como recuperou? · ${names[t.team]}`,player:`Jogador deste ponto · ${names[t.team]}`})[category];box.appendChild(label);
+  function button(text,fn,disabled=false,selected=false,description){const b=document.createElement('button');b.type='button';b.className='cursor-interaction';b.textContent=text;b.disabled=disabled;if(selected)b.setAttribute('aria-pressed','true');if(description)b.setAttribute('aria-label',description);b.addEventListener('click',fn);box.appendChild(b);return b}
+  function open(kind){panel={kind,target:t};render();q('[data-extras] button:not(:disabled)')?.focus()}
+  if(category==='menu'){
+   button('Pressão',()=>open('pressure'),!known(t.team));button('Saída',()=>open('exit'),!known(t.team));button('Roubada',()=>open('recovery'),!t.recoveryId);button('Jogador',()=>open('player'),!t.pointId);
+  }else{
+   const choices=category==='pressure'?[['none','Livre'],['individual','Individual'],['collective','Coletiva'],[null,'Não observada']]:category==='exit'?[['short','Curta'],['direct','Direta'],['mixed','Mista'],['transition','Transição'],[null,'Não observada']]:category==='structure'?[['2+2','2+2'],['3+1','3+1'],['3+2','3+2'],['other','Outra'],[null,'Não observada']]:category==='recovery'?[['tackle','Desarme'],['interception','Interceptação'],['loose','Bola solta'],['error','Erro adversário'],[null,'Não observado']]:players[t.team].map(p=>[p.n,'#'+p.n]);
+   const selected=category==='pressure'?undefined:annotation(category,t)?.value;
+   for(const [value,text]of choices)button(text,()=>choose(category,value,text),false,selected!==undefined&&selected===value,category==='player'?`Camisa ${value}, ${players[t.team].find(p=>p.n===value)?.name}`:undefined);
+   if(category==='player')button('Não identificado',()=>choose(category,null,'Não identificado'));
+   if(category==='exit')button('Estrutura…',()=>open('structure'),annotation('exit',t)?.value==='transition');
+  }
+  button('Fechar',()=>{closeDetails();render();q('[data-details]').focus()}).classList.add('quiet');
+ }
+ function render(){
+  const active=state.events.find(e=>e.id===state.activeShot&&e.kind==='shot'&&!e.result);if(!active)state.activeShot=null;
+  const withTeam=known(state.control);const lastPlayer=pointEvent()?annotation('player',target()):null;
+  q('[data-control]').textContent=state.paused?'Coleta pausada':withTeam?`${names[state.control]} com a bola${lastPlayer?.value?' · #'+lastPlayer.value:''}`:({free:'Bola em disputa',dead:'Bola parada',unknown:'Controle a confirmar'})[state.control];
+  root.querySelectorAll('[data-team]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.team===state.control));b.disabled=state.paused});
+  q('[data-free]').setAttribute('aria-pressed',String(state.control==='free'));q('[data-dead]').setAttribute('aria-pressed',String(state.control==='dead'));
+  q('[data-shot]').textContent=state.armed?'Cancelar chute':'Finalizar';q('[data-shot]').disabled=state.paused||(!withTeam&&!state.armed);q('[data-free]').disabled=state.paused;q('[data-dead]').disabled=state.paused;q('[data-pitch]').disabled=state.paused;
+  q('[data-pause]').textContent=state.paused?'Retomar coleta':'Pausar coleta';q('[data-undo]').disabled=!undo.length;
+  q('[data-results]').hidden=!active;q('[data-extras]').hidden=!panel;q('[data-hint]').hidden=!!active||!!panel;
+  q('[data-details]').hidden=!options.details||!!active||!!panel||state.armed||state.paused;q('[data-details]').setAttribute('aria-expanded',String(!!panel));
+  q('[data-hint]').textContent=state.paused?'Retome quando puder acompanhar o jogo.':state.armed?'Marque no campo de onde saiu o chute.':state.control==='dead'?'Selecione a equipe quando o jogo recomeçar.':withTeam?'Toque no campo para mover a bola.':'Selecione a equipe quando ela controlar a bola.';
+  q('[data-status]').textContent=active?`Chute de ${names[active.team]} · resultado pendente`:state.message;
+  const pending=state.events.filter(e=>e.kind==='shot'&&!e.result);q('[data-pending]').hidden=!pending.length;q('[data-pending]').textContent=pending.length+' chute'+(pending.length===1?'':'s')+' pendente'+(pending.length===1?'':'s');
+  const goals=t=>state.events.filter(e=>e.kind==='shot'&&e.team===t&&e.result==='goal').length;q('[data-score]').textContent=goals('A')+' × '+goals('B');
+  const holder=q('[data-marks]');holder.replaceChildren();const node=(tag,attrs)=>{const n=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const[k,v]of Object.entries(attrs))n.setAttribute(k,String(v));holder.appendChild(n);return n};const color=t=>t==='B'?'var(--st-b)':'var(--st-a)';
+  if(options.trail&&state.trail.length>1)node('polyline',{points:state.trail.slice(-5).map(p=>`${p.x},${p.y}`).join(' '),class:'trail',stroke:color(state.trail.at(-1).team)});
+  if(state.last){const p=state.last;const fresh=p.team===state.control&&p.possession===state.possession;node('circle',{cx:p.x,cy:p.y,r:1.8,fill:fresh?color(p.team):'var(--st-field)',stroke:color(p.team),'stroke-width':.8});node('circle',{cx:p.x,cy:p.y,r:3.2,fill:'none',stroke:color(p.team),'stroke-width':.3,opacity:.6})}renderExtras();
+ }
+ function changeControl(control){if(state.paused||state.control===control)return;remember();closeDetails();const previous=state.chainTeam;const recovery=known(control)&&known(previous)&&control!==previous&&!state.closed;
+  if(known(control)){if(state.closed||previous!==control)state.possession++;state.chainTeam=control;state.closed=false}else if(control==='dead'){state.closed=true;state.chainTeam=null;state.lastTurnover=null}
+  state.control=control;state.armed=false;state.trail=[];state.activeShot=null;const e=add('control',{control,previous,recovery});if(recovery)state.lastTurnover=e.id;state.message=names[control]?`Posse de ${names[control]} registrada`:control==='free'?'Disputa registrada':'Parada registrada';render();save();
+ }
+ function point(x,y){if(state.paused)return;remember();closeDetails();const p={x:Math.max(3,Math.min(117,x)),y:Math.max(3,Math.min(77,y)),team:known(state.control)?state.control:null,possession:state.possession};state.last=p;
+  if(state.armed&&p.team){const shot=add('shot',{point:{...p},result:null});p.eventId=shot.id;state.activeShot=shot.id;state.armed=false;state.control='unknown';state.trail=[];state.message='Finalização registrada'}else{const e=add('point',{point:{...p}});p.eventId=e.id;state.trail.push(p);state.trail=state.trail.slice(-5);state.activeShot=null;state.message='Posição registrada'+(p.team?' · '+names[p.team]:' · controle não observado')}render();save();
+ }
+ root.querySelectorAll('[data-team]').forEach(b=>b.addEventListener('click',()=>changeControl(b.dataset.team)));
+ q('[data-details]').addEventListener('click',()=>{panel={kind:'menu',target:target()};state.activeShot=null;render();q('[data-extras] button:not(:disabled)')?.focus()});
+ q('[data-free]').addEventListener('click',()=>changeControl('free'));q('[data-dead]').addEventListener('click',()=>changeControl('dead'));
+ q('[data-shot]').addEventListener('click',()=>{closeDetails();state.armed=!state.armed;state.activeShot=null;render();save()});
+ q('[data-pause]').addEventListener('click',()=>{remember();closeDetails();state.paused=!state.paused;state.armed=false;state.activeShot=null;state.control='unknown';state.chainTeam=null;state.closed=true;state.lastTurnover=null;state.trail=[];state.message=state.paused?'Observação interrompida':'Selecione quem controla a bola';render();save()});
+ q('[data-pitch]').addEventListener('click',e=>{if(e.detail===0){point(focusPoint.x,focusPoint.y);return}const b=e.currentTarget.getBoundingClientRect();point((e.clientX-b.left)/b.width*120,(e.clientY-b.top)/b.height*80)});
+ q('[data-pitch]').addEventListener('keydown',e=>{const move={ArrowLeft:[-3,0],ArrowRight:[3,0],ArrowUp:[0,-3],ArrowDown:[0,3]}[e.key];if(move){e.preventDefault();focusPoint={x:Math.max(3,Math.min(117,focusPoint.x+move[0])),y:Math.max(3,Math.min(77,focusPoint.y+move[1]))};q('[data-status]').textContent=`Alvo: ${Math.round(focusPoint.x/120*100)}% × ${Math.round(focusPoint.y/80*100)}% · Enter para marcar`}});
+ root.querySelectorAll('[data-result]').forEach(b=>b.addEventListener('click',()=>{const shot=state.events.find(e=>e.id===state.activeShot);if(!shot)return;remember();shot.result=b.dataset.result;state.activeShot=null;if(['goal','off'].includes(shot.result)&&state.events.at(-1)?.id===shot.id){state.control='dead';state.chainTeam=null;state.closed=true;state.lastTurnover=null;state.trail=[]}state.message=`Chute de ${names[shot.team]} · ${b.textContent}`;render();save()}));
+ q('[data-later]').addEventListener('click',()=>{state.activeShot=null;state.message='Chute salvo; resultado para revisar';render();save()});
+ q('[data-pending]').addEventListener('click',()=>{closeDetails();state.activeShot=state.events.find(e=>e.kind==='shot'&&!e.result)?.id??null;state.armed=false;render();save()});
+ q('[data-undo]').addEventListener('click',()=>{if(!undo.length)return;closeDetails();state=undo.pop();render();save()});
+ root.addEventListener('keydown',e=>{if(e.altKey||e.metaKey||e.ctrlKey||e.target.matches('input,select,textarea'))return;if(e.key==='Escape'){closeDetails();state.armed=false;state.activeShot=null;render();save()}if(e.key.toLowerCase()==='f'&&!q('[data-shot]').disabled){e.preventDefault();q('[data-shot]').click()}});
+ const timer=setInterval(()=>{if(!root.isConnected){clearInterval(timer);return}const s=754+Math.floor((Date.now()-started)/1000);q('[data-clock]').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')},1000);
+ render();restore(window.openai?.widgetState);window.addEventListener('openai:set_globals',e=>{if(e.detail?.globals?.widgetState)restore(e.detail.globals.widgetState)});
+ if(globalThis.Tweak){const tweak=new Tweak({container:root,onChange:()=>{if(!options.details)closeDetails();render();save()}});tweak.addToggle(options,'trail',{label:'Mostrar trilha curta da posse'});tweak.addToggle(options,'details',{label:'Oferecer detalhes opcionais'})}
+})();
+</script>

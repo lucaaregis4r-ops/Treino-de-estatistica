@@ -1,6 +1,7 @@
 export type MatchStatus = 'created' | 'in_progress' | 'finished';
 
 import type { SetScoringRules } from '../rules/SetScoringRules';
+import type { MatchSport } from './MatchSport';
 
 export interface MatchMetadata {
   readonly id: string;
@@ -17,4 +18,14 @@ export interface MatchMetadata {
   readonly complexityProfileId: string;
   readonly competitionProfileId?: string;
   readonly competitionProfileVersion?: string;
+  /** Absent in legacy volleyball backups; absence is intentionally read as volleyball. */
+  readonly sport?: MatchSport;
+  readonly footballOrientation?: readonly FootballPeriodOrientation[];
+}
+
+export interface FootballPeriodOrientation {
+  readonly period: 1 | 2;
+  readonly teamAAttacksTo?: 'x120' | 'x0';
+  readonly teamBAttacksTo?: 'x120' | 'x0';
+  readonly physicalSideKnown?: boolean;
 }

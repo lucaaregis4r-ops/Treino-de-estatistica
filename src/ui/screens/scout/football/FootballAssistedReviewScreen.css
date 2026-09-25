@@ -1,0 +1,14 @@
+.football-assisted-review { max-width: 860px; margin: 0 auto; }
+.football-assisted-review > header, .football-assisted-review-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.football-assisted-review button { min-height: 38px; padding: .45rem .7rem; border: 1px solid #799488; border-radius: .35rem; background: #1d332a; color: #eaf5ee; font-weight: 700; }
+.football-assisted-review-list { display: grid; gap: .6rem; padding: 0; list-style: none; }
+.football-assisted-review-list li, .football-assisted-review-detail { padding: .85rem; border: 1px solid #455952; border-radius: .45rem; background: #15271f; }
+.football-assisted-review-list span { display: block; margin-top: .2rem; color: #c9d8d2; font-size: .86rem; }
+.football-assisted-review-detail { display: grid; gap: .8rem; }
+.football-assisted-review-detail label { display: inline-flex; flex-direction: column; gap: .25rem; margin-right: .75rem; color: #dbe9e2; }
+.football-assisted-review-detail select { min-height: 38px; }
+.football-review-response { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem; padding: .75rem; border-block: 1px solid #455952; }
+.football-review-response h3, .football-review-response p { width: 100%; margin: 0; }
+.football-review-response label:has(input) { flex-direction: row; align-items: center; }
+.football-review-quiet, .football-review-back { background: transparent !important; border-color: transparent !important; color: #c9d8d2 !important; }
+@media (max-width: 560px) { .football-assisted-review > header, .football-assisted-review-list li { align-items: flex-start; flex-direction: column; } }

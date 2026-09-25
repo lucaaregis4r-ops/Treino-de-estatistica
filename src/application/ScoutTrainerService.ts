@@ -1,3 +1,4 @@
+import { FOOTBALL_POSSESSION_PROTOCOL, projectControl, footballNumericId, mergeFootballCorrection, timestampMs, validateFootballDraft, type FootballObservation } from '../domain/football/FootballObservation';
 import type { EventRepository } from './ports/repositories/EventRepository';
 import type { MatchRepository } from './ports/repositories/MatchRepository';
 import type { PlayerRepository } from './ports/repositories/PlayerRepository';
@@ -81,6 +82,11 @@ import type { ReportDraft } from './reporting/ReportDraft';
 import { buildDerivedAnalyticsReport } from './reporting/DerivedAnalyticsReport';
 import { MatchPdfRenderer } from '../infrastructure/export/pdf/MatchPdfRenderer';
 import { StatisticsCsvExporter } from '../infrastructure/export/csv/StatisticsCsvExporter';
+import { resolveMatchSport } from '../domain/match/entities/MatchSport';
+import { createCanonicalFootballEvent, effectiveElapsed, formatFootballTimestamp, projectFootball, type FootballOutcome, type FootballProjection } from '../domain/football/FootballRecorder';
+import { normalizedToStatsBomb, type FootballAction } from '../domain/football/StatsBombContract';
+import { exportCanonicalStatsBomb, OPEN_DATA_VERSION } from '../domain/football/StatsBombOpenData';
+import { footballAssistedCandidateKey, footballAssistedSourceRevision, isValidFootballAssistedRecording, type FootballAssistedRecording } from '../domain/football/FootballAssistedRecording';
 
 export interface PlayerRegistrationInput {
   readonly number: number;
@@ -116,6 +122,7 @@ export interface StartNextSetInput {
 }
 
 export interface CreateMatchInput {
+  readonly sport?: 'volleyball' | 'football';
   readonly name?: string;
   readonly teamAName: string;
   readonly teamBName: string;
@@ -155,7 +162,32 @@ export interface MatchWorkspace {
   readonly sequenceAnalytics?: SequenceAnalytics;
   readonly report: MatchReportModel;
   readonly coverage: ScoutCoverage;
+  readonly football?: FootballProjection;
 }
+
+export interface RegisterFootballEventInput {
+  readonly shotContext?: import('../domain/football/StatsBombContract').FootballShotContext;
+  readonly observation?: FootballObservation;
+  readonly capturedElapsedMs?: number;
+  readonly teamId: string;
+  readonly playerId?: string;
+  readonly relatedPlayerId?: string;
+  readonly action: FootballAction;
+  readonly outcome: FootballOutcome;
+  readonly location?: { readonly x: number; readonly y: number };
+  readonly endLocation?: { readonly x: number; readonly y: number };
+  readonly possessionTeamId?: string;
+}
+
+/** T03 has no screen: callers persist one versioned local review record at a time. */
+export interface SaveFootballAssistedRecordingInput {
+  readonly recording: FootballAssistedRecording;
+}
+
+/** Capture time is kept out of the persisted observation extension. */
+export type ObserveFootballControlInput = FootballObservation & {
+  readonly capturedElapsedMs?: number;
+};
 
 type ServiceError = RepositoryError | ValidationError | ParseError | ProfileError | ImportError;
 
@@ -245,6 +277,7 @@ export class ScoutTrainerService {
         ]),
       );
     }
+    const sport = input.sport ?? 'volleyball';
     const teamARegistrations = input.teamAPlayers.map(normalizePlayerInput);
     const teamBRegistrations = input.teamBPlayers.map(normalizePlayerInput);
     const invalidNumber = [...teamARegistrations, ...teamBRegistrations].find(
@@ -285,11 +318,19 @@ export class ScoutTrainerService {
       teamBId: teamB.id,
       createdAt: this.dependencies.now(),
       status: 'in_progress',
-      initialServingTeamId: input.initialServingTeam === 'teamB' ? teamB.id : teamA.id,
-      scoringRules: input.scoringRules ?? DEFAULT_INDOOR_SCORING_RULES,
+      ...(sport === 'volleyball'
+        ? {
+            initialServingTeamId: input.initialServingTeam === 'teamB' ? teamB.id : teamA.id,
+            scoringRules: input.scoringRules ?? DEFAULT_INDOOR_SCORING_RULES,
+          }
+        : {}),
       codeProfileId: selectedCodeProfile.value.id,
       codeProfileVersion: selectedCodeProfile.value.version,
       complexityProfileId,
+      sport,
+      ...(sport === 'football'
+        ? { footballOrientation: [{ period: 1 as const }, { period: 2 as const }] }
+        : {}),
       ...(input.complexityProfileId === 'cbv'
         ? {
             competitionProfileId: 'cbv_superliga_reference_2025_26',
@@ -315,7 +356,7 @@ export class ScoutTrainerService {
         ...(player.registeredRole ? { registeredRole: player.registeredRole } : {}),
       })),
     ];
-    const liberoPlayerIds = [
+    const liberoPlayerIds = sport === 'volleyball' ? [
       ...teamARegistrations.flatMap((player) => {
         const entity = playerEntities.find(
           (candidate) => candidate.teamId === teamA.id && candidate.number === player.number,
@@ -328,12 +369,19 @@ export class ScoutTrainerService {
         );
         return player.libero && entity ? [entity.id] : [];
       }),
-    ];
+    ] : [];
     const persistedMetadata: MatchMetadata =
       liberoPlayerIds.length > 0 ? { ...metadata, liberoPlayerIds } : metadata;
-    const teamALineup = this.createLineup(teamA.id, 1, playerEntities, input.teamALineup);
-    const teamBLineup = this.createLineup(teamB.id, 1, playerEntities, input.teamBLineup);
-    if ((input.teamALineup && !teamALineup) || (input.teamBLineup && !teamBLineup)) {
+    const teamALineup = sport === 'volleyball'
+      ? this.createLineup(teamA.id, 1, playerEntities, input.teamALineup)
+      : undefined;
+    const teamBLineup = sport === 'volleyball'
+      ? this.createLineup(teamB.id, 1, playerEntities, input.teamBLineup)
+      : undefined;
+    if (
+      sport === 'volleyball' &&
+      ((input.teamALineup && !teamALineup) || (input.teamBLineup && !teamBLineup))
+    ) {
       return failure(
         new ValidationError('The initial lineup is invalid.', [
           {
@@ -517,6 +565,9 @@ export class ScoutTrainerService {
         )
       : undefined;
 
+    const football = resolveMatchSport(state.value.metadata) === 'football'
+      ? projectFootball(events.value, loadedTeamA.id, loadedTeamB.id, loadedTeamA.name, loadedTeamB.name, this.dependencies.now())
+      : undefined;
     return success({
       state: state.value,
       teams: [loadedTeamA, loadedTeamB],
@@ -533,7 +584,198 @@ export class ScoutTrainerService {
       ...(sequenceAnalytics ? { sequenceAnalytics } : {}),
       report,
       coverage,
+      ...(football ? { football } : {}),
     });
+  }
+
+  async setFootballOrientation(matchId: string, period: 1 | 2, teamId: string, direction: 'x120' | 'x0' | undefined): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const metadata = workspace.value.state.metadata;
+    if (!workspace.value.football || !workspace.value.teams.some(t => t.id === teamId)) return failure(new ValidationError('Equipe de futebol inválida.', []));
+    const prior = metadata.footballOrientation ?? [];
+    const updated = { ...prior.find(p => p.period === period), period, [teamId === metadata.teamAId ? 'teamAAttacksTo' : 'teamBAttacksTo']: direction };
+    const saved = await this.matches.save({ ...metadata, footballOrientation: [...prior.filter(p => p.period !== period), updated] });
+    if (!saved.ok) return failure(saved.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async observeFootballControl(matchId: string, input: ObserveFootballControlInput): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (!workspace.value.football) return failure(new ValidationError('Futebol indisponível.', []));
+    const { capturedElapsedMs, ...observation } = input;
+    if (capturedElapsedMs !== undefined && (!Number.isFinite(capturedElapsedMs) || capturedElapsedMs < 0))
+      return failure(new ValidationError('Horário inválido.', []));
+    const invalid = validateFootballObservation(observation, workspace.value);
+    if (invalid) return failure(new ValidationError(invalid, []));
+    const clock = workspace.value.football.clock;
+    const elapsed = capturedElapsedMs ?? effectiveElapsed(clock, this.dependencies.now());
+    const id = this.dependencies.createId();
+    const normalizedObservation: FootballObservation = {
+      ...observation,
+      protocol: observation.protocol ?? { ...FOOTBALL_POSSESSION_PROTOCOL, mode: 'control_mark' },
+    };
+    const history: MatchEvent = { type: 'football_event_registered', id, matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), event: {
+      id, index: workspace.value.football.events.length + 1, period: clock.period, timestamp: formatFootballTimestamp(elapsed), minute: (clock.period === 2 ? 45 : 0) + Math.floor(elapsed / 60000), second: Math.floor(elapsed / 1000) % 60,
+      type: { id: 1000, name: 'Observação de controle' }, ...(normalizedObservation.position ? { location: normalizedObservation.position } : {}), scout_trainer: { schema_version: '1.1.0', modality: 'football', match_id: matchId, capture_sequence: workspace.value.state.lastSequence + 1, position_observed: normalizedObservation.position !== undefined, observation: normalizedObservation },
+    } };
+    const saved = await this.events.append(history);
+    if (!saved.ok) return failure(saved.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async registerFootballEvent(matchId: string, input: RegisterFootballEventInput): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (resolveMatchSport(workspace.value.state.metadata) !== 'football' || !workspace.value.football)
+      return failure(new ValidationError('Football event cannot be registered in this match.', []));
+    const teamIndex = workspace.value.teams.findIndex((team) => team.id === input.teamId);
+    const playerIndex = input.playerId ? workspace.value.players.findIndex((player) => player.id === input.playerId) : -1;
+    const relatedPlayerIndex = input.relatedPlayerId ? workspace.value.players.findIndex((player) => player.id === input.relatedPlayerId) : -1;
+    if (teamIndex < 0 || (input.playerId && (playerIndex < 0 || workspace.value.players[playerIndex].teamId !== input.teamId)) || (input.relatedPlayerId && (relatedPlayerIndex < 0 || workspace.value.players[relatedPlayerIndex].teamId !== input.teamId)))
+      return failure(new ValidationError('Football team or player was not found.', []));
+    const draftIssue = (input.capturedElapsedMs !== undefined && (!Number.isFinite(input.capturedElapsedMs) || input.capturedElapsedMs < 0) ? 'Horário inválido.' : undefined) ?? validateFootballDraft(input) ?? validateFootballObservation(input.observation, workspace.value);
+    if (draftIssue) return failure(new ValidationError(draftIssue, []));
+    const requiresEnd = input.action === 'pass' || input.action === 'carry';
+    const requiresLocation = !['loss', 'foul', 'substitution', 'shot'].includes(input.action);
+    if ((requiresLocation && !input.location) || (requiresEnd && !input.endLocation))
+      return failure(new ValidationError('Football event location is incomplete.', [{ code: 'football_location_incomplete', message: requiresEnd ? 'Marque origem e destino.' : 'Marque a localização.' }]));
+    const clock = workspace.value.football.clock;
+    const elapsedMs = input.capturedElapsedMs ?? effectiveElapsed(clock, this.dependencies.now());
+    const eventId = this.dependencies.createId();
+    const possessionTeamIndex = input.possessionTeamId ? workspace.value.teams.findIndex((team) => team.id === input.possessionTeamId) : -1;
+    const previousPossession = [...workspace.value.football.events].reverse().find((event) => event.possession !== undefined);
+    const possessionTeam = possessionTeamIndex >= 0 ? { id: possessionTeamIndex + 1, name: workspace.value.teams[possessionTeamIndex].name } : undefined;
+    const possession = possessionTeam ? (previousPossession?.period === clock.period && previousPossession?.possession_team?.id === possessionTeam.id && previousPossession.scout_trainer?.observation?.after?.kind !== 'dead_ball' ? previousPossession.possession : (previousPossession?.possession ?? 0) + 1) : undefined;
+    const canonical = createCanonicalFootballEvent({
+      id: eventId, matchId, index: workspace.value.football.events.length + 1, period: clock.period, elapsedMs,
+      captureSequence: workspace.value.state.lastSequence + 1,
+      action: input.action, outcome: input.outcome, shotContext: input.shotContext, observation: { before: input.possessionTeamId ? { kind: 'controlled', teamId: input.possessionTeamId } : projectControl(workspace.value.football?.events ?? []).ballControl, ...input.observation, teamId: input.teamId, playerId: input.playerId, recipientId: input.relatedPlayerId },
+      team: { id: teamIndex + 1, name: workspace.value.teams[teamIndex].name },
+      ...(possession !== undefined ? { possession, possessionTeam } : {}),
+      ...(playerIndex >= 0 ? { player: { id: footballNumericId(workspace.value.players[playerIndex].id), name: workspace.value.players[playerIndex].name ?? `Jogador ${workspace.value.players[playerIndex].number}` } } : {}),
+      ...(relatedPlayerIndex >= 0 ? { relatedPlayer: { id: footballNumericId(workspace.value.players[relatedPlayerIndex].id), name: workspace.value.players[relatedPlayerIndex].name ?? `Jogador ${workspace.value.players[relatedPlayerIndex].number}` } } : {}),
+      ...(input.location ? { location: normalizedToStatsBomb(input.location.x, input.location.y) } : {}),
+      ...(input.endLocation ? { endLocation: normalizedToStatsBomb(input.endLocation.x, input.endLocation.y) } : {}),
+    });
+    const historyEvent: MatchEvent = { type: 'football_event_registered', id: eventId, matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), event: canonical };
+    const saved = await this.events.append(historyEvent);
+    if (!saved.ok) return failure(saved.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async correctFootballEvent(matchId: string, targetEventId: string, input: RegisterFootballEventInput): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const draftIssue = (input.capturedElapsedMs !== undefined && (!Number.isFinite(input.capturedElapsedMs) || input.capturedElapsedMs < 0) ? 'Horário inválido.' : undefined) ?? validateFootballDraft(input) ?? validateFootballObservation(input.observation, workspace.value);
+    if (draftIssue) return failure(new ValidationError(draftIssue, []));
+    const target = workspace.value.football?.events.find((event) => event.id === targetEventId);
+    if (!target) return failure(new ValidationError('Football event was not found.', []));
+    const team = workspace.value.teams.find((candidate) => candidate.id === input.teamId);
+    const player = input.playerId ? workspace.value.players.find((candidate) => candidate.id === input.playerId && candidate.teamId === input.teamId) : undefined;
+    const relatedPlayer = input.relatedPlayerId ? workspace.value.players.find((candidate) => candidate.id === input.relatedPlayerId && candidate.teamId === input.teamId) : undefined;
+    if (!team || (input.playerId && !player) || (input.relatedPlayerId && !relatedPlayer)) return failure(new ValidationError('Football team or player was not found.', []));
+    const teamIndex = workspace.value.teams.findIndex((candidate) => candidate.id === team.id);
+    const playerIndex = player ? workspace.value.players.findIndex((candidate) => candidate.id === player.id) : -1;
+    const relatedPlayerIndex = relatedPlayer ? workspace.value.players.findIndex((candidate) => candidate.id === relatedPlayer.id) : -1;
+    const possessionTeamIndex = input.possessionTeamId ? workspace.value.teams.findIndex((candidate) => candidate.id === input.possessionTeamId) : -1;
+    const possessionTeam = possessionTeamIndex >= 0 ? { id: possessionTeamIndex + 1, name: workspace.value.teams[possessionTeamIndex].name } : undefined;
+    const replacement = createCanonicalFootballEvent({ id: target.id, matchId, index: target.index, period: target.period, elapsedMs: input.capturedElapsedMs ?? timestampMs(target.timestamp), captureSequence: target.scout_trainer.capture_sequence, action: input.action, outcome: input.outcome, shotContext: input.shotContext, observation: { ...input.observation, teamId: input.teamId, playerId: input.playerId, recipientId: input.relatedPlayerId }, team: { id: teamIndex + 1, name: team.name }, ...(player ? { player: { id: footballNumericId(workspace.value.players[playerIndex].id), name: player.name ?? `Jogador ${player.number}` } } : {}), ...(relatedPlayer ? { relatedPlayer: { id: footballNumericId(workspace.value.players[relatedPlayerIndex].id), name: relatedPlayer.name ?? `Jogador ${relatedPlayer.number}` } } : {}), ...(input.location ? { location: normalizedToStatsBomb(input.location.x, input.location.y) } : {}), ...(input.endLocation ? { endLocation: normalizedToStatsBomb(input.endLocation.x, input.endLocation.y) } : {}), ...(possessionTeam ? { possession: target.possession ?? 1, possessionTeam } : {}) });
+    const correction: MatchEvent = { type: 'football_event_corrected', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), targetEventId, replacementEvent: mergeFootballCorrection(target, replacement) };
+    const saved = await this.events.append(correction);
+    if (!saved.ok) return failure(saved.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async correctFootballObservation(matchId: string, targetEventId: string, observation: FootballObservation): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (!workspace.value.football) return failure(new ValidationError('Futebol indisponível.', []));
+    const target = workspace.value.football.events.find((event) => event.id === targetEventId);
+    if (!target || target.type.id !== 1000) return failure(new ValidationError('Observação de controle não encontrada.', []));
+    const invalid = validateFootballObservation(observation, workspace.value);
+    if (invalid) return failure(new ValidationError(invalid, []));
+    const normalizedObservation: FootballObservation = { ...observation, protocol: observation.protocol ?? { ...FOOTBALL_POSSESSION_PROTOCOL, mode: 'control_mark' } };
+    const replacement = {
+      ...target,
+      ...(normalizedObservation.position ? { location: normalizedObservation.position } : {}),
+      scout_trainer: { ...target.scout_trainer, schema_version: '1.1.0' as const, position_observed: normalizedObservation.position !== undefined, observation: normalizedObservation },
+    };
+    if (!normalizedObservation.position) delete (replacement as { location?: unknown }).location;
+    const correction: MatchEvent = { type: 'football_event_corrected', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), targetEventId, replacementEvent: mergeFootballCorrection(target, replacement) };
+    const saved = await this.events.append(correction);
+    if (!saved.ok) return failure(saved.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async saveFootballAssistedRecording(matchId: string, targetEventId: string, input: SaveFootballAssistedRecordingInput): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (!workspace.value.football) return failure(new ValidationError('Futebol indisponível.', []));
+    const target = workspace.value.football.events.find(event => event.id === targetEventId);
+    if (!target) return failure(new ValidationError('Evento de futebol não encontrado.', []));
+    const invalid = validateFootballAssistedRecording(input.recording, workspace.value);
+    if (invalid) return failure(new ValidationError(invalid, []));
+    // A retry of the same confirmation is idempotent at the event-history boundary.
+    if (JSON.stringify(target.scout_trainer.assisted_recording) === JSON.stringify(input.recording)) return success(workspace.value);
+    const replacement = {
+      ...target,
+      scout_trainer: { ...target.scout_trainer, assisted_recording: input.recording },
+    };
+    const correction: MatchEvent = {
+      type: 'football_event_corrected', id: this.dependencies.createId(), matchId,
+      sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(),
+      targetEventId, replacementEvent: mergeFootballCorrection(target, replacement),
+    };
+    const saved = await this.events.append(correction);
+    if (!saved.ok) return failure(saved.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async undoFootballEvent(matchId: string): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const targetHistoryEventId = workspace.value.football?.historyIds.at(-1);
+    if (!targetHistoryEventId) return failure(new ValidationError('There is no football event to undo.', []));
+    const undo: MatchEvent = { type: 'football_event_undone', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), targetHistoryEventId };
+    const saved = await this.events.append(undo);
+    if (!saved.ok) return failure(saved.error);
+    await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async setFootballClock(matchId: string, change: { readonly kind: 'start' | 'pause' | 'adjust' | 'period'; readonly elapsedMs?: number; readonly period?: 1 | 2 }): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (!workspace.value.football) return failure(new ValidationError('Football clock is unavailable.', []));
+    const now = this.dependencies.now(), current = workspace.value.football.clock;
+    const elapsedMs = change.kind === 'adjust' ? Math.max(0, change.elapsedMs ?? 0) : change.kind === 'period' ? 0 : effectiveElapsed(current, now);
+    const period = change.kind === 'period' ? (change.period ?? current.period) : current.period;
+    const running = change.kind === 'start' ? true : change.kind === 'pause' || change.kind === 'period' ? false : current.running;
+    const event: MatchEvent = { type: 'football_clock_changed', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: now, period, elapsedMs, running, referenceTimestamp: now };
+    const saved = await this.events.append(event);
+    if (!saved.ok) return failure(saved.error);
+    return this.loadMatch(matchId);
+  }
+
+  async adjustFootballScore(matchId: string, teamId: string, delta: -1 | 1): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const teamIndex = workspace.value.teams.findIndex((team) => team.id === teamId);
+    if (!workspace.value.football || teamIndex < 0) return failure(new ValidationError('Football score is unavailable.', []));
+    const current = teamIndex === 0 ? workspace.value.football.score.teamA : workspace.value.football.score.teamB;
+    if (current + delta < 0) return failure(new ValidationError('Score cannot be negative.', []));
+    const event = this.matchEventFactory.scoreAdjustment({ matchId, setNumber: workspace.value.football.clock.period, teamId, delta, reason: 'football_manual:operator', sequence: workspace.value.state.lastSequence + 1 });
+    const saved = await this.events.append(event);
+    if (!saved.ok) return failure(saved.error);
+    return this.loadMatch(matchId);
   }
 
   async registerScout(
@@ -1148,6 +1390,14 @@ export class ScoutTrainerService {
     );
   }
 
+  async exportFootballOpenData(matchId: string): Promise<Result<string, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (!workspace.value.football) return failure(new ValidationError('Football events are unavailable.', []));
+    const exported = exportCanonicalStatsBomb(workspace.value.football.events);
+    return success(JSON.stringify({ openDataVersion: OPEN_DATA_VERSION, modality: 'football', ...exported }, null, 2));
+  }
+
   async exportCsv(matchId: string): Promise<Result<string, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
@@ -1277,5 +1527,57 @@ export class ScoutTrainerService {
       ...(tactical?.activeSetterPosition ? { setterPosition: tactical.activeSetterPosition } : {}),
       ...(tactical?.formationState ? { formationState: tactical.formationState } : {}),
     };
+  }
+}
+
+function validateFootballObservation(observation: FootballObservation | undefined, workspace: MatchWorkspace): string | undefined {
+  if (!observation) return;
+  const ids = workspace.teams.map(team => team.id);
+  for (const control of [observation.before, observation.after]) {
+    if (control?.kind === 'controlled' && (!ids.includes(control.teamId) || (control.playerId && !workspace.players.some(p => p.id === control.playerId && p.teamId === control.teamId)))) return 'Controle ou atleta inválido.';
+    if (control?.kind === 'dead_ball' && control.restartTeamId && !ids.includes(control.restartTeamId)) return 'Equipe de reinício inválida.';
+  }
+  const pressure = observation.pressure;
+  if (pressure && ((pressure.pressingTeamId && !ids.includes(pressure.pressingTeamId)) || (pressure.pressedTeamId && !ids.includes(pressure.pressedTeamId)) || (pressure.pressedTeamId && pressure.pressedTeamId === pressure.pressingTeamId))) return 'Equipes da pressão inválidas.';
+}
+
+function validateFootballAssistedRecording(recording: FootballAssistedRecording, workspace: MatchWorkspace): string | undefined {
+  if (!isValidFootballAssistedRecording(recording)) return 'Contrato assistido inválido.';
+  const events = workspace.football?.events ?? [];
+  const byEventId = new Map(events.map(event => [event.id, event]));
+  const teamIds = new Set(workspace.teams.map(team => team.id));
+  const observations = new Map(recording.observations.map(observation => [observation.id, observation]));
+  const details = new Set(recording.details.map(detail => detail.id));
+  const pressures = new Set(recording.pressures.map(pressure => pressure.id));
+  for (const observation of recording.observations) {
+    const target = byEventId.get(observation.targetEventId);
+    if (observation.matchId !== workspace.state.metadata.id || !target || target.period !== observation.period ||
+        (observation.controlledTeamId !== undefined && !teamIds.has(observation.controlledTeamId))) return 'Observação assistida sem vínculo seguro.';
+  }
+  for (const detail of recording.details) {
+    if (!observations.has(detail.observationId) || (detail.teamId !== undefined && !teamIds.has(detail.teamId))) return 'Detalhe assistido sem observação ou equipe válida.';
+  }
+  for (const pressure of recording.pressures) {
+    if (!observations.has(pressure.observationId) ||
+        (pressure.pressingTeamId !== undefined && !teamIds.has(pressure.pressingTeamId)) ||
+        (pressure.ballTeamId !== undefined && !teamIds.has(pressure.ballTeamId)) ||
+        (pressure.pressingTeamId !== undefined && pressure.pressingTeamId === pressure.ballTeamId) ||
+        (pressure.pointEventId !== undefined && !byEventId.has(pressure.pointEventId)) ||
+        (pressure.pointAgeMs !== undefined && (!Number.isFinite(pressure.pointAgeMs) || pressure.pointAgeMs < 0))) return 'Pressão assistida sem vínculo seguro.';
+  }
+  const candidates = new Map(recording.candidates.map(candidate => [candidate.key, candidate]));
+  if (candidates.size !== recording.candidates.length) return 'Chave de candidato duplicada.';
+  for (const candidate of recording.candidates) {
+    if (!observations.has(candidate.targetObservationId) || candidate.key !== footballAssistedCandidateKey({ kind: candidate.kind, targetObservationId: candidate.targetObservationId, sourceEventIds: candidate.sourceRevisions.map(source => source.eventId) }) ||
+        candidate.sourceRevisions.some(source => {
+          const event = byEventId.get(source.eventId);
+          return !event || footballAssistedSourceRevision(event) !== source.revision;
+        })) return 'Candidato assistido desatualizado ou sem fonte.';
+  }
+  for (const confirmation of recording.confirmations) {
+    if (!candidates.has(confirmation.candidateKey) ||
+        confirmation.actions.some(action => action.kind === 'detail' ? !details.has(action.detailId) : !pressures.has(action.pressureId)) ||
+        confirmation.segmentEventIds.some(id => !byEventId.has(id)) ||
+        confirmation.describedActions?.some(action => [action.passerId, action.receiverId, action.carrierId, action.recipientId, action.responsibleId, action.recovererId].some(id => id !== undefined && !workspace.players.some(player => player.id === id)))) return 'Confirmação assistida sem vínculo seguro.';
   }
 }

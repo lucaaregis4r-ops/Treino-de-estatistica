@@ -1,0 +1,82 @@
+.football-surface {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #236b46;
+  border-radius: 0.45rem;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
+}
+.football-surface[data-flipped='true'] { transform: rotate(180deg); }
+
+.football-pitch-lines,
+.football-trajectory,
+.football-recent-path,
+.football-suggested-segment {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.football-pitch-lines {
+  fill: none;
+  stroke: rgb(255 255 255 / 88%);
+  stroke-width: 0.45;
+  vector-effect: non-scaling-stroke;
+}
+
+.football-pitch-lines .football-pitch-boundary {
+  fill: rgb(24 93 59 / 42%);
+}
+
+.football-pitch-lines .football-pitch-spot {
+  fill: rgb(255 255 255 / 92%);
+  stroke: none;
+}
+
+.football-pitch-lines .football-pitch-goal {
+  fill: rgb(255 255 255 / 8%);
+}
+
+.football-trajectory line {
+  stroke: #ffd166;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.football-recent-path polyline {
+  fill: none;
+  stroke: rgb(255 209 102 / 68%);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+  vector-effect: non-scaling-stroke;
+}
+
+.football-recent-marker {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgb(255 255 255 / 88%);
+  border-radius: 50%;
+  background: rgb(255 209 102 / 72%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.football-suggested-segment { fill: none; stroke: rgb(214 245 109 / 78%); stroke-width: 2; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; pointer-events: none; }
+.football-suggested-segment circle { fill: #d6f56d; stroke: #102216; stroke-width: .4; }
+
+.football-marker {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px #e76f51;
+}
+
+.football-marker-destination { box-shadow: 0 0 0 3px #ffd166; }

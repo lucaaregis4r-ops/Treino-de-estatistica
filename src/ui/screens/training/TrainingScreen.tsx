@@ -57,6 +57,9 @@ export function TrainingScreen({
         <div className="section-heading">
           <div>
             <h1 id="training-title">Treino situação → código</h1>
+            <p className="section-support">
+              Treino de códigos de vôlei. O registro de futebol é feito diretamente na partida.
+            </p>
           </div>
           <button className="button ghost" type="button" onClick={onBack}>
             Voltar
