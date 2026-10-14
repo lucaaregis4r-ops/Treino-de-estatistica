@@ -62,6 +62,16 @@ export function exportCanonicalStatsBomb(events: readonly CanonicalFootballEvent
   const omitted: { id: string; reason: string }[] = [];
   const output = events.flatMap((event) => {
     if (event.type.id === 1000) { omitted.push({ id: event.id, reason: 'local control observation; preserved in full backup' }); return []; }
+    if (event.type.id === 1002) { omitted.push({ id: event.id, reason: 'local restart has no provider event type; preserved in full backup' }); return []; }
+    if (event.type.id === 1001 || event.scout_trainer.essential_code === 'PP') { omitted.push({ id: event.id, reason: 'local generic possession loss; preserved in full backup' }); return []; }
+    if (event.scout_trainer.essential_code === 'RE' || event.scout_trainer.essential_code === 'FL') { omitted.push({ id: event.id, reason: 'local restart/foul detail has no lossless provider mapping; preserved in full backup' }); return []; }
+    if ((event.scout_trainer.essential_code === 'P' || event.scout_trainer.essential_code === 'PF') && event.scout_trainer.essential_pass_result === 'unknown') { omitted.push({ id: event.id, reason: 'pass result was not observed; pure provider pass would imply completion' }); return []; }
+    if ((event.scout_trainer.essential_code === 'F' && !event.location) ||
+      ((event.scout_trainer.essential_code === 'P' || event.scout_trainer.essential_code === 'PF') && (!event.location || !event.pass?.end_location)) ||
+      (event.scout_trainer.essential_code === 'C' && (!event.location || event.scout_trainer.essential_progression_type === 'carry' && (!event.carry?.end_location || event.scout_trainer.essential_progression_result === 'lost') || event.scout_trainer.essential_progression_result === 'unknown')) ||
+      (event.scout_trainer.essential_code === 'RP' && !event.location)) {
+      omitted.push({ id: event.id, reason: 'essential action lacks coordinates required for provider interchange; preserved in full backup' }); return [];
+    }
     const issues = validateCanonicalStatsBombSubset(event);
     if (issues.length) { omitted.push({ id: event.id, reason: issues.join('; ') }); return []; }
     const pure: Record<string, unknown> = {};

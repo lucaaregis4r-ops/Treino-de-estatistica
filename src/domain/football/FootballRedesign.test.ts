@@ -16,6 +16,19 @@ function shot(index: number, observation: FootballObservation = {}): CanonicalFo
   return createCanonicalFootballEvent({ id: String(index), matchId: 'm', index, period: 1, elapsedMs: index * 1000, action: 'shot', outcome: 'goal', location: [100, 40], team: { id: 1, name: 'A' }, observation: { teamId: 'A', before: { kind: 'controlled', teamId: 'A' }, after: { kind: 'dead_ball' }, attacksTo: 'x120', ...observation } });
 }
 describe('redesign contracts and denominators', () => {
+  it('projects a won tackle as an immediate possession transfer with one location', () => {
+    const tackle = createCanonicalFootballEvent({ id: 'tackle', matchId: 'm', index: 2, period: 1, elapsedMs: 1000, action: 'duel', outcome: 'won', team: { id: 2, name: 'B' }, location: [58, 32], observation: { teamId: 'B', before: { kind: 'controlled', teamId: 'A' }, after: { kind: 'controlled', teamId: 'B' }, coverage: 'continuous' } });
+    const result = projectControl([event(1, 0), tackle]);
+    expect(result.ballControl).toEqual({ kind: 'controlled', teamId: 'B' });
+    expect(result.segments.map(segment => segment.teamId)).toEqual(['A', 'B']);
+    expect(tackle.location).toEqual([58, 32]);
+    expect(tackle.duel).toBeDefined();
+  });
+  it('persists both endpoints of a shot', () => {
+    const attempt = createCanonicalFootballEvent({ id: 'shot-path', matchId: 'm', index: 1, period: 1, elapsedMs: 1000, action: 'shot', outcome: 'saved', team: { id: 1, name: 'A' }, location: [72, 40], endLocation: [118, 38] });
+    expect(attempt.location).toEqual([72, 40]);
+    expect(attempt.shot?.end_location).toEqual([118, 38]);
+  });
   it('reads recorder goals and string provider outcomes without extension', () => {
     expect(dangerousPossessions([shot(1)], 'had_goal')).toHaveLength(1);
     const imported = { ...shot(1), scout_trainer: undefined, shot: { outcome: 'Goal' } } as unknown as CanonicalFootballEvent;

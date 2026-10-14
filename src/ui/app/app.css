@@ -2770,6 +2770,32 @@ kbd {
   padding-top: 8px;
   color: var(--muted);
 }
+.court-sides-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+.court-sides-control strong { color: var(--st-text); }
+.court-sides-control button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-control);
+  background: var(--st-surface-raised);
+  color: var(--st-text);
+  font-weight: 700;
+  cursor: pointer;
+}
+.court-sides-control button:disabled { opacity: .5; cursor: default; }
+.next-set-empty-team {
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed var(--st-control-border);
+  border-radius: var(--st-radius-control);
+  color: var(--muted);
+}
 .quick-match-adjustment:has(.quick-adjustment-form) { flex-basis: 100%; }
 .quick-match-adjustment > button { min-height: 44px; color: var(--st-text); border-color: var(--st-control-border); }
 .quick-adjustment-form { padding: 16px; margin-top: 8px; border: 1px solid var(--st-control-border); border-radius: var(--st-radius-surface); background: var(--st-surface-raised); }
@@ -3541,6 +3567,8 @@ kbd {
   min-width: 0;
 }
 
+.match-row-sport { display: block; color: var(--st-muted); font-size: .75rem; }
+
 .match-name-button {
   max-width: 100%;
   overflow: hidden;
@@ -3860,6 +3888,10 @@ kbd {
   border-radius: var(--radius-panel);
   background: var(--panel-subtle);
 }
+.summary-advanced, .volleyball-analysis-advanced { min-width: 0; margin-top: 1rem; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--panel-subtle); }
+.summary-advanced > summary, .volleyball-analysis-advanced > summary { padding: 1rem 1.25rem; color: var(--ink); font-weight: 800; cursor: pointer; }
+.summary-advanced-content, .volleyball-analysis-advanced > .observed-sequences, .volleyball-analysis-advanced > .match-analytics { margin: 0 1rem 1rem; min-width: 0; }
+.summary-advanced-content, .volleyball-analysis-advanced { overflow-x: auto; }
 
 .summary-screen button,
 .analysis-page button,
@@ -4718,4 +4750,228 @@ kbd {
     width: 100%;
     justify-content: space-between;
   }
+}
+
+/* Entrada por modalidade e fluxo único de registro. */
+.sport-home {
+  padding-top: clamp(2rem, 7vw, 5.5rem);
+}
+
+.sport-home-heading {
+  margin-bottom: clamp(1.5rem, 4vw, 2.6rem);
+}
+
+.sport-home-heading h1 {
+  font-size: clamp(2.15rem, 5vw, 3.4rem);
+  line-height: 1.05;
+}
+
+.sport-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.sport-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 19rem;
+  padding: 1.3rem;
+  overflow: hidden;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-surface);
+  background: var(--st-surface);
+  color: var(--st-text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 150ms ease, transform 150ms ease, background 150ms ease;
+}
+
+.sport-tile::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 0.3rem;
+  background: var(--st-accent);
+  content: '';
+}
+
+.sport-tile:hover:not(:disabled) {
+  border-color: var(--st-accent);
+  background: var(--st-surface-raised);
+  transform: translateY(-3px);
+}
+
+.sport-tile-mark {
+  display: grid;
+  width: 3.1rem;
+  height: 3.1rem;
+  place-items: center;
+  border: 1px solid var(--st-border);
+  border-radius: 0.65rem;
+  color: var(--st-accent);
+  background: var(--st-bg);
+  font: 800 0.9rem/1 var(--st-font);
+  letter-spacing: 0.03em;
+}
+
+.sport-tile-content {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: auto;
+  padding-top: 2rem;
+}
+
+.sport-tile-content strong {
+  font-size: clamp(1.5rem, 2.3vw, 2.1rem);
+  letter-spacing: -0.04em;
+}
+
+.sport-tile-content small,
+.sport-tile-footer {
+  color: var(--st-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.sport-tile-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 1.7rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--st-border);
+}
+
+.sport-tile-footer > span:last-child {
+  color: var(--st-accent);
+  font-size: 1.2rem;
+}
+
+.sport-tile-soon {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.sport-tile-soon::before {
+  background: var(--st-muted);
+}
+
+.sport-tile-soon .sport-tile-mark,
+.sport-tile-soon .sport-tile-footer {
+  color: var(--st-muted);
+}
+
+.sport-home-utilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+  margin-top: 2rem;
+}
+
+.match-sport-fixed {
+  display: inline-flex;
+  gap: 0.7rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-control);
+  background: var(--st-surface);
+}
+
+.match-sport-fixed span {
+  color: var(--st-muted);
+  font-size: 0.8rem;
+}
+
+.match-sport-fixed strong {
+  text-transform: capitalize;
+}
+
+.sport-manual .manual-skill-grid article p {
+  margin: 0.4rem 0 0;
+  color: var(--st-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.advanced-recording-panel {
+  margin: 0 auto 2rem;
+  border-top: 1px solid var(--st-border);
+}
+
+.advanced-recording-panel > summary {
+  width: fit-content;
+  min-height: 44px;
+  padding: 0.65rem 0;
+  color: var(--st-muted);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.advanced-recording-panel > summary:hover,
+.advanced-recording-panel[open] > summary {
+  color: var(--st-text);
+}
+
+.advanced-recording-panel > p {
+  margin: 0.15rem 0 1rem;
+  color: var(--st-muted);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 900px) {
+  .sport-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sport-tile { min-height: 14.5rem; }
+}
+
+@media (max-width: 480px) {
+  .sport-picker { gap: 0.55rem; }
+  .sport-tile { min-height: 12rem; padding: 0.85rem; }
+  .sport-tile-mark { width: 2.6rem; height: 2.6rem; font-size: 0.75rem; }
+  .sport-tile-content { padding-top: 1rem; }
+  .sport-tile-content strong { font-size: 1.35rem; }
+  .sport-tile-footer { margin-top: 0.8rem; font-size: 0.72rem; }
+}
+
+/* Sporting typography and deliberate, short interaction feedback. */
+h1, h2, h3, .brand, .match-workspace-title > strong { font-family: var(--st-font-display); font-weight: 600; }
+.match-workspace-score b { font-family: var(--st-font-display); font-size: 2.3rem; font-variant-numeric: tabular-nums; line-height: 1; }
+button { transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease; }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--st-accent); outline-offset: 4px; }
+.spatial-v2-marker { animation: court-marker-in 220ms ease-out; }
+.spatial-v2-trajectory line { stroke-width: 2.5; }
+@keyframes court-marker-in { from { opacity: 0; scale: 1.7; } to { opacity: 1; scale: 1; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+.tool-dialog-trigger > button { min-height: 38px; padding: 7px 12px; border: 1px solid var(--st-border); border-radius: 4px; background: var(--st-surface-raised); color: var(--st-text); font: 600 14px var(--st-font); cursor: pointer; }
+.tool-dialog { width: min(720px, calc(100% - 32px)); max-height: 85dvh; padding: 24px; border: 1px solid var(--st-control-border); border-radius: 8px; background: var(--st-surface); color: var(--st-text); box-shadow: 0 24px 100px #0008; }
+.tool-dialog::backdrop { background: #081418b8; backdrop-filter: blur(5px); }
+.tool-dialog > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+.tool-dialog h2 { margin: 0; font-size: 30px; }
+.tool-dialog button { min-height: 40px; padding: 8px 12px; border: 1px solid var(--st-control-border); border-radius: 4px; background: var(--st-surface-raised); color: var(--st-text); cursor: pointer; }
+.tool-dialog .match-context-details-content { display: flex; flex-wrap: wrap; gap: 16px; }
+.tool-dialog .score-adjustment { width: 100%; }
+.tool-dialog .score-adjustment > div { position: static; display: grid; gap: 8px; box-shadow: none; }
+.tool-dialog .recovery-content { padding: 12px 0 0; background: none; border: 0; }
+.scout-screen .match-context-secondary-row { gap: 12px; }
+.scout-screen .match-context-secondary-row button { min-height: 34px; font-size: 12px; padding: 6px 10px; }
+.scout-screen .match-context-secondary-row .tool-dialog button { min-height: 40px; font-size: 14px; }
+.analysis-destinations { width: 100%; margin-bottom: 24px; }
+.zone-matrix::before { content: 'REDE'; grid-column: 1 / -1; text-align: center; border-bottom: 3px solid var(--st-court-line); padding: 4px; letter-spacing: .14em; font-size: 11px; }
+.zone-cell { border-radius: 2px; background: var(--st-surface-raised); }
+.match-context-primary-row > .tool-dialog-trigger { margin-left: auto; }
+.tool-dialog .match-context-secondary-row { align-items: stretch; }
+.tool-dialog .match-context-details-content { width: 100%; }
+@media (max-width: 640px) {
+  .match-context-primary-row { gap: 8px 12px; }
+  .match-context-primary-row .context-observed-team, .match-context-primary-row .set-flow-status { display: none; }
+  .match-context-primary-row .serving-inline { flex-basis: 100%; }
+  .match-context-primary-row > .tool-dialog-trigger { margin-left: 0; }
 }

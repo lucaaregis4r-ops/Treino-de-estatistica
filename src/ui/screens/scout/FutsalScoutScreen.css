@@ -1,0 +1,100 @@
+.futsal-scout-screen { max-width: 1100px; display: flex; flex-direction: column; gap: .5rem; }
+.futsal-scout-screen .section-heading { margin: 0; padding: 0; }
+.futsal-scout-screen .section-heading h1 { font-size: clamp(1rem, 2vw, 1.3rem); margin: 0; }
+.futsal-scout-screen .section-heading p { margin: 0; }
+.futsal-match-score, .futsal-clock, .futsal-control-panel, .futsal-scout-panel, .futsal-timeline, .futsal-substitutions, .futsal-review, .futsal-orientation, .futsal-clock-adjust, .futsal-coverage-setting { width: min(100%, 760px); box-sizing: border-box; margin: 0 auto; border: 1px solid var(--st-border, #455952); border-radius: .5rem; }
+.futsal-match-score { display: grid; gap: .1rem; padding: .4rem .7rem; }
+.futsal-match-score > div:first-child { display: flex; align-items: center; justify-content: center; gap: .55rem; }
+.futsal-match-score > div:first-child strong { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.futsal-match-score p { margin: 0; text-align: center; }
+.futsal-match-score > p:first-of-type { display: none; }
+.futsal-fouls { display: flex; justify-content: center; gap: 1rem; font-size: .78rem; }
+.futsal-foul-warning { color: #9b4a05; font-weight: 700; }
+.futsal-clock { display: flex; align-items: center; justify-content: center; gap: .45rem; padding: .35rem .6rem; }
+.futsal-clock-display { display: flex; align-items: baseline; gap: .4rem; font-variant-numeric: tabular-nums; }
+.futsal-clock-display strong { font-size: clamp(1.35rem, 4vw, 2rem); line-height: 1; }
+.futsal-clock-display span { font-size: .78rem; color: var(--st-muted); }
+.futsal-clock > button { min-height: 38px; }
+.futsal-clock > small { display: none; }
+.futsal-clock-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: .4rem; width: 100%; }
+.futsal-clock-actions p { flex-basis: 100%; margin: .25rem; text-align: center; }
+.futsal-clock p[role='alert'] { color: #b42318; }
+.futsal-scout-screen .gesture-court[data-sport='futsal'] { width: min(100%, 560px); max-width: none; margin: 0 auto; }
+.futsal-scout-screen .gesture-court-frame[data-sport='futsal'] { padding: 0; border: 2px solid rgb(255 255 255 / 72%); border-radius: .6rem; overflow: hidden; }
+.futsal-scout-screen .gesture-court-frame > .futsal-surface { pointer-events: none; }
+.futsal-scout-screen .gesture-court-hint { margin: .2rem 0; text-align: center; }
+.futsal-control-panel { padding: .35rem .55rem; }
+.futsal-scout-panel { padding: .55rem; }
+.futsal-possession-heading { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; font-size: .9rem; }
+.futsal-possession-heading span { color: var(--st-muted); }
+.futsal-control-buttons, .futsal-main-actions { display: grid; gap: .35rem; margin-top: .4rem; }
+.futsal-control-buttons { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.futsal-main-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 0; }
+.futsal-control-buttons button, .futsal-main-actions button, .futsal-result-buttons button, .futsal-context-actions button { min-height: 40px; min-width: 0; padding: .25rem .35rem; border: 1px solid var(--st-border, #334155); border-radius: .4rem; background: var(--st-surface-raised, #1E293B); color: var(--st-text, #F8FAFC); cursor: pointer; font: inherit; transition: all 120ms ease; }
+.futsal-control-buttons button[aria-pressed='true'], .futsal-main-actions button[aria-pressed='true'] { background: var(--st-accent, #3B82F6); color: #fff; border-color: var(--st-accent, #3B82F6); font-weight: 700; }
+.futsal-control-buttons button:disabled, .futsal-main-actions button:disabled { opacity: .55; cursor: default; }
+.futsal-scout-screen button:focus-visible, .futsal-scout-screen summary:focus-visible, .futsal-scout-screen select:focus-visible { outline: 3px solid var(--st-accent, #3B82F6); outline-offset: 2px; }
+.futsal-main-actions kbd, .futsal-control-buttons kbd { font-size: .7em; opacity: .8; }
+.futsal-context-actions, .futsal-result-buttons { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.futsal-context-actions button, .futsal-result-buttons button { flex: 1 1 130px; }
+.futsal-result-buttons button[data-outcome='goal'] { background: rgba(16, 185, 129, 0.2); border-color: var(--st-success, #10B981); color: var(--st-success, #10B981); font-weight: 700; }
+.futsal-result-buttons button[data-outcome='saved'] { background: rgba(59, 130, 246, 0.2); border-color: var(--st-accent, #3B82F6); color: var(--st-accent, #3B82F6); font-weight: 600; }
+.futsal-result-buttons button[data-outcome='blocked'] { background: rgba(245, 158, 11, 0.2); border-color: var(--st-warning, #F59E0B); color: var(--st-warning, #F59E0B); }
+.futsal-result-buttons button[data-outcome='off_target'], .futsal-result-buttons button[data-outcome='post'] { background: rgba(244, 63, 94, 0.2); border-color: var(--st-danger, #F43F5E); color: var(--st-danger, #F43F5E); }
+.futsal-quick-players { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 6px; width: 100%; scrollbar-width: thin; }
+.futsal-pending-fact, .futsal-retry { display: grid; gap: .55rem; margin-top: .55rem; padding: .65rem; border: 1px solid var(--st-accent, #3B82F6); border-radius: .4rem; background: var(--st-surface, #111827); }
+.futsal-pending-fact > button, .futsal-retry button { min-height: 38px; justify-self: start; }
+.futsal-retry { border-color: var(--st-danger, #F43F5E); }
+.futsal-fact-error { margin: .4rem 0 0; color: var(--st-danger, #F43F5E); }
+.futsal-action-config, .futsal-action-row { display: flex; align-items: end; flex-wrap: wrap; gap: .55rem; }
+.futsal-action-config label, .futsal-pending-fact > label { display: grid; flex: 1 1 150px; gap: .3rem; }
+.futsal-action-config select, .futsal-pending-fact select { min-height: 40px; }
+.futsal-checkbox { display: flex !important; align-items: center; gap: .35rem; }
+.futsal-checkbox input { min-height: 20px; width: 20px; }
+.futsal-more-panels { display: grid; gap: .65rem; width: min(100%, 760px); margin: .2rem auto; }
+.futsal-substitutions, .futsal-review, .futsal-orientation, .futsal-clock-adjust, .futsal-coverage-setting { padding: .75rem; }
+.futsal-substitutions h2, .futsal-review h2, .futsal-orientation h2 { margin: 0 0 .4rem; font-size: 1.05rem; }
+.futsal-substitutions p, .futsal-review p, .futsal-orientation p { margin: .35rem 0; color: var(--st-muted); }
+.futsal-substitution-form, .futsal-composition-form { display: grid; gap: .65rem; margin-top: .65rem; padding: .65rem; border: 1px solid var(--st-border, #455952); border-radius: .4rem; }
+.futsal-substitution-form label, .futsal-composition-form label { display: grid; gap: .25rem; }
+.futsal-substitution-form select, .futsal-composition-form select { min-height: 40px; }
+.futsal-roster-checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: .4rem; }
+.futsal-roster-checks label { display: flex; align-items: center; gap: .3rem; }
+.futsal-current-composition p { margin: .25rem 0; }
+.futsal-review-form, .futsal-orientation { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: .6rem; }
+.futsal-review-form { margin-top: .65rem; }
+.futsal-review-form label, .futsal-orientation label, .futsal-coverage-setting { display: grid; gap: .25rem; }
+.futsal-review-form select, .futsal-review-form input, .futsal-orientation select, .futsal-coverage-setting select { min-height: 40px; width: 100%; box-sizing: border-box; }
+.futsal-orientation h2, .futsal-orientation p { grid-column: 1 / -1; }
+.futsal-clock-adjust summary, .futsal-composition-form summary { cursor: pointer; }
+.futsal-clock-adjust form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: .6rem; margin-top: .6rem; }
+.futsal-clock-adjust label { display: grid; gap: .25rem; }
+.futsal-clock-adjust input { min-height: 40px; width: 100%; box-sizing: border-box; }
+.futsal-timeline { padding: .75rem; }
+.futsal-timeline h2 { margin: 0 0 .5rem; font-size: 1rem; }
+.futsal-timeline ol { display: grid; gap: .4rem; margin: 0; padding-left: 1.3rem; }
+.futsal-timeline li { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; padding: .35rem 0; border-bottom: 1px solid var(--st-border, #455952); }
+.futsal-timeline li > span { flex: 1 1 240px; }
+.futsal-timeline li small { color: var(--st-muted); }
+@media (min-width: 900px) {
+  .futsal-scout-screen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .futsal-scout-screen > :not(.futsal-match-score, .futsal-clock) { grid-column: 1 / -1; }
+  .futsal-match-score, .futsal-clock { width: 100%; }
+}
+@media (max-width: 520px) {
+  .futsal-scout-screen { gap: .35rem; }
+  .futsal-scout-screen .section-heading .eyebrow { display: none; }
+  .futsal-scout-screen .section-heading h1 { font-size: 1rem; }
+  .futsal-match-score { padding: .25rem .4rem; }
+  .futsal-fouls { gap: .4rem; font-size: .7rem; }
+  .futsal-clock { gap: .25rem; padding: .25rem; }
+  .futsal-clock-display span[role='status'] { display: none; }
+  .futsal-clock > button { min-height: 34px; padding: .2rem .4rem; font-size: .8rem; }
+  .futsal-scout-panel { padding: .4rem; }
+  .futsal-control-panel { padding: .25rem .4rem; }
+  .futsal-possession-heading { font-size: .75rem; }
+  .futsal-control-buttons button { font-size: .73rem; min-height: 40px; }
+  .futsal-main-actions button { font-size: .76rem; min-height: 40px; overflow-wrap: anywhere; }
+  .futsal-scout-screen .gesture-court-teams { font-size: .68rem; }
+  .futsal-scout-screen .gesture-court-hint { font-size: .7rem; }
+}

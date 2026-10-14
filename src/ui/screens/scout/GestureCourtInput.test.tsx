@@ -106,4 +106,33 @@ describe('GestureCourtInput', () => {
     fireEvent.pointerUp(frame, { pointerId: 1, clientX: 50, clientY: 50 });
     expect(onTrajectory).not.toHaveBeenCalled();
   });
+  it('captures futsal shots with two clicks and tackles with one click', () => {
+    const onTrajectory = vi.fn();
+    const { getByRole, rerender } = render(<GestureCourtInput sport="futsal" captureMode="trajectory" onTrajectory={onTrajectory} />);
+    const frame = getByRole('application');
+    const bounds = { left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200, x: 0, y: 0, toJSON: () => ({}) };
+    vi.spyOn(frame, 'getBoundingClientRect').mockReturnValue(bounds);
+    const surface = frame.querySelector('.futsal-surface') as HTMLDivElement;
+    vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue(bounds);
+    fireEvent.pointerDown(frame, { pointerId: 1, clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(frame, { pointerId: 1, clientX: 100, clientY: 100 });
+    expect(onTrajectory).not.toHaveBeenCalled();
+    fireEvent.pointerDown(frame, { pointerId: 2, clientX: 350, clientY: 100 });
+    fireEvent.pointerUp(frame, { pointerId: 2, clientX: 350, clientY: 100 });
+    expect(onTrajectory).toHaveBeenCalledWith({ origin: { surface: 'court', x: .25, y: .5 }, destination: { surface: 'court', x: .875, y: .5 } });
+    onTrajectory.mockClear();
+    rerender(<GestureCourtInput sport="futsal" captureMode="point" onTrajectory={onTrajectory} />);
+    fireEvent.pointerDown(frame, { pointerId: 3, clientX: 200, clientY: 100 });
+    fireEvent.pointerUp(frame, { pointerId: 3, clientX: 200, clientY: 100 });
+    expect(onTrajectory).toHaveBeenCalledWith({ origin: { surface: 'court', x: .5, y: .5 }, destination: { surface: 'court', x: .5, y: .5 } });
+  });
+  it('captures a two-point futsal shot using arrows and Enter', () => {
+    const onTrajectory = vi.fn();
+    const { getByRole } = render(<GestureCourtInput sport="futsal" captureMode="trajectory" onTrajectory={onTrajectory} />);
+    const court = getByRole('application');
+    fireEvent.keyDown(court, { key: 'Enter' });
+    fireEvent.keyDown(court, { key: 'ArrowRight' });
+    fireEvent.keyDown(court, { key: 'Enter' });
+    expect(onTrajectory).toHaveBeenCalledWith({ origin: { surface: 'court', x: .5, y: .5 }, destination: { surface: 'court', x: .54, y: .5 } });
+  });
 });

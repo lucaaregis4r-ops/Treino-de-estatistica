@@ -1,3 +1,4 @@
+import { VolleyballCourtMarkings } from '../../components/VolleyballCourtZones';
 import { useState, type KeyboardEvent } from 'react';
 import type { MatchReportModel } from '../../../application/reporting/MatchReportModel';
 import {
@@ -102,16 +103,7 @@ export function SpatialAnalysisCourt({
       aria-label={heatmap ? 'Mapa de calor' : 'Mapa de pontos'}
     >
       {!heatmap && <rect className="spatial-points-floor" x="0" y="0" width="200" height="100" />}
-      {[200 / 3, 100, 400 / 3].map((x) => (
-        <line
-          key={x}
-          className={x === 100 ? 'spatial-points-net' : 'spatial-points-attack-line'}
-          x1={x}
-          y1="0"
-          x2={x}
-          y2="100"
-        />
-      ))}
+      <VolleyballCourtMarkings />
       <rect className="spatial-points-border" x="0" y="0" width="200" height="100" />
       {!heatmap &&
         points.map((point, index) => {
@@ -148,6 +140,42 @@ export function SpatialAnalysisCourt({
   );
 }
 
+function normalizeSample(sample: SpatialSample, enabled: boolean): SpatialSample {
+  if (!enabled) return sample;
+  let shouldFlip = false;
+  if (sample.origin?.x !== undefined && sample.origin.x > 0.5) {
+    shouldFlip = true;
+  } else if (sample.origin?.x === undefined && sample.target?.x !== undefined) {
+    if ((sample.skill === 'attack' || sample.skill === 'serve') && sample.target.x < 0.5) {
+      shouldFlip = true;
+    } else if ((sample.skill === 'reception' || sample.skill === 'dig') && sample.target.x > 0.5) {
+      shouldFlip = true;
+    }
+  }
+
+  if (!shouldFlip) return sample;
+
+  return {
+    ...sample,
+    origin:
+      sample.origin?.x !== undefined
+        ? {
+            ...sample.origin,
+            x: Number((1 - sample.origin.x).toFixed(4)),
+            y: Number((1 - (sample.origin.y ?? 0.5)).toFixed(4)),
+          }
+        : sample.origin,
+    target:
+      sample.target?.x !== undefined
+        ? {
+            ...sample.target,
+            x: Number((1 - sample.target.x).toFixed(4)),
+            y: Number((1 - (sample.target.y ?? 0.5)).toFixed(4)),
+          }
+        : sample.target,
+  };
+}
+
 function TrajectoryCourt({
   samples,
   onSelect,
@@ -165,20 +193,24 @@ function TrajectoryCourt({
       aria-label="Mapa de jogadas"
     >
       <rect className="spatial-points-floor" x="0" y="0" width="200" height="100" />
-      {[200 / 3, 100, 400 / 3].map((x) => (
-        <line
-          key={x}
-          className={x === 100 ? 'spatial-points-net' : 'spatial-points-attack-line'}
-          x1={x}
-          y1="0"
-          x2={x}
-          y2="100"
-        />
-      ))}
+      <VolleyballCourtMarkings />
       {samples.map((sample) => {
         const origin = pointFor(sample, 'origin');
         const target = pointFor(sample, 'target');
         if (!origin || !target) return null;
+        const x1 = origin.x! * 200;
+        const y1 = origin.y! * 100;
+        const x2 = target.x! * 200;
+        const y2 = target.y! * 100;
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const cx1 = x1 + dx * 0.4;
+        const cy1 = y1 + dy * 0.1;
+        const cx2 = x1 + dx * 0.75;
+        const cy2 = y2 - dy * 0.05;
+        const d = `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
+        const marker = markerKind(sample.evaluation);
+
         return (
           <g
             key={sample.eventId}
@@ -187,21 +219,26 @@ function TrajectoryCourt({
             aria-label={sampleDetail(sample, playerLabel)}
             onClick={() => onSelect?.(sample.eventId)}
           >
-            <line
-              className={`spatial-play-line spatial-play-${markerKind(sample.evaluation)}`}
-              x1={origin.x! * 200}
-              y1={origin.y! * 100}
-              x2={target.x! * 200}
-              y2={target.y! * 100}
+            <path
+              className={`spatial-play-line spatial-play-${marker}`}
+              d={d}
             >
-              <title>
-                {sampleDetail(sample, playerLabel)}
-              </title>
-            </line>
-            <circle className="spatial-play-origin" cx={origin.x! * 200} cy={origin.y! * 100} r="2" />
-            {markerKind(sample.evaluation) === 'point' && <circle className="spatial-point-point" cx={target.x! * 200} cy={target.y! * 100} r="3" />}
-            {markerKind(sample.evaluation) === 'neutral' && <polygon className="spatial-point-neutral" points={`${target.x! * 200},${target.y! * 100 - 3.2} ${target.x! * 200 + 3.2},${target.y! * 100} ${target.x! * 200},${target.y! * 100 + 3.2} ${target.x! * 200 - 3.2},${target.y! * 100}`} />}
-            {markerKind(sample.evaluation) === 'error' && <g className="spatial-point-error"><line x1={target.x! * 200 - 2.8} y1={target.y! * 100 - 2.8} x2={target.x! * 200 + 2.8} y2={target.y! * 100 + 2.8} /><line x1={target.x! * 200 + 2.8} y1={target.y! * 100 - 2.8} x2={target.x! * 200 - 2.8} y2={target.y! * 100 + 2.8} /></g>}
+              <title>{sampleDetail(sample, playerLabel)}</title>
+            </path>
+            <circle className="spatial-play-origin" cx={x1} cy={y1} r="2.5" />
+            {marker === 'point' && <circle className="spatial-point-point" cx={x2} cy={y2} r="3.5" />}
+            {marker === 'neutral' && (
+              <polygon
+                className="spatial-point-neutral"
+                points={`${x2},${y2 - 3.2} ${x2 + 3.2},${y2} ${x2},${y2 + 3.2} ${x2 - 3.2},${y2}`}
+              />
+            )}
+            {marker === 'error' && (
+              <g className="spatial-point-error">
+                <line x1={x2 - 2.8} y1={y2 - 2.8} x2={x2 + 2.8} y2={y2 + 2.8} />
+                <line x1={x2 + 2.8} y1={y2 - 2.8} x2={x2 - 2.8} y2={y2 + 2.8} />
+              </g>
+            )}
           </g>
         );
       })}
@@ -228,10 +265,15 @@ export function SpatialAnalyticsPanel({
   const [rotation, setRotation] = useState('all');
   const [radius, setRadius] = useState(0.16);
   const [intensity, setIntensity] = useState(1);
+  const [normalizePerspective, setNormalizePerspective] = useState(true);
   const [analysisName, setAnalysisName] = useState('');
   const [selectedConfigurationId, setSelectedConfigurationId] = useState('');
   const [selectedSampleId, setSelectedSampleId] = useState<string>();
   const effectiveTeamId = teamId;
+  const selectedTeamName =
+    report.teams?.find((t) => t.id === effectiveTeamId)?.name ||
+    effectiveTeamId ||
+    'Nossa equipe';
   const selectedConfiguration = analysisConfigurations.find(
     (configuration) => configuration.id === selectedConfigurationId,
   );
@@ -276,6 +318,9 @@ export function SpatialAnalyticsPanel({
   const samples = (report.spatial?.samples ?? []).filter(
     (sample) => sample.teamId === effectiveTeamId && sample.source === 'spatial',
   );
+  const normalizedSamples = samples.map((sample) =>
+    normalizeSample(sample, normalizePerspective),
+  );
   const availableSkills = SKILLS.filter((value) =>
     samples.some((sample) => sample.skill === value),
   );
@@ -292,7 +337,7 @@ export function SpatialAnalyticsPanel({
     evaluations === null
       ? availableEvaluations
       : evaluations.filter((value) => availableEvaluations.includes(value));
-  const filteredSamples = samples
+  const filteredSamples = normalizedSamples
     .filter((sample) => selectedSkill === 'all' || sample.skill === selectedSkill)
     .filter((sample) => playerId === 'all' || sample.playerId === playerId)
     .filter((sample) => setNumber === 'all' || String(sample.setNumber) === setNumber)
@@ -517,6 +562,14 @@ export function SpatialAnalyticsPanel({
             </label>
           </details>
         )}
+        <label className="spatial-normalize-toggle">
+          <input
+            type="checkbox"
+            checked={normalizePerspective}
+            onChange={(e) => setNormalizePerspective(e.target.checked)}
+          />
+          Padronizar sentido (Ataque ➔ Defesa)
+        </label>
       </div>
       <div className="analysis-toolbar">
         <div role="group" aria-label="Visualização">
@@ -593,6 +646,18 @@ export function SpatialAnalyticsPanel({
         </details>
       )}
 
+      {normalizePerspective && (
+        <div className="spatial-court-perspective-header" aria-hidden="true">
+          <span className="court-perspective-side attack">
+            🏐 LADO DE ATAQUE (Origem · {selectedTeamName})
+          </span>
+          <span className="court-perspective-net">REDE</span>
+          <span className="court-perspective-side defense">
+            🛡️ LADO DE DEFESA (Destino / Alvo)
+          </span>
+        </div>
+      )}
+
       {viewMode === 'heatmap' && filteredPoints.length > 0 ? (
         <div className="analysis-heat-court">
           <HeatmapLayer points={filteredPoints} radius={radius} intensity={intensity} />
@@ -605,7 +670,7 @@ export function SpatialAnalyticsPanel({
       ) : (
         <p className="spatial-points-empty">Nenhuma ação corresponde aos filtros selecionados.</p>
       )}
-      {viewMode === 'plays' && <small>● Origem (amarelo) → destino (verde)</small>}
+      {viewMode === 'plays' && <small>● Origem (Cobalto #3B82F6) ➔ Destino (Verde Ponto / Vermelho Erro / Azul Neutro)</small>}
       {selectedSample && (
         <p className="spatial-sample-detail" role="status">
           {sampleDetail(selectedSample, playerLabel)}

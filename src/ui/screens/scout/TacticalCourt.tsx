@@ -1,3 +1,4 @@
+import { VolleyballCourtOverlay } from '../../components/VolleyballCourtZones';
 import { useRef, type PointerEvent } from 'react';
 import type { CourtLocation } from '../../../domain/scout/tactical/TacticalMetadata';
 import type {
@@ -133,6 +134,7 @@ export function TacticalCourt({
         <span className="court-team-label target" aria-hidden="true">
           destino
         </span>
+        <VolleyballCourtOverlay labels={false} />
         <span className="court-net" aria-hidden="true" />
         <span className="court-attack-line origin" aria-hidden="true" />
         <span className="court-attack-line target" aria-hidden="true" />

@@ -98,4 +98,24 @@ describe('PlayerQuickPicker', () => {
     );
     expect(getByRole('button', { name: 'P1 · Atleta 1' })).toHaveAttribute('aria-pressed', 'false');
   });
+
+  it('never displays "Líbero abaixo" in front row (P4, P3, P2) and restores the non-libero player', () => {
+    const slotAtP4 = lineup.positions[4];
+    const lineupWithLiberoAtNet = {
+      ...lineup,
+      slots: {
+        ...lineup.slots,
+        [slotAtP4]: {
+          ...lineup.slots[slotAtP4],
+          playerId: 'p7',
+          originalPlayerId: 'p4',
+        },
+      },
+    };
+    const { getByRole, queryByText } = render(
+      <PlayerQuickPicker {...props} lineup={lineupWithLiberoAtNet} liberoIds={['p7']} />,
+    );
+    expect(queryByText('Líbero abaixo')).not.toBeInTheDocument();
+    expect(getByRole('button', { name: 'P4 · Atleta 4' })).toBeInTheDocument();
+  });
 });

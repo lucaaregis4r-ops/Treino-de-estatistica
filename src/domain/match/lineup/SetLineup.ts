@@ -10,6 +10,8 @@ export interface LineupSlot {
   readonly slotId: string;
   readonly tacticalRole: TacticalRole;
   readonly playerId: string;
+  /** Atleta titular original do slot (ex: central titular que retorna quando o slot roda para a rede). */
+  readonly originalPlayerId?: string;
   /** Função exercida pelo atleta que ocupa o slot neste momento. */
   readonly activeRole?: PlayerRole;
 }
@@ -62,9 +64,16 @@ export function createDefaultLineup(
   teamId: string,
   setNumber: number,
   players: readonly Player[],
+  liberoPlayerIds?: readonly string[],
 ): SetLineup | undefined {
   const active = players
-    .filter((player) => player.teamId === teamId && player.active !== false)
+    .filter(
+      (player) =>
+        player.teamId === teamId &&
+        player.active !== false &&
+        player.registeredRole !== 'libero' &&
+        !liberoPlayerIds?.includes(player.id),
+    )
     .slice()
     .sort((left, right) => left.number - right.number)
     .slice(0, 6);
@@ -79,6 +88,7 @@ export function createDefaultLineup(
           slotId,
           tacticalRole,
           playerId: player.id,
+          originalPlayerId: player.id,
           activeRole: playerRoleForTacticalRole(tacticalRole),
         },
       ];

@@ -1,0 +1,82 @@
+.volleyball-reading { display: grid; gap: 1.1rem; min-width: 0; margin: 1rem 0 1.5rem; color: var(--ink); }
+.volleyball-reading * { box-sizing: border-box; }
+.reading-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1.25rem 1.5rem; border: 1px solid var(--line); border-radius: var(--radius-panel); background: linear-gradient(125deg, #152820, #0b1716); }
+.reading-header h2 { margin: .1rem 0; font-size: clamp(1.3rem, 2.8vw, 2rem); }
+.reading-header p:last-child { margin: .25rem 0 0; color: var(--muted); }
+.reading-score { display: flex; align-items: center; gap: .55rem; font: 800 clamp(2rem, 6vw, 3.5rem) ui-monospace, monospace; color: var(--accent); }
+.reading-score small { max-width: 4.5rem; color: #c5d3cb; font: 700 .72rem system-ui, sans-serif; line-height: 1.25; }
+.reading-score span { color: var(--muted); font-size: .65em; }
+.reading-filters { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .7rem; }
+.reading-filter-group { display: flex; flex-wrap: wrap; gap: .35rem; min-width: 0; }
+.reading-filter-group button, .reading-tabs button { min-height: 44px; padding: .5rem .8rem; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); cursor: pointer; }
+.reading-filter-group button[aria-pressed='true'], .reading-tabs button[aria-pressed='true'] { border-color: var(--accent); background: #314032; color: #f2ffca; font-weight: 800; }
+.reading-filter-group button small { display: block; color: var(--muted); }
+.reading-coverage { margin: 0; padding: .7rem 1rem; border-left: 3px solid var(--cyan); background: var(--panel-subtle); color: var(--muted); font-size: .82rem; }
+.reading-team-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr)); gap: 1rem; min-width: 0; }
+.reading-team, .reading-empty-team, .reading-highlights, .reading-detail-card { min-width: 0; padding: 1.15rem; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--panel); }
+.reading-empty-team p { color: var(--muted); }
+.reading-team-heading { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .4rem; margin-bottom: .8rem; }
+.reading-team-heading h3, .reading-highlights h3, .reading-detail-card h3 { margin: 0; font-size: 1.1rem; }
+.reading-team-heading span { color: var(--muted); font-size: .76rem; }
+.reading-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+.reading-stat { display: grid; align-content: start; gap: .35rem; min-width: 0; min-height: 8rem; padding: .8rem; border: 1px solid var(--line); border-radius: .65rem; background: #0b1916; }
+.reading-stat small { color: var(--muted); font-weight: 700; }
+.reading-stat strong { font-size: clamp(1.45rem, 3vw, 2rem); line-height: 1.1; }
+.reading-stat span { color: #c5d3cb; font-size: .78rem; line-height: 1.35; }
+.reading-stat--attack strong { color: #e3ff4f; }
+.reading-stat--serve strong { color: #ffbb79; }
+.reading-stat--reception strong { color: #70e5d6; }
+.reading-stat--block strong { color: #bca7ff; }
+.reading-meter { height: 5px; overflow: hidden; margin-top: auto; border-radius: 999px; background: #263a34; }
+.reading-meter i { display: block; height: 100%; border-radius: inherit; background: currentColor; }
+.reading-stat--attack .reading-meter { color: #e3ff4f; }
+.reading-stat--serve .reading-meter { color: #ffbb79; }
+.reading-stat--reception .reading-meter { color: #70e5d6; }
+.reading-rally-rates { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .7rem; }
+.reading-rally-rates > span { display: flex; gap: .4rem; align-items: baseline; padding: .5rem .7rem; border-radius: .5rem; background: #142720; font-size: .84rem; }
+.reading-rally-rates small { color: var(--muted); }
+.reading-rotation-insight { margin: .7rem 0 0; padding: .55rem .7rem; border-left: 3px solid #ffbb79; border-radius: .25rem; background: #2b2019; color: #e7ded3; font-size: .8rem; }
+.reading-highlights h3 { margin-bottom: .8rem; }
+.reading-highlight-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+.reading-highlight-columns > div { min-width: 0; }
+.reading-highlight-columns h4 { margin: 0 0 .5rem; color: var(--muted); font-size: .79rem; text-transform: uppercase; letter-spacing: .04em; }
+.reading-criteria { min-height: 2em; margin: -.25rem 0 .5rem; color: var(--muted); font-size: .72rem; }
+.reading-athlete { display: grid; gap: .2rem; min-width: 0; padding: .65rem .75rem; margin-bottom: .45rem; border-left: 3px solid var(--cyan); border-radius: .4rem; background: #10241d; }
+.reading-athlete--attention { border-left-color: #ffbb79; background: #2b2019; }
+.reading-athlete strong { overflow-wrap: anywhere; }
+.reading-athlete b { color: #aaf1df; font-size: .82rem; }
+.reading-athlete small { color: #c5d3cb; line-height: 1.35; }
+.reading-empty { color: var(--muted); font-size: .82rem; }
+.reading-event-preview { display: grid; gap: .7rem; min-width: 0; padding: 1rem 1.15rem; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--panel); }
+.reading-event-preview > div { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.reading-event-preview h3 { margin: 0; font-size: 1rem; }
+.reading-event-preview button { min-height: 40px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel-subtle); color: var(--ink); cursor: pointer; }
+.reading-event-preview ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; padding: 0; margin: 0; list-style: none; }
+.reading-event-preview li { display: grid; gap: .12rem; min-width: 0; padding: .55rem .65rem; border-top: 3px solid var(--line); border-radius: .35rem; background: #0b1916; font-size: .8rem; }
+.reading-event-preview li[data-result='point'], .reading-event-preview li[data-result='ace'] { border-top-color: #aaf1df; }
+.reading-event-preview li[data-result='error'], .reading-event-preview li[data-result='blocked'] { border-top-color: #ffbb79; }
+.reading-event-preview li span, .reading-event-preview li small { color: var(--muted); overflow-wrap: anywhere; }
+.reading-event-preview p { margin: 0; color: var(--muted); }
+.reading-tabs { display: flex; flex-wrap: wrap; gap: .4rem; border-bottom: 1px solid var(--line); padding-bottom: .65rem; }
+.reading-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr)); gap: 1rem; min-width: 0; }
+.reading-detail-card h3 { margin-bottom: .8rem; }
+.reading-fundamentals, .reading-athlete-list, .reading-rotation-list { display: grid; gap: .5rem; }
+.reading-athletes-detail { display: grid; gap: .7rem; min-width: 0; }
+.reading-athlete-list article span small { display: block; margin-top: .15rem; }
+.reading-fundamentals > span, .reading-athlete-list article, .reading-rotation { display: grid; gap: .25rem; min-width: 0; padding: .7rem; border: 1px solid var(--line); border-radius: .5rem; background: #0b1916; }
+.reading-fundamentals small, .reading-athlete-list span, .reading-rotation small { color: var(--muted); font-size: .78rem; }
+.reading-rotation { grid-template-columns: 2.5rem repeat(3, minmax(0, 1fr)); align-items: center; font-size: .8rem; }
+.reading-rotation > span { display: grid; gap: .15rem; }
+.reading-actions { display: grid; gap: .45rem; padding: 0; margin: 0; list-style: none; }
+.reading-actions li { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(8rem, 1.5fr) minmax(6rem, .8fr) auto; align-items: center; gap: .5rem; padding: .65rem .8rem; border-left: 3px solid var(--line); border-radius: .4rem; background: #0b1916; font-size: .82rem; }
+.reading-actions li[data-result='point'], .reading-actions li[data-result='ace'] { border-left-color: #aaf1df; }
+.reading-actions li[data-result='error'], .reading-actions li[data-result='blocked'] { border-left-color: #ffbb79; }
+.reading-actions small { color: var(--muted); }
+@media (max-width: 700px) {
+  .reading-header { padding: 1rem; }
+  .reading-stat-grid, .reading-highlight-columns { grid-template-columns: 1fr; }
+  .reading-rotation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reading-actions li { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reading-filter-group { width: 100%; }
+  .reading-event-preview ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

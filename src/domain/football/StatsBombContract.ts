@@ -1,5 +1,6 @@
 import type { FootballObservation } from './FootballObservation';
 import type { FootballAssistedRecording } from './FootballAssistedRecording';
+import type { EssentialActionCode, EssentialFoulCard, EssentialPassResult, EssentialProgressionResult, EssentialProgressionType, EssentialQualifier, EssentialRestartType, EssentialThird, EssentialThirdAnchor } from '../essential/EssentialScout';
 export const STATSBOMB_PITCH = { width: 120, height: 80 } as const;
 
 export type StatsBombLocation = readonly [number, number] | readonly [number, number, number];
@@ -10,6 +11,19 @@ export interface ScoutTrainerFootballExtension {
   /** 1.0.0 is retained for backups produced before the possession protocol. */
   readonly schema_version: '1.0.0' | '1.1.0';
   readonly modality: 'football';
+  /** Marks a sparse action captured by the optional essential scout. */
+  readonly essential_code?: EssentialActionCode;
+  readonly essential_shirt_number?: number;
+  readonly essential_third?: EssentialThird;
+  readonly essential_third_anchor?: EssentialThirdAnchor;
+  readonly essential_qualifiers?: readonly EssentialQualifier[];
+  readonly essential_pass_result?: EssentialPassResult;
+  readonly essential_progression_type?: EssentialProgressionType;
+  readonly essential_progression_result?: EssentialProgressionResult;
+  readonly essential_foul_card?: EssentialFoulCard;
+  readonly essential_restart_type?: EssentialRestartType;
+  /** Exact dribble endpoint has no native StatsBomb dribble field. */
+  readonly essential_destination?: StatsBombLocation;
   readonly observation?: FootballObservation;
   readonly match_id: string;
   readonly capture_sequence: number;
@@ -66,7 +80,7 @@ export interface CanonicalFootballEvent {
   readonly scout_trainer: ScoutTrainerFootballExtension;
 }
 
-export type FootballAction = 'pass' | 'carry' | 'dribble' | 'duel' | 'interception' | 'ball_recovery' | 'loss' | 'shot' | 'foul' | 'substitution';
+export type FootballAction = 'pass' | 'carry' | 'dribble' | 'duel' | 'interception' | 'ball_recovery' | 'loss' | 'shot' | 'foul' | 'restart' | 'substitution';
 export type PassTouchResult = 'controlled' | 'touched_without_control' | 'intercepted' | 'out' | 'not_observed';
 export type TouchController = 'same_team' | 'opponent' | 'out' | 'undefined';
 

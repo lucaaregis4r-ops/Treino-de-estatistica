@@ -253,6 +253,9 @@ describe('Match report exporters', () => {
 
     expect(pdf).toMatch(/^%PDF-1\.4/);
     expect(decoded(pdf)).toContain('Relatório pós-jogo');
+    expect(decoded(pdf)).toContain('DESTAQUES OBSERVADOS POR ATLETA');
+    expect(decoded(pdf)).toContain('Contribuição positiva: #');
+    expect(decoded(pdf)).toContain('Para acompanhar: #');
     expect(decoded(pdf)).not.toContain('Desempenho por atleta');
     expect(decoded(pdf)).not.toContain('Distribuição da bola / P1-P6');
     expect(decoded(pdf)).toContain('Nenhum gráfico selecionado');

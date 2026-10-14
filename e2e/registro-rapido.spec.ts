@@ -31,6 +31,11 @@ async function drag(page: Page) {
   await page.mouse.up();
 }
 
+async function reopenVolleyballMatch(page: Page) {
+  await page.getByRole('button', { name: 'Vôlei: abrir partidas e manual' }).click();
+  await page.locator('.matches-list .match-name-button').first().click();
+}
+
 test('registro rápido mantém trajetória/ausência e permite corrigir o contexto com replay', async ({
   page,
 }) => {
@@ -40,7 +45,7 @@ test('registro rápido mantém trajetória/ausência e permite corrigir o contex
   await page.locator('#home-import-backup').setInputFiles('output/u7/partida-antes.json');
   await expect(page.locator('.match-workspace-nav')).toBeVisible();
   await page.locator('.app-message button').click();
-  await page.getByRole('button', { name: 'Gestual', exact: true }).click();
+  await expect(page.getByRole('group', { name: 'Fundamento da ação' })).toBeVisible();
   await expect(page.locator('.capture-heading')).toContainText('Saque');
   const picker = page.getByRole('group', { name: 'Selecionar atleta' });
   await expect(picker.locator('[data-position="1"] .gesture-player-name')).toHaveText(
@@ -87,7 +92,7 @@ test('registro rápido mantém trajetória/ausência e permite corrigir o contex
   expect(events[5].event.teamId).toBe(backup.teams[0].id);
   expect(backup.events.some((event) => event.type === 'scout_corrected')).toBe(false);
   await page.getByRole('button', { name: 'Registro', exact: true }).click();
-  await page.getByRole('button', { name: 'Gestual', exact: true }).click();
+  await expect(page.locator('.gesture-court')).toBeVisible();
   await page.getByRole('button', { name: 'Ajustar rotação, saque e placar', exact: true }).click();
   const form = page.getByRole('form', { name: 'Ajuste rápido da partida' });
   await form
@@ -113,8 +118,8 @@ test('registro rápido mantém trajetória/ausência e permite corrigir o contex
   await expect(page.locator('.serving-inline')).toContainText('#09');
   await expect(page.locator('.match-workspace-score')).toContainText('12');
   await page.reload();
-  await page.getByRole('button', { name: 'Continuar registro', exact: true }).click();
-  await page.getByRole('button', { name: 'Gestual', exact: true }).click();
+  await reopenVolleyballMatch(page);
+  await expect(page.locator('.gesture-court')).toBeVisible();
   await expect(page.locator('.serving-inline')).toContainText('#09');
   await expect(page.locator('.capture-heading')).toContainText('Saque');
   await expect(picker.locator('[data-position="1"]')).toContainText('#09');
@@ -130,7 +135,7 @@ test('registro rápido mantém trajetória/ausência e permite corrigir o contex
 test('falha no registro rápido mantém atleta e trajetória para nova confirmação', async ({ page }) => {
   await page.goto('/');
   await page.locator('#home-import-backup').setInputFiles('output/u7/partida-antes.json');
-  await page.getByRole('button', { name: 'Gestual', exact: true }).click();
+  await expect(page.locator('.gesture-court')).toBeVisible();
   await page.getByRole('checkbox', { name: /Registrar ao soltar/ }).check();
   await page.getByRole('button', { name: 'Sem atleta identificado', exact: true }).click();
   await failNextEventWrite(page);

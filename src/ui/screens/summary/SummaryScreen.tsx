@@ -1,6 +1,8 @@
+import { VOLLEYBALL_ZONE_ORDER } from '../../components/volleyballCourtGeometry';
 import { useMemo, useState } from 'react';
 import { ReportEditor } from './ReportEditor';
 import { loadReportDraft } from './reportDraftStorage';
+import { VolleyballReading } from './VolleyballReading';
 import type { ReportDraft } from '../../../application/reporting/ReportDraft';
 import type { ReportChartConfiguration } from '../../../domain/reporting/ReportChartConfiguration';
 import type { MatchWorkspace } from '../../../application/ScoutTrainerService';
@@ -58,6 +60,9 @@ export function SummaryScreen({
           <h1 id="summary-title">{workspace.state.metadata.name}</h1>
         </div>
         <div className="summary-heading-actions">
+          <button className="button primary" type="button" disabled={busy} onClick={() => void onExport('pdf', reportDraft)}>
+            Exportar PDF
+          </button>
           <button className="button secondary" type="button" onClick={onAnalysis}>
             Abrir análise
           </button>
@@ -66,6 +71,11 @@ export function SummaryScreen({
           </button>
         </div>
       </div>
+      <VolleyballReading workspace={workspace} />
+      <details className="summary-advanced">
+        <summary>Dados completos e opções de exportação</summary>
+        <div className="summary-advanced-content">
+      <p className="summary-note">Dados completos da partida; os filtros da leitura acima se aplicam apenas ao painel principal.</p>
       <section className="set-scoreboard" aria-labelledby="set-scoreboard-title">
         <div>
           <p className="eyebrow">Placar completo</p>
@@ -210,6 +220,8 @@ export function SummaryScreen({
           </p>
         )}
       </section>
+        </div>
+      </details>
       <div className="summary-actions">
         <details className="summary-export-menu">
           <summary className="button primary">Exportar</summary>
@@ -247,13 +259,14 @@ function TacticalMetricCard({ metric }: { readonly metric: TacticalMetricViewMod
       </div>
       {metric.visualization === 'zone-matrix' ? (
         <div className="zone-matrix" aria-label={`Matriz de zonas: ${metric.label}`}>
-          {metric.rows.map((row) => (
-            <div key={row.key} className="zone-cell">
-              <span>Z{row.label}</span>
-              <strong>{row.displayValue}</strong>
-              <small>{row.audit}</small>
-            </div>
-          ))}
+          {VOLLEYBALL_ZONE_ORDER.map((zone) => {
+            const row = metric.rows.find((candidate) => candidate.key === String(zone) || candidate.label === String(zone));
+            return <div key={zone} className="zone-cell">
+              <span>Z{zone}</span>
+              <strong>{row?.displayValue ?? '—'}</strong>
+              <small>{row?.audit ?? 'Sem observações'}</small>
+            </div>;
+          })}
         </div>
       ) : metric.visualization === 'direction-map' ? (
         <div className="direction-map" aria-label={`Mapa de direções: ${metric.label}`}>

@@ -31,7 +31,7 @@ describe('SpatialCourtInputV2', () => {
     fireEvent.click(surface, { clientX: 310, clientY: 170 });
     expect(screen.getByRole('status')).toHaveTextContent('Trajetória registrada');
     expect(screen.getByLabelText('Destino')).toHaveStyle({ left: '75%', top: '75%' });
-    const line = surface.querySelector('line');
+    const line = surface.querySelector('.spatial-v2-trajectory line');
     expect(line).toHaveAttribute('x1', '25%');
     expect(line).toHaveAttribute('y1', '25%');
     expect(line).toHaveAttribute('x2', '75%');

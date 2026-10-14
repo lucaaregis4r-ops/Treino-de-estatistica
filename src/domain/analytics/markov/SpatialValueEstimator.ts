@@ -138,7 +138,7 @@ export class SpatialValueEstimator {
     teamId: string,
     skill: string,
   ): readonly SpatialRegionFinding[] {
-    const roles: readonly SpatialRole[] = skill === 'attack' ? ['origin', 'target', 'trajectory'] : ['target'];
+    const roles: readonly SpatialRole[] = ['origin', 'target', 'trajectory'];
     return Object.freeze(
       roles.flatMap((spatialRole) => {
         const observations = observationsFor(sequences, teamId, skill, spatialRole);

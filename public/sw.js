@@ -1,7 +1,10 @@
-const CACHE_NAME = 'scout-trainer-v3-gesture';
+const CACHE_NAME = 'scout-trainer-v4-court';
 const APP_SHELL = [
   './',
   './manifest.webmanifest',
+  './fonts/Barlow-Regular.ttf',
+  './fonts/Barlow-SemiBold.ttf',
+  './fonts/BarlowCondensed-SemiBold.ttf',
   './icons/scout-trainer.svg',
   './icons/scout-trainer-192.png',
   './icons/scout-trainer-512.png',

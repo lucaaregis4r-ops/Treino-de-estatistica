@@ -4,7 +4,7 @@ import type { FootballOutcome } from '../../../../domain/football/FootballRecord
 const ACTIONS: readonly [FootballAction, string][] = [
   ['pass', 'Passe'], ['carry', 'Condução'], ['dribble', 'Drible'], ['duel', 'Desarme'],
   ['interception', 'Interceptação'], ['ball_recovery', 'Recuperação'], ['loss', 'Perda'], ['shot', 'Finalização'],
-  ['foul', 'Falta'], ['substitution', 'Substituição'],
+  ['foul', 'Falta'], ['restart', 'Reinício'], ['substitution', 'Substituição'],
 ];
 
 const RESULTS: Record<FootballAction, readonly [FootballOutcome, string][]> = {
@@ -12,7 +12,7 @@ const RESULTS: Record<FootballAction, readonly [FootballOutcome, string][]> = {
   dribble: [['won', 'Completo'], ['lost', 'Incompleto']], duel: [['won', 'Ganho'], ['lost', 'Perdido']],
   interception: [['observed', 'Observada']], ball_recovery: [['observed', 'Observada']], loss: [['observed', 'Observada']],
   shot: [['goal', 'Gol'], ['saved', 'Defendida'], ['blocked', 'Bloqueada'], ['off_target', 'Para fora'], ['post', 'Trave']],
-  foul: [['observed', 'Observada']], substitution: [['observed', 'Observada']],
+  foul: [['observed', 'Observada']], restart: [['observed', 'Observado']], substitution: [['observed', 'Observada']],
 };
 
 export function FootballActionPanel({ action, outcome, onAction, onOutcome }: {

@@ -1,0 +1,346 @@
+.volleyball-court-pro-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.volleyball-court-pro-title {
+  font-family: var(--st-font-mono, monospace);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--st-muted, #94A3B8);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Alternador de Sub-Visualização (Ataques vs Passes) */
+.court-subview-toggle {
+  display: flex;
+  gap: 0.35rem;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 3px;
+  border-radius: var(--st-radius-control, 6px);
+  border: 1px solid var(--st-border, #334155);
+}
+
+.court-subview-btn {
+  flex: 1;
+  padding: 0.35rem 0.6rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--st-muted, #94A3B8);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+  white-space: nowrap;
+}
+
+.court-subview-btn:hover {
+  color: var(--st-text, #F8FAFC);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.court-subview-btn.active {
+  background: #3B82F6;
+  color: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Indicadores de lados e equipes */
+.court-team-sides {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--st-surface-raised, #1E293B);
+  border: 1px solid var(--st-border, #334155);
+  border-radius: var(--st-radius-control, 6px);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.court-side-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.court-side-badge.side-right {
+  justify-content: flex-end;
+}
+
+.side-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.side-info strong {
+  color: var(--st-text, #F8FAFC);
+  font-size: 0.82rem;
+}
+
+.side-info .side-role {
+  color: #38BDF8;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.side-info.text-right .side-role {
+  color: var(--st-muted, #94A3B8);
+}
+
+.court-net-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--st-muted, #94A3B8);
+  font-size: 0.68rem;
+  font-family: var(--st-font-mono, monospace);
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.net-line-dash {
+  width: 14px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Canvas e SVG da Quadra */
+.volleyball-court-pro-canvas-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 18 / 9;
+  border-radius: 0.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  cursor: crosshair;
+}
+
+.volleyball-court-pro-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.zone-label {
+  fill: rgba(255, 255, 255, 0.5);
+  font-size: 8px;
+  font-family: var(--st-font-mono, monospace);
+  font-weight: 800;
+  user-select: none;
+}
+
+.volleyball-court-pro-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.volleyball-court-pro-vector-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  z-index: 3;
+}
+
+.court-target-dot {
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.court-target-dot:hover circle:first-child {
+  stroke-width: 2px;
+  r: 5px;
+}
+
+/* Tooltip sobre pontos de impacto */
+.court-point-tooltip {
+  position: absolute;
+  transform: translate(-50%, -120%);
+  background: #0B0F19;
+  border: 1px solid var(--st-border, #334155);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  color: var(--st-text, #F8FAFC);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Legenda com contagens */
+.volleyball-court-pro-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  font-size: 0.78rem;
+  color: var(--st-muted, #94A3B8);
+  font-family: var(--st-font-mono, monospace);
+  padding: 0.25rem 0;
+}
+
+.volleyball-court-pro-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.volleyball-court-pro-legend strong {
+  color: var(--st-text, #F8FAFC);
+  font-weight: 700;
+}
+
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.dot-kill {
+  background: #10B981;
+  box-shadow: 0 0 8px #10B981;
+}
+
+.dot-error {
+  background: #F43F5E;
+  box-shadow: 0 0 8px #F43F5E;
+}
+
+.dot-rally {
+  background: #38BDF8;
+  box-shadow: 0 0 8px #38BDF8;
+}
+
+/* Painel de Tendências Direcionais */
+.court-directional-summary {
+  background: var(--st-surface-raised, #1E293B);
+  border: 1px solid var(--st-border, #334155);
+  border-radius: var(--st-radius-panel, 8px);
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.summary-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--st-text, #F8FAFC);
+  letter-spacing: 0.02em;
+}
+
+.summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.5rem;
+}
+
+.summary-direction-card {
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dir-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.dir-header strong {
+  font-size: 0.78rem;
+  color: #F8FAFC;
+}
+
+.dir-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.dir-badge.high-rate {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.dir-badge.mid-rate {
+  background: rgba(245, 158, 11, 0.2);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.dir-badge.low-rate {
+  background: rgba(244, 63, 94, 0.2);
+  color: #F43F5E;
+  border: 1px solid rgba(244, 63, 94, 0.4);
+}
+
+.dir-counts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.dir-vol {
+  font-size: 0.72rem;
+  color: var(--st-muted, #94A3B8);
+}
+
+.dir-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.pill-kill {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.pill-rally {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38BDF8;
+}
+
+.pill-error {
+  background: rgba(244, 63, 94, 0.15);
+  color: #F43F5E;
+}

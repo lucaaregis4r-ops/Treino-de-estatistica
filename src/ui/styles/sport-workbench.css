@@ -1,0 +1,100 @@
+/* Shared visual contract for every sport. See docs/GUIA_VISUAL.md. */
+.court-workbench-nav { display: flex; align-items: center; gap: 6px; width: min(1520px, calc(100% - 40px)); margin: 12px auto 0; padding-bottom: 10px; border-bottom: 1px solid var(--st-border); }
+.court-workbench-nav button { padding: 9px 16px; min-height: 42px; border: 0; border-radius: 4px; background: transparent; color: var(--st-muted); font: 600 15px var(--st-font); cursor: pointer; }
+.court-workbench-nav button[aria-pressed='true'] { background: var(--st-accent); color: var(--st-accent-text); }
+.court-workbench-nav button small { margin-left: 8px; opacity: .7; font-variant-numeric: tabular-nums; }
+.court-live-indicator { margin-left: auto; color: var(--st-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .12em; white-space: nowrap; }
+.court-live-indicator::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 8px; border-radius: 50%; background: var(--st-accent); }
+.court-receipt { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--st-border); border-left: 3px solid var(--st-success); background: var(--st-surface); border-radius: 4px; }
+.court-receipt-check { color: var(--st-accent); font-size: 22px; }
+.court-receipt > div { display: grid; gap: 2px; }
+.court-receipt small { color: var(--st-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .09em; }
+.court-receipt strong { font-size: 14px; }
+.court-receipt > b { margin-left: auto; color: var(--st-success); font-weight: 600; }
+.court-receipt[data-fresh='true'] { animation: court-saved 700ms ease-out; }
+@keyframes court-selection-in { from { opacity: .4; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes court-saved { 0% { background: rgba(16, 185, 129, 0.35); transform: translateY(5px); } 100% { background: var(--st-surface); transform: translateY(0); } }
+[hidden] { display: none !important; }
+.advanced-recording-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.advanced-recording-heading h2 { font-size: 28px; }
+.match-workspace.volley-unified-workspace, .essential-scout-screen.page-section { width: min(var(--st-workspace-max), calc(100% - var(--st-workspace-gutter) * 2)); max-width: var(--st-workspace-max); margin-inline: auto; }
+.essential-scout-screen.page-section { padding: 16px 0; gap: 12px; }
+.essential-scout-screen .court-workbench-nav { width: 100%; margin: 0; }
+.essential-scout-layout { grid-template-columns: minmax(0, 1fr) var(--st-inspector-width); gap: 12px 20px; }
+.essential-scout-orientation { grid-column: 1; grid-row: 1; display: flex; align-items: center; flex-wrap: wrap; padding: 0; background: none; border: 0; gap: 12px; }
+.essential-scout-orientation label { min-width: 200px; }
+.essential-scout-orientation small { max-width: 36ch; font-size: 12px; }
+.essential-scout-identity { grid-column: 2; grid-row: 1; padding: 12px; border: 0; border-left: 1px solid var(--st-border); border-radius: 0; background: transparent; }
+.essential-scout-actions { grid-column: 2; grid-row: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px; border: 0; border-left: 1px solid var(--st-border); border-radius: 0; background: transparent; }
+.essential-scout-actions h2 { font: 600 22px var(--st-font-display); }
+.essential-scout-actions button { min-height: 44px; }
+.essential-scout-court { grid-column: 1; grid-row: 2 / 5; padding: 0; border: 0; background: none; }
+.essential-scout-court > .gesture-court { max-width: calc(var(--st-court-height) * 2); margin-inline: auto; }
+.essential-scout-screen[data-sport='football'] .essential-scout-court > .gesture-court { max-width: calc(var(--st-court-height) * 1.5); }
+.essential-scout-court h2 { font: 600 28px var(--st-font-display); margin: 0 0 10px; }
+.essential-scout-court-third-labels { max-width: calc(var(--st-court-height) * 2); margin: 0 auto 8px; font-size: 12px; }
+.essential-scout-screen[data-sport='football'] .essential-scout-court-third-labels { max-width: calc(var(--st-court-height) * 1.5); }
+.essential-scout-pending { grid-column: 2; grid-row: 3; padding: 12px; border-color: var(--st-border); border-top: 3px solid var(--st-accent); animation: court-selection-in 180ms ease-out; }
+.essential-scout-guidance { grid-column: 1; grid-row: 5; background: none; border: 0; border-left: 2px solid var(--st-accent); }
+.essential-scout-error { grid-column: 2; grid-row: 4; }
+.essential-scout-code-entry { grid-column: 1 / -1; grid-row: 6; }
+.essential-scout-player-status { animation: court-selection-in 180ms ease-out; }
+.essential-scout-score strong, .futsal-clock-display strong, .futsal-match-score strong, .football-minimal-score strong { font-family: var(--st-font-display); font-weight: 600; font-size: 28px; }
+.essential-scout-screen[data-view='history'] :is(.essential-scout-layout, .essential-scout-shortcuts, .court-receipt),
+.essential-scout-screen[data-view='court'] .essential-scout-history { display: none; }
+.court-third-highlight { position: absolute; top: 0; bottom: 0; width: 33.333%; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.5); pointer-events: none; z-index: 2; }
+.court-hover-zone { color: var(--st-accent); font-weight: 600; }
+.football-surface { background: var(--st-football-pitch); border-radius: 2px; }
+.futsal-surface { background: var(--st-futsal-court); border-radius: 2px; }
+.football-pitch-lines .football-pitch-boundary, .futsal-court-lines .futsal-court-boundary { fill: transparent; }
+.football-marker, .futsal-marker { animation: court-marker-in 220ms ease-out; }
+.football-trajectory line, .futsal-trajectory line { stroke: var(--st-accent); }
+.football-marker-destination, .futsal-marker-destination { box-shadow: 0 0 0 3px var(--st-accent); }
+.futsal-scout-screen, .football-minimal-screen { max-width: var(--st-workspace-max); }
+.futsal-scout-screen :is(.futsal-control-buttons, .futsal-main-actions, .futsal-result-buttons) button[aria-pressed='true'], .football-minimal-screen button[aria-pressed='true'] { background: var(--st-accent); color: var(--st-accent-text); border-color: var(--st-accent); }
+.football-minimal-screen button { color: var(--st-text); background: var(--st-surface-raised); border-color: var(--st-control-border); border-radius: var(--st-radius-control); }
+.futsal-timeline li:first-child, .football-minimal-last, .essential-scout-history li:last-child { animation: court-selection-in 220ms ease-out; }
+.futsal-shot-map { background: var(--st-futsal-court); stroke: var(--st-court-line); }
+.futsal-shot-map > circle { fill: none; }
+.futsal-shot-map > circle:has(title) { fill: var(--st-text); stroke: var(--st-bg); }
+.futsal-shot-map > circle.goal { fill: var(--st-accent); }
+.football-pitch-plot { background: var(--st-football-pitch); }
+@media (max-width: 900px) {
+  .essential-scout-layout { grid-template-columns: minmax(0, 1fr) 240px; }
+  .essential-scout-court { align-self: start; }
+}
+@media (max-width: 640px) {
+  .essential-scout-screen.page-section { padding-top: 12px; }
+  .essential-scout-layout { display: flex; flex-direction: column; gap: 12px; }
+  .essential-scout-layout > *, .essential-scout-capture > * { width: 100%; min-width: 0; }
+  .essential-scout-orientation { order: 0; }
+  .essential-scout-orientation label { min-width: 0; }
+  .essential-scout-identity { order: 1; border: 0; padding: 0; }
+  .essential-scout-actions { order: 2; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 0; padding: 0; }
+  .essential-scout-actions button { flex-direction: column; font-size: 12px; gap: 2px; }
+  .essential-scout-actions h2 { font-size: 20px; }
+  .essential-scout-court { order: 3; }
+  .essential-scout-pending { order: 4; }
+  .essential-scout-guidance { order: 5; }
+  .essential-scout-error { order: 6; }
+  .essential-scout-code-entry { order: 7; }
+  .essential-scout-court > .gesture-court, .essential-scout-screen[data-sport='football'] .essential-scout-court > .gesture-court { max-width: 100%; }
+  .essential-scout-court h2 { font-size: 24px; }
+  .essential-scout-pending { scroll-margin-top: 140px; }
+  .essential-scout-clock > span { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .court-receipt, .essential-scout-pending, .essential-scout-player-status, .football-marker, .futsal-marker { animation: none; } }
+.futsal-shot-map .futsal-court-markings { fill: none; stroke: var(--st-court-line); stroke-width: .11; pointer-events: none; }
+.futsal-shot-map .futsal-court-markings circle { fill: none; stroke-width: .11; }
+.futsal-shot-map .futsal-court-markings .futsal-court-spot { fill: var(--st-court-line); stroke: none; }
+.futsal-shot-map .futsal-court-markings .futsal-court-boundary { fill: transparent; }
+/* The same available height governs all sports; aspect ratio determines width. */
+.volley-unified-workspace .gesture-court { max-width: min(100%, calc(var(--st-court-height) * 2)); }
+.essential-scout-actions button { flex-direction: column; gap: 4px; min-height: 64px; padding: 8px; }
+.essential-scout-actions button span { overflow-wrap: normal; word-break: normal; font-size: 13px; line-height: 1.2; }
+.essential-scout-actions kbd { padding: 2px 5px; min-width: 24px; font-size: 11px; line-height: 1.1; }
+@media (max-width: 640px) {
+  .volley-unified-workspace .gesture-court { max-width: 100%; }
+  .essential-scout-actions button { padding: 6px 4px; }
+  .essential-scout-actions button span { font-size: 12px; }
+}

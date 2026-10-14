@@ -1,8 +1,8 @@
 {
   "name": "scout-trainer",
   "private": true,
-  "version": "0.4.0",
-  "description": "Registro, treinamento e análise de scout de voleibol e futebol.",
+  "version": "0.7.0",
+  "description": "Registro, treinamento e análise de scout de voleibol, futebol, futsal e basquete.",
   "author": "Lucas Novo",
   "type": "module",
   "scripts": {

@@ -4,6 +4,8 @@ import type { CourtRotationPosition, SetLineup } from '../lineup/SetLineup';
 import type { PlayerRole } from '../roles/PlayerRole';
 import type { CourtOrientation } from '../state/CourtOrientation';
 import type { CanonicalFootballEvent } from '../../football/StatsBombContract';
+import type { BasketballFact } from '../../basketball/BasketballScout';
+import type { FutsalFact } from '../../futsal/FutsalScout';
 
 interface MatchSystemEvent {
   readonly id: string;
@@ -74,6 +76,11 @@ export interface ScoreAdjustmentEvent extends MatchSystemEvent {
 export interface ServingTeamChangedEvent extends MatchSystemEvent {
   readonly type: 'serving_team_changed';
   readonly servingTeamId: string;
+}
+
+export interface CourtOrientationChangedEvent extends MatchSystemEvent {
+  readonly type: 'court_orientation_changed';
+  readonly courtOrientation: CourtOrientation;
 }
 
 export interface RallyStartedEvent extends MatchSystemEvent {
@@ -160,6 +167,40 @@ export interface FootballClockChangedEvent extends MatchSystemEvent {
   readonly referenceTimestamp: number;
 }
 
+export type FutsalClockStatus = 'ready' | 'running' | 'paused' | 'awaiting_final_kick' | 'period_finished' | 'match_finished' | 'needs_reconciliation';
+export type FutsalClockCommand = 'start' | 'pause' | 'adjust' | 'await_final_kick' | 'finish_period' | 'advance_period' | 'reconcile';
+
+export interface FutsalClockChangedEvent extends MatchSystemEvent {
+  readonly type: 'futsal_clock_changed';
+  readonly command: FutsalClockCommand;
+  readonly period: 1 | 2;
+  readonly elapsedMs: number;
+  readonly periodDurationMs: number;
+  readonly status: Exclude<FutsalClockStatus, 'needs_reconciliation'>;
+  readonly referenceTimestamp: number;
+  readonly reason?: string;
+}
+
+export interface FutsalFactRegisteredEvent extends MatchSystemEvent {
+  readonly type: 'futsal_fact_registered';
+  readonly fact: FutsalFact;
+}
+
+export interface FutsalFactCorrectedEvent extends MatchSystemEvent {
+  readonly type: 'futsal_fact_corrected';
+  readonly targetFactId: string;
+  readonly replacementFact: FutsalFact;
+}
+
+export interface FutsalFactUndoneEvent extends MatchSystemEvent {
+  readonly type: 'futsal_fact_undone';
+  readonly targetHistoryEventId: string;
+}
+
+export interface BasketballFactRegisteredEvent extends MatchSystemEvent { readonly type: 'basketball_fact_registered'; readonly fact: BasketballFact }
+export interface BasketballFactCorrectedEvent extends MatchSystemEvent { readonly type: 'basketball_fact_corrected'; readonly targetFactId: string; readonly replacementFact: BasketballFact }
+export interface BasketballFactUndoneEvent extends MatchSystemEvent { readonly type: 'basketball_fact_undone'; readonly targetHistoryEventId: string }
+
 export type MatchEvent =
   | FaultEvent
   | ScoutRegisteredEvent
@@ -170,6 +211,7 @@ export type MatchEvent =
   | ScoreChangedEvent
   | ScoreAdjustmentEvent
   | ServingTeamChangedEvent
+  | CourtOrientationChangedEvent
   | RallyStartedEvent
   | RallyEndedEvent
   | SetLineupConfirmedEvent
@@ -180,7 +222,14 @@ export type MatchEvent =
   | FootballEventRegisteredEvent
   | FootballEventCorrectedEvent
   | FootballEventUndoneEvent
-  | FootballClockChangedEvent;
+  | FootballClockChangedEvent
+  | FutsalClockChangedEvent
+  | FutsalFactRegisteredEvent
+  | FutsalFactCorrectedEvent
+  | FutsalFactUndoneEvent
+  | BasketballFactRegisteredEvent
+  | BasketballFactCorrectedEvent
+  | BasketballFactUndoneEvent;
 
 export function matchEventId(event: MatchEvent): string {
   return event.type === 'scout_registered' ? event.event.id : event.id;

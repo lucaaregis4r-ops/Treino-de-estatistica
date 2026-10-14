@@ -73,6 +73,7 @@ it('persists the required football sequence, clock, correction and goal-safe und
   if (!corrected.ok) throw corrected.error;
   expect(corrected.value.football?.events[3].pass?.outcome).toBeUndefined();
   expect(corrected.value.football?.events[3].pass?.end_location).toEqual([90, 20]);
+  expect(corrected.value.observedSequences.units.every(unit => unit.steps.length > 0 && unit.steps.every(step => step.sourceId))).toBe(true);
 
   const paused = await service.setFootballClock(matchId, { kind: 'pause' }); if (!paused.ok) throw paused.error;
   expect(paused.value.football?.clock.elapsedMs).toBe(65_000);
@@ -81,11 +82,12 @@ it('persists the required football sequence, clock, correction and goal-safe und
   expect(reopened.value.football?.events).toEqual(corrected.value.football?.events);
   expect(reopened.value.football?.clock).toEqual(paused.value.football?.clock);
   expect(reopened.value.football?.score).toEqual({ teamA: 0, teamB: 0 });
+  expect(reopened.value.observedSequences).toEqual(paused.value.observedSequences);
 
   const sourceService = create();
   const backup = await sourceService.exportJson(matchId); if (!backup.ok) throw backup.error;
   const parsed = JSON.parse(backup.value) as { schemaVersion: string; modality: string; compatibility: { footballEventContract: string } };
-  expect(parsed).toMatchObject({ schemaVersion: '1.2.0', modality: 'football', compatibility: { footballEventContract: 'statsbomb-open-data-4.0.0-subset' } });
+  expect(parsed).toMatchObject({ schemaVersion: '1.3.0', modality: 'football', compatibility: { footballEventContract: 'statsbomb-open-data-4.0.0-subset' } });
   const interchange = await sourceService.exportFootballOpenData(matchId); if (!interchange.ok) throw interchange.error;
   const provider = JSON.parse(interchange.value) as { openDataVersion: string; modality: string; events: Array<Record<string, unknown>>; manifest: { limitations: string[] } };
   expect(provider).toMatchObject({ openDataVersion: '4.0.0', modality: 'football' });
@@ -97,6 +99,7 @@ it('persists the required football sequence, clock, correction and goal-safe und
   expect(restored.value.football?.events).toEqual(reopened.value.football?.events);
   expect(restored.value.football?.events[0].location).toEqual([24, 24]);
   expect(restored.value.football?.clock).toEqual(reopened.value.football?.clock);
+  expect(restored.value.observedSequences).toEqual(reopened.value.observedSequences);
 });
 
 it('persists assisted facts without duplicating a confirmation and flags it only while a source revision is undone', async () => {
@@ -145,7 +148,8 @@ it('persists assisted facts without duplicating a confirmation and flags it only
   const reopenedTarget = reopened.value.football!.events.find(event => event.id === target.id)!;
   expect(reopenedTarget.scout_trainer.assisted_recording).toEqual(restoredTarget.scout_trainer.assisted_recording);
   expect(reopenedTarget.scout_trainer.assisted_recording?.confirmations[0].describedActions).toHaveLength(2);
-  expect(JSON.parse(backup.value).events.some((event: { replacementEvent?: { scout_trainer?: { assisted_recording?: unknown } } }) => event.replacementEvent?.scout_trainer?.assisted_recording)).toBe(true);
+  const parsedBackup = JSON.parse(backup.value) as { events: Array<{ replacementEvent?: { scout_trainer?: { assisted_recording?: unknown } } }> };
+  expect(parsedBackup.events.some(event => event.replacementEvent?.scout_trainer?.assisted_recording)).toBe(true);
 });
 
 it('keeps optional details on their observed targets and undoes only their annotation', async () => {

@@ -1,3 +1,4 @@
+import { VolleyballCourtOverlay } from '../../components/VolleyballCourtZones';
 import type { PointerEvent } from 'react';
 import type { Skill } from '../../../domain/scout/entities/Skill';
 import {
@@ -97,6 +98,7 @@ export function MiniCourt({
         aria-label={hint(step, skill)}
         onPointerDown={handlePointerDown}
       >
+        <VolleyballCourtOverlay />
         <span className="court-net" aria-hidden="true" />
         <span className="court-team-label origin" aria-hidden="true">
           origem

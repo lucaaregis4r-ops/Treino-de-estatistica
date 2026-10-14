@@ -128,7 +128,7 @@ export function validateAthleteDraftRows(
   const numbers = new Map<number, number>();
   rows.forEach((entry) => {
     const value = Number(entry.number);
-    if (entry.number.trim() && Number.isInteger(value) && value >= 1 && value <= 999) {
+    if (entry.number.trim() && Number.isInteger(value) && value >= (sport === 'basketball' ? 0 : 1) && value <= 999) {
       numbers.set(value, (numbers.get(value) ?? 0) + 1);
     }
   });
@@ -138,8 +138,8 @@ export function validateAthleteDraftRows(
     const numericNumber = Number(number);
     if (!normalizeAthleteName(entry.name)) issues.push('Informe o nome do atleta.');
     if (!sport) issues.push('Escolha a modalidade deste elenco.');
-    if (number && (!Number.isInteger(numericNumber) || numericNumber < 1 || numericNumber > 999)) {
-      issues.push('A camisa deve ser um número de 1 a 999.');
+    if (number && (!Number.isInteger(numericNumber) || numericNumber < (sport === 'basketball' ? 0 : 1) || numericNumber > 999)) {
+      issues.push(sport === 'basketball' ? 'A camisa deve ser um número de 0 a 999.' : 'A camisa deve ser um número de 1 a 999.');
     }
     if (number && numbers.get(numericNumber)! > 1) {
       issues.push('Camisa repetida neste elenco. Use números distintos antes de salvar.');

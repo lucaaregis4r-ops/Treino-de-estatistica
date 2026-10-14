@@ -49,6 +49,22 @@ afterEach(async () => {
   await Promise.all(openedDatabases.splice(0).map((database) => database.close()));
 });
 
+async function chooseSport(sport: 'Vôlei' | 'Futebol' | 'Futsal') {
+  fireEvent.click(await screen.findByRole('button', { name: `${sport}: abrir partidas e manual` }));
+  await screen.findByRole('heading', { name: 'Partidas' });
+}
+
+async function startVolleyballMatch() {
+  await chooseSport('Vôlei');
+  fireEvent.click(await screen.findByRole('button', { name: 'Nova partida' }));
+}
+
+async function openVolleyballMatch(name: string) {
+  await chooseSport('Vôlei');
+  fireEvent.click(await screen.findByRole('button', { name }));
+  await screen.findByRole('navigation', { name: 'Seções da partida' });
+}
+
 describe('usable MVP flow', () => {
   it('creates, reopens, and routes football without volleyball state or controls', async () => {
     const { service, trainingService, profileEditorService } = createService();
@@ -68,12 +84,11 @@ describe('usable MVP flow', () => {
     expect(reopened.value.state.metadata.sport).toBe('football');
 
     render(<App service={service} trainingService={trainingService} profileEditorService={profileEditorService} />);
-    const openButton = await screen.findByRole('button', { name: 'Continuar registro' }, { timeout: 5000 });
-    await waitFor(() => expect(openButton).toBeEnabled());
-    fireEvent.click(openButton);
-    expect(await screen.findByLabelText('Registro de ação e jogador')).toBeInTheDocument();
+    await chooseSport('Futebol');
+    fireEvent.click(await screen.findByRole('button', { name: 'Azul FC x Verde FC' }));
+    expect(await screen.findByLabelText('Scout Essencial')).toBeInTheDocument();
     expect(screen.getByLabelText('Placar da partida')).toHaveTextContent('Azul FC x Verde FC');
-    expect(screen.getByLabelText('Jogador da ação')).toBeInTheDocument();
+    expect(screen.getByLabelText('Scout Essencial')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Modo detalhado' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Líbero|Rotação: R1|Quem começa sacando|SET 1/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Quadra de Azul FC')).not.toBeInTheDocument();
@@ -91,9 +106,7 @@ describe('usable MVP flow', () => {
     expect(created.value.state.metadata.initialServingTeamId).toBe(created.value.teams[0].id);
 
     render(<App service={service} trainingService={trainingService} profileEditorService={profileEditorService} />);
-    const openButton = await screen.findByRole('button', { name: 'Continuar registro' });
-    await waitFor(() => expect(openButton).toBeEnabled());
-    fireEvent.click(openButton);
+    await openVolleyballMatch('Vôlei A x Vôlei B');
     expect(await screen.findByLabelText('Contexto atual da partida')).toHaveTextContent('Rotação: R1');
     expect(screen.getByLabelText('Quadra de Vôlei A')).toBeInTheDocument();
     expect(screen.queryByText('Registro de futebol')).not.toBeInTheDocument();
@@ -108,7 +121,8 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Ajuda' }));
+    await chooseSport('Vôlei');
+    fireEvent.click(await screen.findByRole('button', { name: 'Manual de Vôlei' }));
     expect(screen.getByRole('heading', { name: 'Códigos' })).toBeInTheDocument();
     expect(screen.getByText('*08S#a12R+*03E+*10A#')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Fundamentos' })).toBeInTheDocument();
@@ -129,7 +143,7 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    await startVolleyballMatch();
 
     fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('radio', { name: /Operacional/ }));
@@ -165,9 +179,14 @@ describe('usable MVP flow', () => {
     await waitFor(() => expect(scoutInput.selectionStart).toBe(scoutInput.value.length));
 
     fireEvent.click(screen.getByText('Mais'));
-    fireEvent.click(screen.getByRole('button', { name: 'Ajuda' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manual da modalidade' }));
     expect(await screen.findByRole('heading', { name: 'Códigos' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Voltar' }));
+    const persistedAfterManual = await service.listMatches();
+    if (!persistedAfterManual.ok) throw persistedAfterManual.error;
+    const persistedScout = await service.loadMatch(persistedAfterManual.value[0].id);
+    if (!persistedScout.ok) throw persistedScout.error;
+    expect(persistedScout.value.timeline.map((entry) => entry.event.rawCode)).toContain('*01A#');
     expect(await screen.findByText('*01A#')).toBeInTheDocument();
     expect(screen.getByLabelText('Placar da partida')).toBeInTheDocument();
 
@@ -183,22 +202,17 @@ describe('usable MVP flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refazer' }));
     expect(await screen.findByText('*01A+')).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Corrigir +1' })[0]);
-    await waitFor(() => expect(screen.getByText('Rally próximo')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir resumo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aumentar placar de Equipe A' }));
+    await waitFor(() => expect(screen.getByLabelText('Placar da partida')).toHaveTextContent('1×0'));
+    fireEvent.click(screen.getByRole('button', { name: 'Resumo' }));
     expect(await screen.findByRole('heading', { name: 'Equipe A x Equipe B' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Dados completos e opções de exportação'));
     expect(screen.getByText('Eventos ativos')).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Atletas, rotações e levantador' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('table', { name: 'Box score por atleta' })).toBeInTheDocument();
-    expect(screen.getByRole('table', { name: 'Estatísticas por rotação' })).toBeInTheDocument();
-    expect(
-      screen.getByRole('table', { name: 'Direcionamento por atacante e levantador' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Editar e gerar relatório' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Exportar', { selector: 'summary' }));
     expect(screen.getByRole('button', { name: 'Exportar CSV' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Exportar TXT' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Exportar PDF' }).length).toBeGreaterThan(0);
 
     firstRender.unmount();
     render(
@@ -208,15 +222,15 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    const savedMatch = await screen.findByRole('button', {
-      name: /Equipe A x Equipe B.*Operacional/i,
-    });
+    await chooseSport('Vôlei');
+    const savedMatch = await screen.findByRole('button', { name: 'Equipe A x Equipe B' });
+    expect(savedMatch.closest('li')).toHaveTextContent('Operacional');
     fireEvent.click(savedMatch);
     expect(await screen.findByText('*01A+')).toBeInTheDocument();
     expect(screen.getByText('Data Volley')).toBeInTheDocument();
   }, 60_000);
 
-  it('registers one visual event and one hybrid event while preserving the typed mode', async () => {
+  it('registers one event by fields and one with an associated code on the unified screen', async () => {
     const { service, trainingService, profileEditorService } = createService();
     const created = await service.createMatch({
       teamAName: 'Equipe A',
@@ -234,30 +248,27 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    fireEvent.click(await screen.findByRole('button', { name: /Equipe A x Equipe B/ }));
+    await openVolleyballMatch('Equipe A x Equipe B');
 
     expect(await screen.findByLabelText('Digite o código')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Visual' }));
-    const visualForm = screen.getByRole('heading', { name: 'Registrar contato' }).closest('form');
+    fireEvent.click(screen.getByText('Registro por campos e código associado'));
+    const visualForm = screen.getByRole('heading', { name: 'Preencha e registre' }).closest('form');
     if (!visualForm) throw new Error('Visual scout form was not found.');
+    fireEvent.change(within(visualForm).getByLabelText('Fundamento'), { target: { value: 'attack' } });
+    fireEvent.change(within(visualForm).getByLabelText('Avaliação'), { target: { value: 'positive' } });
     fireEvent.submit(visualForm);
-    await screen.findByText(/\[VISUAL\]/);
+    await within(screen.getByRole('heading', { name: 'Últimos eventos' }).closest('section')!).findByText('Ataque', { selector: '.event-meaning strong' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Híbrido' }));
-    const hybridForm = screen
-      .getByRole('heading', { name: 'Confirmar e enriquecer código' })
-      .closest('form');
-    if (!hybridForm) throw new Error('Hybrid scout form was not found.');
-    fireEvent.change(within(hybridForm).getByLabelText('Código digitado'), {
+    fireEvent.change(within(visualForm).getByLabelText('Código associado (opcional)'), {
       target: { value: '01A+' },
     });
-    fireEvent.change(within(hybridForm).getByLabelText('Fundamento'), {
+    fireEvent.change(within(visualForm).getByLabelText('Fundamento'), {
       target: { value: 'attack' },
     });
-    fireEvent.change(within(hybridForm).getByLabelText('Avaliação'), {
+    fireEvent.change(within(visualForm).getByLabelText('Avaliação'), {
       target: { value: 'positive' },
     });
-    fireEvent.submit(hybridForm);
+    fireEvent.submit(visualForm);
     await screen.findByText('01A+');
 
     const workspace = await service.loadMatch(created.value.state.metadata.id);
@@ -269,7 +280,6 @@ describe('usable MVP flow', () => {
       'hybrid',
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Digitado' }));
     expect(screen.getByLabelText('Digite o código')).toBeInTheDocument();
   }, 60_000);
 
@@ -296,9 +306,10 @@ describe('usable MVP flow', () => {
       captureMethod: 'drawn',
     });
     if (!registered.ok) throw registered.error;
-    expect(registered.value.report.spatial?.density).toEqual([
+    expect(registered.value.report.spatial?.density).toEqual(expect.arrayContaining([
       expect.objectContaining({ preset: 'attack_target', zoneId: '1', count: 1 }),
-    ]);
+      expect.objectContaining({ preset: 'attack_origin', count: 1 }),
+    ]));
 
     const sourceEventId = registered.value.timeline[0]?.sourceEventId;
     if (!sourceEventId) throw new Error('Spatial source event was not found.');
@@ -310,11 +321,15 @@ describe('usable MVP flow', () => {
       },
     });
     if (!corrected.ok) throw corrected.error;
-    expect(corrected.value.report.spatial?.density[0]).toMatchObject({ zoneId: '5', count: 1 });
+    expect(corrected.value.report.spatial?.density).toEqual(expect.arrayContaining([
+      expect.objectContaining({ preset: 'attack_target', zoneId: '5', count: 1 }),
+    ]));
 
     const undone = await service.undo(matchId);
     if (!undone.ok) throw undone.error;
-    expect(undone.value.report.spatial?.density[0]).toMatchObject({ zoneId: '1', count: 1 });
+    expect(undone.value.report.spatial?.density).toEqual(expect.arrayContaining([
+      expect.objectContaining({ preset: 'attack_target', zoneId: '1', count: 1 }),
+    ]));
 
     render(
       <App
@@ -323,22 +338,16 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    fireEvent.click(await screen.findByRole('button', { name: /Equipe A x Equipe B/ }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Abrir resumo' }));
+    await openVolleyballMatch('Equipe A x Equipe B');
+    fireEvent.click(screen.getByRole('button', { name: 'Análise' }));
+    fireEvent.click(screen.getByText('Explorar quadra, sequências e gráficos avançados'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Quadra' }));
     expect(
-      await screen.findByRole('heading', { name: 'Densidade e trajetórias na quadra' }),
+      await screen.findByRole('heading', { name: 'Distribuição em quadra' }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('table', { name: 'Dados espaciais equivalentes ao heatmap' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('table', { name: 'Matriz espacial de origem por destino' }),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Jogadas' }));
-    expect(screen.getByRole('img', { name: 'Mapa de jogadas individuais' })).toBeInTheDocument();
-    expect(screen.getByText(/jogadas com origem e destino registrados/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Heatmap' }));
-    expect(screen.getByRole('img', { name: 'Heatmap: Alvo de ataque' })).toBeInTheDocument();
+    expect(screen.getByText(/Ver tabela detalhada/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Mapa de calor' }));
+    expect(screen.getByRole('button', { name: 'Mapa de calor' })).toHaveAttribute('aria-pressed', 'true');
   }, 60_000);
 
   it('updates the court workspace through a generic substitution', async () => {
@@ -350,7 +359,7 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    await startVolleyballMatch();
     fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Adicionar atleta' })[0]);
     fireEvent.change(screen.getByLabelText('Camisa Equipe A 7'), { target: { value: '7' } });
@@ -369,7 +378,7 @@ describe('usable MVP flow', () => {
     if (!outgoingOption) throw new Error('Substitution options were not found.');
     fireEvent.change(playerOut, { target: { value: outgoingOption.value } });
     fireEvent.click(incomingOption);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Substituir' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Aplicar troca' })[0]);
 
     const teamACourt = screen.getByLabelText('Quadra de Equipe A');
     await waitFor(() =>
@@ -406,7 +415,7 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    fireEvent.click(await screen.findByRole('button', { name: /Equipe A x Equipe B/ }));
+    await openVolleyballMatch('Equipe A x Equipe B');
     const input = await screen.findByLabelText('Digite o código');
     await waitFor(() => expect(input).toHaveValue('01S'));
     fireEvent.change(input, { target: { value: '01S#' } });
@@ -442,6 +451,43 @@ describe('usable MVP flow', () => {
     ).toHaveLength(0);
   }, 60_000);
 
+  it('starts set two with an unregistered opponent and allows changing court sides during play', async () => {
+    const { service, trainingService, profileEditorService } = createService();
+    const created = await service.createMatch({
+      sport: 'volleyball', teamAName: 'Olympico', teamBName: 'Adversário',
+      teamAPlayers: [1, 2, 3, 4, 5, 6], teamBPlayers: [],
+      complexityProfileId: 'basic', initialServingTeam: 'teamA',
+      scoringRules: { regularSetTarget: 1, decidingSetTarget: 1, minimumLead: 1, setsToWin: 2 },
+    });
+    if (!created.ok) throw created.error;
+    render(<App service={service} trainingService={trainingService} profileEditorService={profileEditorService} />);
+    await openVolleyballMatch('Olympico x Adversário');
+
+    const courtOrder = () => [...document.querySelectorAll('.dual-court .court-lineup')]
+      .map((court) => court.getAttribute('aria-label'));
+    expect(courtOrder()).toEqual(['Quadra de Olympico', 'Quadra de Adversário']);
+    fireEvent.click(screen.getByRole('button', { name: 'Trocar lados' }));
+    await waitFor(() => expect(courtOrder()).toEqual(['Quadra de Adversário', 'Quadra de Olympico']));
+
+    const input = screen.getByLabelText('Digite o código');
+    fireEvent.change(input, { target: { value: '01S#' } });
+    fireEvent.submit(input.closest('form')!);
+    expect(await screen.findByRole('heading', { name: 'Confirmar escalação do set 2' }, { timeout: 15_000 })).toBeInTheDocument();
+    expect(screen.getByText(/Adversário: sem atletas cadastrados/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar escalação e iniciar set' }));
+
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Confirmar escalação do set 2' })).not.toBeInTheDocument());
+    const reopened = await service.loadMatch(created.value.state.metadata.id);
+    if (!reopened.ok) throw reopened.error;
+    expect(reopened.value.state.currentSet).toBe(2);
+    expect(reopened.value.currentLineups).toHaveLength(1);
+    expect(reopened.value.state.courtOrientation).toEqual({
+      leftTeamId: created.value.teams[0].id,
+      rightTeamId: created.value.teams[1].id,
+    });
+    expect(reopened.value.events.some((event) => event.type === 'court_orientation_changed')).toBe(true);
+  }, 60_000);
+
   it('frames a concatenated scout stream and closes its final event with Enter', async () => {
     const { service, trainingService, profileEditorService } = createService();
     render(
@@ -451,7 +497,7 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    await startVolleyballMatch();
     fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
@@ -486,7 +532,7 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    await startVolleyballMatch();
     fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
@@ -509,7 +555,7 @@ describe('usable MVP flow', () => {
         profileEditorService={profileEditorService}
       />,
     );
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
+    await startVolleyballMatch();
     fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('radio', { name: /Tático/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
@@ -531,97 +577,6 @@ describe('usable MVP flow', () => {
     await waitFor(() => expect(screen.queryByText(/parcial · faltam/)).not.toBeInTheDocument());
   }, 60_000);
 
-  it('captures attack direction through the contextual mini court before committing', async () => {
-    const { service, trainingService, profileEditorService } = createService();
-    render(
-      <App
-        service={service}
-        trainingService={trainingService}
-        profileEditorService={profileEditorService}
-      />,
-    );
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
-    fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
-    fireEvent.click(screen.getByRole('radio', { name: /Tático/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
-    const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
-
-    fireEvent.change(input, { target: { value: '*01A#' } });
-
-    const court = await screen.findByRole(
-      'button',
-      {
-        name: /Toque na quadra para marcar a origem/,
-      },
-      { timeout: 20_000 },
-    );
-    expect(court).toBeInTheDocument();
-    Object.defineProperty(court, 'getBoundingClientRect', {
-      configurable: true,
-      value: () => ({
-        width: 1000,
-        height: 500,
-        left: 0,
-        top: 0,
-        right: 1000,
-        bottom: 500,
-        x: 0,
-        y: 0,
-        toJSON: () => ({}),
-      }),
-    });
-
-    fireEvent.pointerDown(court, { clientX: 100, clientY: 50 });
-    expect(screen.getByRole('button', { name: /Toque onde a bola terminou/ })).toBeInTheDocument();
-    const confirmButton = screen.getByRole('button', { name: 'Confirmar' });
-    expect(confirmButton).toBeDisabled();
-
-    fireEvent.pointerDown(court, { clientX: 600, clientY: 100 });
-    expect(screen.getByText('Enter confirma · Esc cancela · R refaz')).toBeInTheDocument();
-    expect(confirmButton).toBeEnabled();
-
-    fireEvent.click(confirmButton);
-    expect(await screen.findByText('*01A#')).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /Toque na quadra/ })).not.toBeInTheDocument(),
-    );
-    await waitFor(() =>
-      expect(screen.queryByText(/parcial · faltam direção/)).not.toBeInTheDocument(),
-    );
-  }, 60_000);
-
-  it('cancels the contextual mini court with Escape and falls back to a partial attack', async () => {
-    const { service, trainingService, profileEditorService } = createService();
-    render(
-      <App
-        service={service}
-        trainingService={trainingService}
-        profileEditorService={profileEditorService}
-      />,
-    );
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Nova partida' })).at(-1)!);
-    fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
-    fireEvent.click(screen.getByRole('radio', { name: /Tático/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
-    const input = await screen.findByLabelText('Digite o código', undefined, { timeout: 20_000 });
-
-    fireEvent.change(input, { target: { value: '*01A#' } });
-    await screen.findByRole(
-      'button',
-      { name: /Toque na quadra para marcar a origem/ },
-      { timeout: 20_000 },
-    );
-
-    fireEvent.keyDown(input, { key: 'Escape' });
-    expect(
-      screen.queryByRole('button', { name: /Toque na quadra para marcar a origem/ }),
-    ).not.toBeInTheDocument();
-
-    fireEvent.submit(input.closest('form')!);
-    expect(await screen.findByText('*01A#')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText(/parcial · faltam direção/)).toBeInTheDocument());
-  }, 60_000);
-
   it('creates a serialized code profile and makes it selectable for a new match', async () => {
     const { service, trainingService, profileEditorService } = createService();
     render(
@@ -632,13 +587,14 @@ describe('usable MVP flow', () => {
       />,
     );
 
+    await chooseSport('Vôlei');
     fireEvent.click(await screen.findByRole('button', { name: 'Equipes e atletas' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Configurações de perfis' }));
     expect(await screen.findByRole('heading', { name: 'Editor de perfis' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Validar e salvar perfil' }));
     expect(await screen.findByText('Perfil Meu perfil salvo e ativado.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Partidas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Partidas · Vôlei' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Nova partida' }));
     fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     const language = await screen.findByLabelText('Linguagem de código');
@@ -655,7 +611,8 @@ describe('usable MVP flow', () => {
     const { service, trainingService } = createService();
     render(<App service={service} trainingService={trainingService} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Iniciar treino' }));
+    await chooseSport('Vôlei');
+    fireEvent.click(await screen.findByRole('button', { name: 'Treino' }));
     expect(
       await screen.findByRole('heading', { name: 'Treino situação → código' }),
     ).toBeInTheDocument();

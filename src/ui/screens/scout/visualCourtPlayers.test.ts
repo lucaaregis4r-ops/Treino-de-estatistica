@@ -12,3 +12,32 @@ it('keeps the serving middle for the entire serve turn and uses libero in the ba
  expect(visualCourtPlayers(at(4),'a','libero').find(c=>c.position===4)?.player?.id).toBe('central');
  expect(visualCourtPlayers(receiving,'a').find(c=>c.position===1)?.player?.id).toBe('central');
 });
+
+it('never leaves a libero at front row (P4, P3, P2) even if the slot occupant was set to libero', () => {
+ const workspace = {
+  players: [
+   { id: 'central', teamId: 'a', number: 3, registeredRole: 'middle' },
+   { id: 'libero', teamId: 'a', number: 12, registeredRole: 'libero' },
+  ],
+  state: { servingTeamId: 'a', metadata: { liberoPlayerIds: ['libero'] } },
+  currentLineups: [
+   {
+    teamId: 'a',
+    positions: { 4: 's' },
+    slots: {
+     s: {
+      slotId: 's',
+      playerId: 'libero',
+      originalPlayerId: 'central',
+      activeRole: 'libero',
+      tacticalRole: 'middle_1',
+     },
+    },
+   },
+  ],
+ } as unknown as MatchWorkspace;
+
+ const result = visualCourtPlayers(workspace, 'a');
+ expect(result.find((c) => c.position === 4)?.player?.id).toBe('central');
+});
+

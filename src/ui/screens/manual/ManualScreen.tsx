@@ -1,5 +1,8 @@
+import type { MatchSport } from '../../../domain/match/entities/MatchSport';
+
 interface ManualScreenProps {
   readonly onBack: () => void;
+  readonly sport?: MatchSport;
 }
 
 const SKILLS = [
@@ -148,16 +151,71 @@ const TRAINING_TOKENS = [
   ['b2', 'bloqueadores'],
 ] as const;
 
-export function ManualScreen({ onBack }: ManualScreenProps) {
+export function ManualScreen({ onBack, sport = 'volleyball' }: ManualScreenProps) {
+  if (sport === 'basketball') return <main className="page-section manual-screen sport-manual"><h1>Manual de basquete</h1><p>Selecione equipe e atleta, escolha o lance e marque a posição na quadra quando conhecida. Confirme em Registrar lance.</p><h2>Lances</h2><p>Arremessos registram valor de 1, 2 ou 3 pontos e resultado. Somente cestas convertidas alteram o placar. Rebotes ofensivos e defensivos, faltas e perdas de posse são fatos separados.</p><h2>Ações táticas</h2><p>Bloqueio direto e rolagem (pick and roll), bloqueio e abertura (pick and pop), poste baixo, isolação, corte sem bola e transição podem ser anotados junto a um arremesso ou perda de posse. Ação tática isolada não presume um resultado da posse.</p><p>Use Histórico para corrigir um lance ou desfazer o último registro. Resumo e Análise mostram apenas fatos observados.</p><button type="button" className="button secondary" onClick={onBack}>Voltar</button></main>;
+  if (sport === 'football' || sport === 'futsal') {
+    const name = sport === 'football' ? 'futebol' : 'futsal';
+    return (
+      <section className="page-section manual-screen sport-manual" aria-labelledby="manual-title">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">{name} · referência de registro</p>
+            <h1 id="manual-title">Manual de {name}</h1>
+            <p>Registre pela quadra ou campo, pelos botões ou pelo código. O registro usa a mesma tela.</p>
+          </div>
+          <button className="button ghost" type="button" onClick={onBack}>Voltar</button>
+        </div>
+        <nav className="manual-index" aria-label="Seções do manual">
+          <a href="#acoes">Ações</a><a href="#codigo">Código rápido</a><a href="#espaco">Local</a><a href="#cobertura">Cobertura</a>
+        </nav>
+        <section id="acoes" className="manual-section">
+          <h2>Ações de jogo</h2>
+          <div className="manual-card-grid manual-skill-grid compact">
+            <article><kbd>F</kbd><strong>Finalização</strong><p>Tentativa de gol. Informe resultado; origem, alvo, camisa e qualificadores quando observados.</p></article>
+            <article><kbd>P</kbd><strong>Passe</strong><p>Um passe observado. Informe se chegou ao destino, falhou ou se o resultado não foi acompanhado.</p></article>
+            <article><kbd>PF</kbd><strong>Passe para chance</strong><p>Atalho para passe que cria finalização. Registre o mesmo passe uma só vez; PF não confirma assistência.</p></article>
+            <article><kbd>C</kbd><strong>Progressão com bola</strong><p>Condução ou drible. Marque origem e destino apenas se vistos; resultado e controle são campos distintos.</p></article>
+            <article><kbd>PP</kbd><strong>Perda</strong><p>A equipe perde controle confirmado. Desarme, erro de passe e mau domínio podem qualificar a causa.</p></article>
+            <article><kbd>RP</kbd><strong>Recuperação</strong><p>A equipe ganha controle confirmado. Desarme e interceptação podem qualificar o mecanismo.</p></article>
+            <article><kbd>FL</kbd><strong>Falta</strong><p>Infração assinalada, com equipe e instante. {sport === 'futsal' ? 'Indique quando a falta acumula no período.' : 'Cartão é um detalhe opcional.'}</p></article>
+            <article><kbd>RE</kbd><strong>Reinício</strong><p>Retomada após interrupção: lateral, escanteio, tiro livre e demais tipos da modalidade.</p></article>
+          </div>
+          <p className="manual-warning">Os detalhes válidos aparecem junto ao fundamento na tela de registro. Camisa e qualificadores são opcionais quando não foram observados.</p>
+        </section>
+        <section id="codigo" className="manual-section">
+          <h2>Código rápido</h2>
+          <p>Digite camisa + ação + resultado ou tipo, quando necessário + qualificadores observados + terço. O último número <strong>1</strong>, <strong>2</strong> ou <strong>3</strong> indica terço defensivo, central ou ofensivo da equipe selecionada.</p>
+          <div className="manual-examples">
+            <article><code>09FG3</code><span>Finalização em gol no terço ofensivo.</span></article>
+            <article><code>09PS3</code><span>Passe certo no terço ofensivo.</span></article>
+            <article><code>09PSR3</code><span>Passe certo de ruptura no terço ofensivo.</span></article>
+            <article><code>09CCM3</code><span>Progressão em condução, com posse mantida, no terço ofensivo.</span></article>
+            {sport === 'futsal' && <article><code>09FLA3</code><span>Falta acumulada no terço ofensivo.</span></article>}
+            {sport === 'futsal' && <article><code>09FLAY3</code><span>Falta acumulada com cartão amarelo.</span></article>}
+            <article><code>09REL3</code><span>Reinício lateral no terço ofensivo.</span></article>
+          </div>
+          <p className="manual-warning">Sem o terço, marque o ponto na quadra ou no campo quando ele for conhecido. O código não inventa posição exata.</p>
+        </section>
+        <section id="espaco" className="manual-section">
+          <h2>Posição e terço</h2>
+          <p>Os terços defensivo, central e ofensivo acompanham a direção de ataque da equipe no período. Configure essa direção antes de interpretar um ponto exato. Um terço sozinho não cria coordenada fictícia.</p>
+          <p>F, P, PF e C podem usar origem e destino; PP, RP, FL e RE exigem no máximo um local. Use somente os pontos que de fato conseguiu observar.</p>
+        </section>
+        <section id="cobertura" className="manual-section">
+          <h2>Cobertura do registro</h2>
+          <p>Uma lista de lances escolhidos não equivale à posse inteira observada. A análise de sequência completa só cabe quando início, ações intermediárias, fim e lacunas foram registrados.</p>
+          {sport === 'futsal' && <p>Faltas acumuladas, tiro de 10 m, substituições e goleiro-linha seguem as regras e controles do futsal.</p>}
+          <p className="manual-warning">Uma ação não registrada não prova que ela não aconteceu. O resumo contabiliza os fatos registrados.</p>
+        </section>
+      </section>
+    );
+  }
   return (
     <section className="page-section manual-screen" aria-labelledby="manual-title">
       <div className="section-heading">
         <div>
           <h1 id="manual-title">Códigos</h1>
-          <p>Ajuda de códigos do vôlei — perfil Data Volley.</p>
-          <p className="section-support">
-            Para futebol, use os controles e a ajuda contextual no Registro da partida.
-          </p>
+          <p>Manual de vôlei · perfil Data Volley.</p>
         </div>
         <button className="button ghost" type="button" onClick={onBack}>
           Voltar
@@ -172,6 +230,7 @@ export function ManualScreen({ onBack }: ManualScreenProps) {
         <a href="#qualificadores">Qualificadores</a>
         <a href="#zonas">Zonas</a>
         <a href="#treino">Treino</a>
+        <a href="#trajetorias">Análise por rally/posse</a>
       </nav>
 
       <section id="estrutura" className="manual-section manual-primary-reference">
@@ -445,6 +504,26 @@ export function ManualScreen({ onBack }: ManualScreenProps) {
             </div>
           ))}
         </div>
+      </section>
+
+      <section id="trajetorias" className="manual-section">
+        <h2>Análise por rally</h2>
+        <p>
+          Uma trajetória completa do rally tem início, todos os contatos observados em ordem,
+          encerramento e cobertura conhecidos.
+        </p>
+        <ul>
+          <li>Vôlei: cada rally conta uma vez, com os contatos dos dois lados até o ponto.</li>
+          <li>
+            O diagrama de pares mostra transições locais entre ações. Ele não resume toda a
+            trajetória.
+          </li>
+          <li>
+            Probabilidades por contexto só aparecem quando há suporte suficiente e validação que
+            deixa partidas inteiras de fora. Sem esses critérios, a análise informa o motivo e
+            mantém visíveis as contagens e trajetórias observadas.
+          </li>
+        </ul>
       </section>
     </section>
   );

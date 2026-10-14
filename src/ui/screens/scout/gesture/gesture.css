@@ -153,6 +153,9 @@
 .gesture-quick-actions {
   align-items: start;
 }
+.gesture-free-ball-team { display: grid; gap: 5px; max-width: 24rem; color: var(--st-text); font-weight: 700; }
+.gesture-free-ball-team select { min-height: 44px; width: 100%; }
+.gesture-free-ball-team small { color: var(--st-muted); font-weight: 400; line-height: 1.35; }
 
 .gesture-quick-actions details {
   min-width: 0;

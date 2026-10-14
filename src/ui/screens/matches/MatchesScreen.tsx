@@ -12,6 +12,10 @@ import {
 type MatchFilter = 'all' | MatchStatus;
 type SportFilter = 'all' | MatchSport | 'unknown';
 
+function sportLabel(sport: MatchSport | undefined): string {
+  return sport === 'volleyball' ? 'Vôlei' : sport === 'football' ? 'Futebol' : sport === 'futsal' ? 'Futsal' : sport === 'basketball' ? 'Basquete' : 'Modalidade não identificada';
+}
+
 export interface MatchFilters {
   readonly query: string;
   readonly status: MatchFilter;
@@ -31,13 +35,17 @@ export function MatchesScreen({
   onOpenMatch,
   filters,
   onFiltersChange,
+  selectedSport,
+  unidentifiedOnly = false,
 }: {
   readonly matches: readonly MatchMetadata[];
   readonly busy: boolean;
-  readonly onNewMatch: () => void;
+  readonly onNewMatch?: () => void;
   readonly onOpenMatch: (id: string, summary?: boolean) => Promise<void>;
   readonly filters?: MatchFilters;
   readonly onFiltersChange?: (filters: MatchFilters) => void;
+  readonly selectedSport?: MatchSport;
+  readonly unidentifiedOnly?: boolean;
 }) {
   const [localFilters, setLocalFilters] = useState<MatchFilters>(DEFAULT_MATCH_FILTERS);
   const currentFilters = filters ?? localFilters;
@@ -52,25 +60,30 @@ export function MatchesScreen({
         const matchesName = normalizeMatchSearch(match.name).includes(normalizedQuery);
         const matchesStatus =
           currentFilters.status === 'all' || match.status === currentFilters.status;
-        const matchesSport =
-          currentFilters.sport === 'all' ||
-          resolveMatchSport(match) ===
-            (currentFilters.sport === 'unknown' ? undefined : currentFilters.sport);
+        const matchSport = resolveMatchSport(match);
+        const matchesSport = selectedSport
+          ? matchSport === selectedSport
+          : unidentifiedOnly
+            ? matchSport === undefined
+            : currentFilters.sport === 'all' ||
+              matchSport === (currentFilters.sport === 'unknown' ? undefined : currentFilters.sport);
         return matchesName && matchesStatus && matchesSport;
       }),
-    [currentFilters.sport, currentFilters.status, matches, normalizedQuery],
+    [currentFilters.sport, currentFilters.status, matches, normalizedQuery, selectedSport, unidentifiedOnly],
   );
 
   return (
     <main className="page-section matches-screen" aria-labelledby="matches-title">
       <header className="section-heading matches-heading">
         <div>
-          <p className="eyebrow">Histórico local</p>
+          <p className="eyebrow">{selectedSport ? `${sportLabel(selectedSport)} · histórico local` : unidentifiedOnly ? 'Recuperação · histórico local' : 'Histórico local'}</p>
           <h1 id="matches-title">Partidas</h1>
+          {selectedSport && <p className="section-support">Partidas de {sportLabel(selectedSport).toLowerCase()} neste dispositivo.</p>}
+          {unidentifiedOnly && <p className="section-support">Partidas antigas cuja modalidade não pôde ser identificada.</p>}
         </div>
-        <button className="button primary" type="button" onClick={onNewMatch} disabled={busy}>
+        {onNewMatch && <button className="button primary" type="button" onClick={onNewMatch} disabled={busy}>
           Nova partida
-        </button>
+        </button>}
       </header>
 
       <div className="matches-toolbar" role="search" aria-label="Filtrar partidas">
@@ -99,7 +112,7 @@ export function MatchesScreen({
             <option value="created">Criadas</option>
           </select>
         </label>
-        <label>
+        {!selectedSport && !unidentifiedOnly && <label>
           Modalidade
           <select
             value={currentFilters.sport}
@@ -110,22 +123,23 @@ export function MatchesScreen({
             <option value="all">Todas</option>
             <option value="volleyball">Vôlei</option>
             <option value="football">Futebol</option>
+            <option value="futsal">Futsal</option><option value="basketball">Basquete</option>
             <option value="unknown">Não identificada</option>
           </select>
-        </label>
+        </label>}
         <p className="matches-count" aria-live="polite">
           {filteredMatches.length}{' '}
           {filteredMatches.length === 1 ? 'partida encontrada' : 'partidas encontradas'}
         </p>
       </div>
 
-      {matches.length === 0 ? (
+      {filteredMatches.length === 0 && currentFilters.status === 'all' && !normalizedQuery ? (
         <div className="matches-empty-state">
-          <h2>Nenhuma partida ainda</h2>
-          <p>Crie uma partida para começar a registrar o scout.</p>
-          <button className="button primary" type="button" onClick={onNewMatch} disabled={busy}>
+          <h2>{selectedSport ? `Nenhuma partida de ${sportLabel(selectedSport).toLowerCase()} ainda` : 'Nenhuma partida ainda'}</h2>
+          <p>{onNewMatch ? 'Crie uma partida para começar a registrar o scout.' : 'Nenhuma partida antiga precisa de identificação.'}</p>
+          {onNewMatch && <button className="button primary" type="button" onClick={onNewMatch} disabled={busy}>
             Criar partida
-          </button>
+          </button>}
         </div>
       ) : filteredMatches.length === 0 ? (
         <div className="matches-empty-state">
@@ -145,6 +159,7 @@ export function MatchesScreen({
                 >
                   {match.name}
                 </button>
+                <small className="match-row-sport">{sportLabel(resolveMatchSport(match))}</small>
               </div>
               <span className="match-row-date">{matchDateLabel(match.createdAt)}</span>
               <span className="match-row-profile">{matchProfileLabel(match.complexityProfileId)}</span>

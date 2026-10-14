@@ -1,17 +1,19 @@
 import { outcomeName, type FootballObservation } from './FootballObservation';
 import type { MatchEvent } from '../match/events/MatchEvent';
 import type { CanonicalFootballEvent, FootballAction, StatsBombEntity, StatsBombLocation } from './StatsBombContract';
+import type { EssentialActionCode, EssentialFoulCard, EssentialPassResult, EssentialProgressionResult, EssentialProgressionType, EssentialQualifier, EssentialRestartType, EssentialThird, EssentialThirdAnchor } from '../essential/EssentialScout';
 
 export type FootballOutcome = 'complete' | 'incomplete' | 'pending' | 'goal' | 'saved' | 'blocked' | 'off_target' | 'post' | 'won' | 'lost' | 'observed';
 export interface FootballClockState { readonly period: 1 | 2; readonly elapsedMs: number; readonly running: boolean; readonly referenceTimestamp: number; }
 export interface FootballProjection { readonly events: readonly CanonicalFootballEvent[]; readonly historyIds: readonly string[]; readonly score: { readonly teamA: number; readonly teamB: number }; readonly clock: FootballClockState; }
-export interface FootballDraftData { readonly shotContext?: import('./StatsBombContract').FootballShotContext; readonly observation?: FootballObservation; readonly action: FootballAction; readonly team: StatsBombEntity; readonly player?: StatsBombEntity; readonly relatedPlayer?: StatsBombEntity; readonly location?: StatsBombLocation; readonly endLocation?: StatsBombLocation; readonly outcome: FootballOutcome; }
+export interface FootballDraftData { readonly shotContext?: import('./StatsBombContract').FootballShotContext; readonly observation?: FootballObservation; readonly essentialCode?: EssentialActionCode; readonly essentialShirtNumber?: number; readonly essentialThird?: EssentialThird; readonly essentialThirdAnchor?: EssentialThirdAnchor; readonly essentialQualifiers?: readonly EssentialQualifier[]; readonly essentialPassResult?: EssentialPassResult; readonly essentialProgressionType?: EssentialProgressionType; readonly essentialProgressionResult?: EssentialProgressionResult; readonly essentialFoulCard?: EssentialFoulCard; readonly essentialRestartType?: EssentialRestartType; readonly action: FootballAction; readonly team: StatsBombEntity; readonly player?: StatsBombEntity; readonly relatedPlayer?: StatsBombEntity; readonly location?: StatsBombLocation; readonly endLocation?: StatsBombLocation; readonly outcome: FootballOutcome; }
 
 const TYPE_BY_ACTION: Record<FootballAction, { readonly id: number; readonly name: string }> = {
   pass: { id: 30, name: 'Pass' }, carry: { id: 43, name: 'Carry' }, dribble: { id: 14, name: 'Dribble' },
   duel: { id: 4, name: 'Duel' }, interception: { id: 10, name: 'Interception' }, ball_recovery: { id: 2, name: 'Ball Recovery' },
   loss: { id: 3, name: 'Dispossessed' }, shot: { id: 16, name: 'Shot' },
   foul: { id: 22, name: 'Foul Committed' }, substitution: { id: 19, name: 'Substitution' },
+  restart: { id: 1002, name: 'Restart' },
 };
 
 const OUTCOMES: Record<FootballOutcome, { readonly id: number; readonly name: string }> = {
@@ -38,14 +40,14 @@ export function createCanonicalFootballEvent(input: FootballDraftData & { readon
   const second = Math.floor(input.elapsedMs / 1000) % 60;
   return {
     id: input.id, index: input.index, period: input.period, timestamp: formatFootballTimestamp(input.elapsedMs), minute, second,
-    type: TYPE_BY_ACTION[input.action], team: input.team, ...(input.player ? { player: input.player } : {}), ...(location ? { location } : {}), ...(input.possession !== undefined ? { possession: input.possession } : {}), ...(input.possessionTeam ? { possession_team: input.possessionTeam } : {}),
+    type: input.essentialCode === 'PP' ? { id: 1001, name: 'Possession Loss' } : TYPE_BY_ACTION[input.action], team: input.team, ...(input.player ? { player: input.player } : {}), ...(location ? { location } : {}), ...(input.possession !== undefined ? { possession: input.possession } : {}), ...(input.possessionTeam ? { possession_team: input.possessionTeam } : {}),
     ...(input.action === 'pass' ? { pass: { ...(end ? { end_location: end } : {}), ...(input.outcome === 'incomplete' ? { outcome } : {}) } } : {}),
     ...(input.action === 'carry' ? { carry: { ...(end ? { end_location: end } : {}) } } : {}),
     ...(input.action === 'shot' ? { shot: { ...(input.outcome === 'pending' ? {} : { outcome }), ...(end ? { end_location: end } : {}) } } : {}),
     ...(input.action === 'dribble' ? { dribble: { outcome } } : {}),
     ...(input.action === 'duel' ? { duel: { outcome } } : {}),
     ...(input.action === 'substitution' ? { substitution: { ...(input.relatedPlayer ? { replacement: input.relatedPlayer } : {}) } } : {}),
-    scout_trainer: { schema_version: '1.1.0', modality: 'football', match_id: input.matchId, capture_sequence: input.captureSequence ?? input.index, position_observed: location !== undefined, ...(input.shotContext ? { shot_context: input.shotContext } : {}), ...(input.observation ? { observation: input.observation, tactical_context: input.observation.tactical } : {}) },
+    scout_trainer: { schema_version: '1.1.0', modality: 'football', match_id: input.matchId, capture_sequence: input.captureSequence ?? input.index, position_observed: location !== undefined, ...(input.essentialCode ? { essential_code: input.essentialCode } : {}), ...(input.essentialShirtNumber !== undefined ? { essential_shirt_number: input.essentialShirtNumber } : {}), ...(input.essentialThird ? { essential_third: input.essentialThird } : {}), ...(input.essentialThirdAnchor ? { essential_third_anchor: input.essentialThirdAnchor } : {}), ...(input.essentialQualifiers ? { essential_qualifiers: input.essentialQualifiers } : {}), ...(input.essentialPassResult ? { essential_pass_result: input.essentialPassResult } : {}), ...(input.essentialProgressionType ? { essential_progression_type: input.essentialProgressionType } : {}), ...(input.essentialProgressionResult ? { essential_progression_result: input.essentialProgressionResult } : {}), ...(input.essentialFoulCard ? { essential_foul_card: input.essentialFoulCard } : {}), ...(input.essentialRestartType ? { essential_restart_type: input.essentialRestartType } : {}), ...(input.essentialCode === 'C' && input.essentialProgressionType === 'dribble' && end ? { essential_destination: end } : {}), ...(input.shotContext ? { shot_context: input.shotContext } : {}), ...(input.observation ? { observation: input.observation, tactical_context: input.observation.tactical } : {}) },
   };
 }
 

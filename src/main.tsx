@@ -18,3 +18,5 @@ createRoot(rootElement).render(
 );
 
 registerServiceWorker();
+
+import './ui/styles/sport-workbench.css';

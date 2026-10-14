@@ -1,0 +1,15 @@
+# S3 — análise e apresentação das trajetórias inteiras
+
+**Estado:** implementada em 01/10/2026. [Resultado e verificações](../S3_RESULTADO.md). Próxima: S4.
+
+**Objetivo:** responder o que aconteceu em **cada rally/posse** e quais trajetórias completas se repetiram. **Depende de:** S2. Referência principal: mineração de processos por posse de Kröckel e Bodendorf e rallies de Hileno et al. em [`../REFERENCIAS_E_DECISOES.md`](../REFERENCIAS_E_DECISOES.md).
+
+1. Mostrar lista de unidades por partida com início, equipe, set/período, comprimento, duração quando confiável, resultado e cobertura. Abrir uma unidade revela todos os eventos em ordem com posição/tempo conhecidos e link ao registro original. Trilha longa pode ter rolagem interna/agrupamento visual com expansão; exportação e cálculo permanecem integrais.
+2. Gerar variantes exatas e variantes categorizadas (vocabulário pequeno e versionado: p.ex. ação + equipe, sem explodir por coordenada/jogador). Ordenar por **n de unidades distintas**; mostrar amostra total, vitória/ponto/gol/chute/perda conforme esporte, incompletas e IDs de evidência. Exibir distribuição de comprimento e desfechos por faixas de comprimento **como filtro**, mantendo cada trajetória sem corte.
+3. Acrescentar padrões contíguos de comprimento variável, se houver suporte suficiente, separados das variantes de trilha completa. Um padrão pode ocorrer várias vezes na mesma posse, mas o suporte para taxa conta a posse uma vez. Não colar trechos de duas posses. Limitar a quantidade de resultados renderizados, nunca o tamanho de entrada; se a computação não concluir, declarar análise incompleta.
+4. Manter o diagrama Markov de pares existente com nome “transições entre ações”, sem afirmar que representa a trajetória integral. Vôlei substitui a oferta exclusiva de `horizon: 1|2` por detalhe de rally completo; futebol oferece detalhe de posse; futsal ganha detalhe próprio sem importar Markov/xG do campo. Exportar CSV/JSON/PDF compatíveis com as rotas atuais, com evidência e cobertura; no PDF usar resumo + referência/identificador quando a trilha não couber legivelmente.
+5. Corrigir denominadores do relatório derivado se a auditoria S0 confirmar duplicação de `rallyId` entre perspectivas. Filtros não podem alterar silenciosamente o que é um rally/posse; mostrar `n` global e `n` elegível lado a lado.
+
+**Aceite:** uma unidade com 20 eventos aparece integralmente na inspeção e exportação; variantes de 1 e 20 ações são distinguíveis; filtro de ação preserva o restante da trilha na evidência; correção/undo recalculam variantes; incompletas não entram em taxa terminal; nenhum evento do mesmo rally é contado como novo rally. Testar responsividade e legibilidade antes de introduzir outro grafo complexo.
+
+**Prompt para o Luna:** “Execute apenas S3 sobre as projeções S2. Entregue inspeção de rally/posse inteiro, variantes com denominadores corretos e exportação auditável. Identifique o diagrama de pares como resumo local; não converta contagens pequenas em recomendações.”

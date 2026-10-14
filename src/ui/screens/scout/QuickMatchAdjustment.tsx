@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type {
   MatchContextAdjustmentInput,
   MatchWorkspace,
@@ -16,6 +16,12 @@ export function QuickMatchAdjustment({
 }) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef(false);
+  useEffect(() => {
+    if (open || busy || !returnFocus.current) return;
+    trigger.current?.focus();
+    returnFocus.current = false;
+  }, [open, busy]);
   return (
     <div className="quick-match-adjustment" data-native-keys>
       <button
@@ -34,8 +40,8 @@ export function QuickMatchAdjustment({
           busy={busy}
           onApply={onApply}
           onClose={() => {
+            returnFocus.current = true;
             setOpen(false);
-            requestAnimationFrame(() => trigger.current?.focus());
           }}
         />
       )}

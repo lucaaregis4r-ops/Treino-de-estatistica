@@ -1,124 +1,71 @@
 import { useRef } from 'react';
 import type { MatchMetadata } from '../../../domain/match/entities/MatchMetadata';
-import {
-  MATCH_STATUS_LABELS,
-  matchDateLabel,
-  matchProfileLabel,
-  sortMatchesByCreation,
-} from '../matches/matchPresentation';
+import { resolveMatchSport, type MatchSport } from '../../../domain/match/entities/MatchSport';
 
 interface HomeScreenProps {
   readonly matches: readonly MatchMetadata[];
   readonly busy: boolean;
-  readonly onNewMatch: () => void;
-  readonly onTraining: () => void;
-  readonly onAllMatches: () => void;
-  readonly onOpenMatch: (matchId: string) => Promise<void>;
+  readonly onSelectSport: (sport: MatchSport) => void;
+  readonly onUnidentifiedMatches: () => void;
   readonly onImportBackup: (serialized: string) => Promise<void>;
 }
+
+const SPORTS: readonly { id: MatchSport; label: string; description: string; mark: string }[] = [
+  { id: 'volleyball', label: 'Vôlei', description: 'Rallies, fundamentos e rotações', mark: 'VB' },
+  { id: 'football', label: 'Futebol', description: 'Posse, ações e campo', mark: 'FB' },
+  { id: 'futsal', label: 'Futsal', description: 'Jogo, ações e quadra', mark: 'FS' },
+  { id: 'basketball', label: 'Basquete', description: 'Cestas, posse e quadra', mark: 'BQ' },
+];
 
 export function HomeScreen({
   matches,
   busy,
-  onNewMatch,
-  onTraining,
-  onAllMatches,
-  onOpenMatch,
+  onSelectSport,
+  onUnidentifiedMatches,
   onImportBackup,
 }: HomeScreenProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
-  const orderedMatches = sortMatchesByCreation(matches);
-  const resumableMatch = orderedMatches.find((match) => match.status === 'in_progress');
-  const recentMatches = orderedMatches.slice(0, 5);
+  const unidentifiedCount = matches.filter((match) => !resolveMatchSport(match)).length;
 
   return (
-    <main className="page-section home-screen" aria-labelledby="home-title">
-      <header className="home-heading">
+    <main className="page-section home-screen sport-home" aria-labelledby="home-title">
+      <header className="home-heading sport-home-heading">
         <div>
-          <p className="eyebrow">Área de trabalho</p>
-          <h1 id="home-title">Seu espaço de scout</h1>
-          <p>Retome uma partida ou comece um novo registro.</p>
+          <p className="eyebrow">Scout Trainer</p>
+          <h1 id="home-title">Escolha a modalidade</h1>
+          <p>Depois, acesse as partidas e o manual do esporte escolhido.</p>
         </div>
-        <button
-          className={`button ${resumableMatch ? 'secondary' : 'primary'}`}
-          type="button"
-          onClick={onNewMatch}
-          disabled={busy}
-        >
-          Nova partida
-        </button>
       </header>
 
-      {resumableMatch && (
-        <section className="resume-strip" aria-labelledby="resume-title">
-          <div>
-            <p className="eyebrow">Retomar</p>
-            <h2 id="resume-title">{resumableMatch.name}</h2>
-            <p>
-              {matchDateLabel(resumableMatch.createdAt)} ·{' '}
-              {MATCH_STATUS_LABELS[resumableMatch.status]}
-            </p>
-          </div>
-          <button
-            className="button primary"
-            type="button"
-            onClick={() => void onOpenMatch(resumableMatch.id)}
-            disabled={busy}
-          >
-            Continuar registro
-          </button>
-        </section>
-      )}
-
-      <section className="home-recent" aria-labelledby="recent-title">
-        <div className="section-heading home-section-heading">
-          <div>
-            <h2 id="recent-title">Partidas recentes</h2>
-            <p className="section-support">As cinco partidas mais recentes deste dispositivo.</p>
-          </div>
-          <button className="button ghost" type="button" onClick={onAllMatches} disabled={busy}>
-            Ver todas
-          </button>
-        </div>
-        {recentMatches.length === 0 ? (
-          <div className="home-empty-state">
-            <p>Nenhuma partida registrada ainda.</p>
-            <button className="button primary" type="button" onClick={onNewMatch} disabled={busy}>
-              Criar primeira partida
+      <div className="sport-picker" aria-label="Modalidades">
+        {SPORTS.map((sport) => {
+          const count = matches.filter((match) => resolveMatchSport(match) === sport.id).length;
+          return (
+            <button
+              className={`sport-tile sport-tile-${sport.id}`}
+              key={sport.id}
+              type="button"
+              onClick={() => onSelectSport(sport.id)}
+              disabled={busy}
+              aria-label={`${sport.label}: abrir partidas e manual`}
+            >
+              <span className="sport-tile-mark" aria-hidden="true">{sport.mark}</span>
+              <span className="sport-tile-content">
+                <strong>{sport.label}</strong>
+                <small>{sport.description}</small>
+              </span>
+              <span className="sport-tile-footer">
+                <span>{count} {count === 1 ? 'partida' : 'partidas'}</span>
+                <span aria-hidden="true">↗</span>
+              </span>
             </button>
-          </div>
-        ) : (
-          <ul className="home-match-list">
-            {recentMatches.map((match) => (
-              <li key={match.id}>
-                <button
-                  className="home-match-link"
-                  type="button"
-                  onClick={() => void onOpenMatch(match.id)}
-                  disabled={busy}
-                >
-                  <strong>{match.name}</strong>
-                  <span>{matchDateLabel(match.createdAt)}</span>
-                  <span>{matchProfileLabel(match.complexityProfileId)}</span>
-                  <span>{MATCH_STATUS_LABELS[match.status]}</span>
-                  <span aria-hidden="true">→</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          );
+        })}
 
-      <section className="home-secondary-actions" aria-label="Outras ações">
-        <button className="button secondary" type="button" onClick={onTraining} disabled={busy}>
-          Iniciar treino
-        </button>
-        <button
-          className="button secondary"
-          type="button"
-          onClick={() => importInputRef.current?.click()}
-          disabled={busy}
-        >
+      </div>
+
+      <section className="sport-home-utilities" aria-label="Outras opções">
+        <button className="button secondary" type="button" onClick={() => importInputRef.current?.click()} disabled={busy}>
           Importar backup
         </button>
         <input
@@ -134,7 +81,11 @@ export function HomeScreen({
             event.currentTarget.value = '';
           }}
         />
-        <span className="home-import-help">Arquivo JSON do Scout Trainer</span>
+        {unidentifiedCount > 0 && (
+          <button className="button ghost" type="button" onClick={onUnidentifiedMatches}>
+            {unidentifiedCount} {unidentifiedCount === 1 ? 'partida sem modalidade' : 'partidas sem modalidade'}
+          </button>
+        )}
       </section>
     </main>
   );

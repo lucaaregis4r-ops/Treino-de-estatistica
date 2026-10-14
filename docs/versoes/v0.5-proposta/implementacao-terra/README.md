@@ -1,6 +1,6 @@
 # Implementação Terra — roteiro consolidado
 
-**Versão de planejamento:** 0.5 proposta. **Base declarada do aplicativo:** 0.4.0. **Data:** 22/09/2026. **Estado:** documentação; esta rodada não implementou funcionalidades.
+**Versão da entrega:** 0.5.0, definida pelo responsável em 25/09/2026. **Origem do planejamento:** 0.5 proposta, elaborado em 22/09/2026 sobre a base 0.4.0. **Estado vigente:** consultar [ESTADO.md](../ESTADO.md); a identificação da entrega não encerra as pendências de piloto e análise.
 
 ## Começar aqui
 

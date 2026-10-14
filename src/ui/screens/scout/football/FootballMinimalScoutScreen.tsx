@@ -27,7 +27,7 @@ export interface FootballMinimalScoutScreenProps {
 }
 
 type PendingMark = ObserveFootballControlInput & { readonly point?: { readonly x: number; readonly y: number } };
-type ShotDraft = { readonly teamId: string; readonly playerId?: string; readonly pressure?: ActionPressure; readonly before: BallControl; readonly origin?: { readonly x: number; readonly y: number }; readonly originResolved?: boolean; readonly capturedElapsedMs: number };
+type ShotDraft = { readonly teamId: string; readonly playerId?: string; readonly pressure?: ActionPressure; readonly before: BallControl; readonly origin?: { readonly x: number; readonly y: number }; readonly destination?: { readonly x: number; readonly y: number }; readonly originResolved?: boolean; readonly capturedElapsedMs: number };
 type PendingShot = CanonicalFootballEvent;
 type ShotResult = 'goal' | 'saved' | 'off_target' | 'blocked' | 'post';
 type DetailKind = 'menu' | 'pressure' | 'exit' | 'structure' | 'turnover' | 'player';
@@ -159,6 +159,13 @@ export function FootballMinimalScoutScreen({ workspace, busy = false, onObserve,
   const [detailPanel, setDetailPanel] = useState<DetailPanel>();
   const [quickDraft, setQuickDraft] = useState<QuickDraft>();
   const [quickSaveFailed, setQuickSaveFailed] = useState(false);
+  const [substitutionOpen, setSubstitutionOpen] = useState(false);
+  const [substitutionTeamId, setSubstitutionTeamId] = useState(workspace.teams[0]?.id ?? '');
+  const [playerOutId, setPlayerOutId] = useState('');
+  const [playerInId, setPlayerInId] = useState('');
+  const [substitutionSaving, setSubstitutionSaving] = useState(false);
+  const [substitutionError, setSubstitutionError] = useState('');
+  const substitutionSavingRef = useRef(false);
   const quickSaveInFlight = useRef(false);
   const [playerId, setPlayerId] = useState('');
   const [ballPressure, setBallPressure] = useState<ActionPressure['kind']>('unknown');
@@ -175,7 +182,9 @@ export function FootballMinimalScoutScreen({ workspace, busy = false, onObserve,
   const paused = locallyPaused || lastObservation?.coverage === 'suspended';
   const activeControl = queuedCount ? optimisticControl : control.ballControl;
   const activeTeam = activeControl.kind === 'controlled' ? workspace.teams.find((team) => team.id === activeControl.teamId) : undefined;
+  const activeTeamPlayers = activeTeam ? workspace.players.filter((p) => p.teamId === activeTeam.id && p.active !== false) : [];
   const direction = activeTeam ? footballOrientation(workspace.state.metadata, football?.clock.period ?? 1, activeTeam.id) : undefined;
+  const displayDirection = footballOrientation(workspace.state.metadata, football?.clock.period ?? 1, workspace.teams[0].id);
   const activeSegment = control.ballControl.kind === 'controlled' && control.segments.at(-1)?.teamId === control.ballControl.teamId && control.segments.at(-1)?.period === football?.clock.period ? control.segments.at(-1) : undefined;
   const recentPoints = (activeSegment?.marks ?? []).filter((mark) => mark.position).slice(-5).map((mark) => ({ x: mark.position![0] / 120, y: mark.position![1] / 80 }));
   const segmentPosition = activeSegment?.marks.filter((mark) => mark.position).at(-1);
@@ -295,12 +304,12 @@ export function FootballMinimalScoutScreen({ workspace, busy = false, onObserve,
     setReviewShot(undefined);
     setQuickDraft(undefined);
     setShotDraft({ teamId: activeControl.teamId, playerId: playerId || undefined, pressure: captureContext().pressure, before: controlRef.current, capturedElapsedMs: elapsedNow() });
-    setFeedback('Marque a origem da finalização ou escolha “Origem não observada”.');
+    setFeedback('Marque origem e destino da finalização ou escolha “Trajetória não observada”.');
   }
 
   function shotInput(draft: ShotDraft, outcome: FootballOutcome, knownAtCapture: boolean): RegisterFootballEventInput {
     const after: BallControl = outcome === 'goal' && knownAtCapture ? { kind: 'dead_ball' } : draft.before;
-    return { teamId: draft.teamId, playerId: draft.playerId, action: 'shot', outcome, capturedElapsedMs: draft.capturedElapsedMs, possessionTeamId: draft.teamId, ...(draft.origin ? { location: draft.origin } : {}), observation: { coverage: 'continuous', pressure: draft.pressure, attacksTo: direction, before: draft.before, after, teamId: draft.teamId, outcomeKnownAtCapture: knownAtCapture, context: { validity: draft.origin ? 'observed' : 'partial', outcome: outcome === 'goal' ? 'goal' : 'shot' } } };
+    return { teamId: draft.teamId, playerId: draft.playerId, action: 'shot', outcome, capturedElapsedMs: draft.capturedElapsedMs, possessionTeamId: draft.teamId, ...(draft.origin ? { location: draft.origin } : {}), ...(draft.destination ? { endLocation: draft.destination } : {}), observation: { coverage: 'continuous', pressure: draft.pressure, attacksTo: footballOrientation(workspace.state.metadata, football?.clock.period ?? 1, draft.teamId), before: draft.before, after, teamId: draft.teamId, outcomeKnownAtCapture: knownAtCapture, context: { validity: draft.origin && draft.destination ? 'observed' : 'partial', outcome: outcome === 'goal' ? 'goal' : 'shot' } } };
   }
 
   function saveShot(outcome: FootballOutcome) {
@@ -310,19 +319,21 @@ export function FootballMinimalScoutScreen({ workspace, busy = false, onObserve,
     if (outcome === 'goal') { controlRef.current = { kind: 'dead_ball' }; setOptimisticControl(controlRef.current); }
     void enqueue(async () => {
       try { await onRegister(shotInput(draft, outcome, outcome !== 'pending')); setPlayerId(''); if (outcome === 'goal') setBallPressure('unknown'); setFeedback(outcome === 'pending' ? 'Chute salvo; resultado para revisar depois.' : `Finalização registrada: ${resultLabel(outcome as ShotResult)}.`); }
-      catch { setShotDraft(draft); setFeedback('Não foi possível salvar a finalização. A intenção foi preservada para tentar novamente.'); throw new Error('shot save failed'); }
+      catch { controlRef.current = draft.before; setOptimisticControl(draft.before); setShotDraft(draft); setFeedback('Não foi possível salvar a finalização. A intenção foi preservada para tentar novamente.'); throw new Error('shot save failed'); }
     });
   }
 
   function completeOldShot(outcome: ShotResult) {
     if (!reviewShot) return;
     const target = reviewShot, observation = target.scout_trainer.observation ?? {};
+    const shotEnd = target.shot?.end_location;
     const teamId = observation.teamId ?? workspace.teams[(target.team?.id ?? 1) - 1]?.id;
     if (!teamId) return;
     setReviewShot(undefined);
     const input: RegisterFootballEventInput = {
       teamId, playerId: observation?.playerId, action: 'shot', outcome, capturedElapsedMs: timestampMs(target.timestamp),
       ...(target.location ? { location: { x: statsBombToNormalized(target.location)[0], y: statsBombToNormalized(target.location)[1] } } : {}),
+      ...(Array.isArray(shotEnd) && typeof shotEnd[0] === 'number' && typeof shotEnd[1] === 'number' ? { endLocation: { x: statsBombToNormalized(shotEnd as [number, number])[0], y: statsBombToNormalized(shotEnd as [number, number])[1] } } : {}),
       ...(target.possession_team ? { possessionTeamId: workspace.teams.find((_, index) => index + 1 === target.possession_team?.id)?.id } : {}),
       observation: { ...observation, teamId, outcomeKnownAtCapture: false, context: { validity: target.location ? 'observed' : 'partial', outcome: outcome === 'goal' ? 'goal' : 'shot' } },
     };
@@ -461,7 +472,46 @@ export function FootballMinimalScoutScreen({ workspace, busy = false, onObserve,
     setQuickSaveFailed(false);
     setQuickDraft(draft);
     if (['loss', 'foul'].includes(action)) { saveQuickAction(draft); return; }
-    setFeedback(['pass', 'carry'].includes(action) ? 'Marque origem e destino; o último clique salva automaticamente.' : 'Clique no campo para salvar a ação automaticamente.');
+    setFeedback(action === 'duel' ? outcome === 'won' ? 'Toque no ponto do desarme; a posse passará à outra equipe.' : 'Toque no ponto do desarme tentado; a posse permanece.' : ['pass', 'carry'].includes(action) ? 'Marque origem e destino; o último clique salva automaticamente.' : 'Clique no campo para salvar a ação automaticamente.');
+  }
+
+  async function registerSubstitution() {
+    if (substitutionSavingRef.current || !playerOutId || !playerInId || playerOutId === playerInId) return;
+    const out = workspace.players.find(player => player.id === playerOutId);
+    const incoming = workspace.players.find(player => player.id === playerInId);
+    if (!out || !incoming || out.teamId !== substitutionTeamId || incoming.teamId !== substitutionTeamId) {
+      setSubstitutionError('Selecione dois atletas da mesma equipe.');
+      return;
+    }
+    substitutionSavingRef.current = true;
+    setSubstitutionSaving(true);
+    setSubstitutionError('');
+    try {
+      await onRegister({
+        teamId: substitutionTeamId,
+        playerId: out.id,
+        relatedPlayerId: incoming.id,
+        action: 'substitution',
+        outcome: 'observed',
+        capturedElapsedMs: elapsedNow(),
+        observation: {
+          teamId: substitutionTeamId,
+          playerId: out.id,
+          recipientId: incoming.id,
+          before: controlRef.current,
+          after: controlRef.current,
+        },
+      });
+      setFeedback(`Substituição registrada: #${out.number} sai, #${incoming.number} entra.`);
+      setPlayerOutId('');
+      setPlayerInId('');
+      setSubstitutionOpen(false);
+    } catch {
+      setSubstitutionError('Não foi possível salvar a substituição. Confira os atletas e tente novamente.');
+    } finally {
+      substitutionSavingRef.current = false;
+      setSubstitutionSaving(false);
+    }
   }
 
   function saveQuickAction(draft: QuickDraft) {
@@ -469,8 +519,11 @@ export function FootballMinimalScoutScreen({ workspace, busy = false, onObserve,
     quickSaveInFlight.current = true;
     setQuickSaveFailed(false);
     const before = controlRef.current;
-    const after: BallControl = draft.action === 'loss' || draft.outcome === 'lost' || draft.outcome === 'incomplete' ? { kind: 'unknown' } : draft.action === 'foul' ? { kind: 'dead_ball' } : before;
-    const input: RegisterFootballEventInput = { ...draft, teamId: activeTeam.id, playerId: playerId || undefined, possessionTeamId: activeTeam.id, observation: { ...captureContext(), before, after, coverage: 'continuous' } };
+    const isTackle = draft.action === 'duel';
+    const tacklingTeam = isTackle ? workspace.teams.find(team => team.id !== activeTeam.id) : undefined;
+    const actionTeamId = tacklingTeam?.id ?? activeTeam.id;
+    const after: BallControl = isTackle && draft.outcome === 'won' ? { kind: 'controlled', teamId: actionTeamId } : isTackle ? before : draft.action === 'loss' || draft.outcome === 'lost' || draft.outcome === 'incomplete' ? { kind: 'unknown' } : draft.action === 'foul' ? { kind: 'dead_ball' } : before;
+    const input: RegisterFootballEventInput = { ...draft, teamId: actionTeamId, playerId: isTackle ? undefined : playerId || undefined, possessionTeamId: activeTeam.id, observation: { ...captureContext(), teamId: actionTeamId, playerId: isTackle ? undefined : playerId || undefined, attacksTo: footballOrientation(workspace.state.metadata, football?.clock.period ?? 1, actionTeamId), before, after, coverage: 'continuous' } };
     void enqueue(async () => {
       try { await onRegister(input); controlRef.current = after; setOptimisticControl(after); setQuickDraft(undefined); setPlayerId(''); if (after.kind !== 'controlled') setBallPressure('unknown'); setFeedback('Ação registrada.'); }
       catch { setQuickDraft(draft); setQuickSaveFailed(true); setFeedback('Não foi possível salvar a ação. Dados preservados para tentar novamente.'); }
@@ -509,27 +562,27 @@ export function FootballMinimalScoutScreen({ workspace, busy = false, onObserve,
 
       <div className="football-minimal-field-head"><strong id="football-minimal-title">{paused ? 'Coleta pausada' : shotDraft ? 'Finalização em preparação' : controlName(activeControl, workspace)}</strong><span>{activeTeam && direction ? `${activeTeam.name} ataca ${direction === 'x120' ? '→' : '←'}` : 'Direção não observada'}</span></div>
       <GestureCourtInput
-        key={quickDraft ? `${quickDraft.action}:${quickDraft.outcome}` : shotDraft ? 'shot' : 'mark'} sport="football" captureMode={quickDraft && ['pass', 'carry'].includes(quickDraft.action) ? 'trajectory' : 'point'} pointHint={quickDraft ? 'Clique para registrar a ação automaticamente.' : shotDraft ? 'Marque a origem da finalização.' : 'Toque no campo para registrar a bola.'} disabledHint="Coleta pausada. Retome informando a equipe com a bola."
-        isEnabled={!busy && !paused && queuedCount === 0} flipped={direction === 'x0'} recentPoints={recentPoints}
+        key={quickDraft ? `${quickDraft.action}:${quickDraft.outcome}` : shotDraft ? 'shot' : 'mark'} sport="football" captureMode={shotDraft || quickDraft && ['pass', 'carry'].includes(quickDraft.action) ? 'trajectory' : 'point'} pointHint={quickDraft ? 'Clique para registrar a ação automaticamente.' : shotDraft ? 'Marque origem e destino da finalização.' : 'Toque no campo para registrar a bola.'} disabledHint="Coleta pausada. Retome informando a equipe com a bola."
+        isEnabled={!busy && !paused && queuedCount === 0} flipped={displayDirection === 'x0'} recentPoints={recentPoints}
         {...(fieldSuggestion?.start && fieldSuggestion.end ? { suggestedSegment: { origin: { x: fieldSuggestion.start[0] / 120, y: fieldSuggestion.start[1] / 80 }, destination: { x: fieldSuggestion.end[0] / 120, y: fieldSuggestion.end[1] / 80 } } } : {})}
-        teamNames={direction === 'x0' ? [workspace.teams[1].name, workspace.teams[0].name] : [workspace.teams[0].name, workspace.teams[1].name]}
+        teamNames={displayDirection === 'x0' ? [workspace.teams[1].name, workspace.teams[0].name] : [workspace.teams[0].name, workspace.teams[1].name]}
         onCaptureStart={() => { capturedElapsed.current = elapsedNow(); }}
         onCancel={() => { setQuickDraft(undefined); if (shotDraft) { setShotDraft(undefined); setFeedback('Intenção de finalização cancelada.'); } }}
-        onTrajectory={(trajectory) => { const point = { x: trajectory.origin.x, y: trajectory.origin.y }; if (shotDraft) { setShotDraft({ ...shotDraft, origin: point, originResolved: true, capturedElapsedMs: capturedElapsed.current ?? shotDraft.capturedElapsedMs }); setFeedback('Escolha o resultado da finalização.'); } else if (quickDraft) { const draft = { ...quickDraft, location: point, ...(['pass', 'carry'].includes(quickDraft.action) ? { endLocation: { x: trajectory.destination.x, y: trajectory.destination.y } } : {}), capturedElapsedMs: capturedElapsed.current ?? quickDraft.capturedElapsedMs }; setQuickDraft(draft); saveQuickAction(draft); } else saveMark(point); }}
+        onTrajectory={(trajectory) => { const point = { x: trajectory.origin.x, y: trajectory.origin.y }; if (shotDraft) { setShotDraft({ ...shotDraft, origin: point, destination: { x: trajectory.destination.x, y: trajectory.destination.y }, originResolved: true, capturedElapsedMs: capturedElapsed.current ?? shotDraft.capturedElapsedMs }); setFeedback('Escolha o resultado da finalização.'); } else if (quickDraft) { const draft = { ...quickDraft, location: point, ...(['pass', 'carry'].includes(quickDraft.action) ? { endLocation: { x: trajectory.destination.x, y: trajectory.destination.y } } : {}), capturedElapsedMs: capturedElapsed.current ?? quickDraft.capturedElapsedMs }; setQuickDraft(draft); saveQuickAction(draft); } else saveMark(point); }}
       />
 
       <div className="football-minimal-toolbar" aria-label="Controle observado">
         <span>Controle</span>
-        {workspace.teams.map((team) => <button type="button" key={team.id} disabled={busy || queuedCount > 0 || !!shotDraft} aria-pressed={activeControl.kind === 'controlled' && activeControl.teamId === team.id} onClick={() => recordControl({ kind: 'controlled', teamId: team.id })}>{team.name}</button>)}
+        {workspace.teams.map((team, index) => <button type="button" key={team.id} disabled={busy || queuedCount > 0 || !!shotDraft} aria-label={team.name} aria-pressed={activeControl.kind === 'controlled' && activeControl.teamId === team.id} aria-keyshortcuts={String(index + 1)} onClick={() => recordControl({ kind: 'controlled', teamId: team.id })}>{team.name} <kbd aria-hidden="true">{index + 1}</kbd></button>)}
         <button type="button" disabled={busy || queuedCount > 0 || !!shotDraft || paused} aria-pressed={activeControl.kind === 'contested'} onClick={() => recordControl({ kind: 'contested' })}>Disputa</button>
         <button type="button" disabled={busy || queuedCount > 0 || !!shotDraft || paused} aria-pressed={activeControl.kind === 'dead_ball'} onClick={() => recordControl({ kind: 'dead_ball' })}>Parada</button>
         <button type="button" disabled={busy || queuedCount > 0 || !!shotDraft || paused} aria-pressed={activeControl.kind === 'unknown'} onClick={() => recordControl({ kind: 'unknown' })}>?</button>
-        <button type="button" className="football-minimal-shot" disabled={busy || queuedCount > 0 || paused || activeControl.kind !== 'controlled'} onClick={armShot}>Finalizar</button>
-        <button type="button" className="football-minimal-quiet" disabled={busy || queuedCount > 0 || !(football?.events.length)} onClick={undo}>Desfazer</button>
+        <button type="button" className="football-minimal-shot" aria-label="Finalizar" aria-keyshortcuts="F" disabled={busy || queuedCount > 0 || paused || activeControl.kind !== 'controlled'} onClick={armShot}>Finalizar <kbd aria-hidden="true">F</kbd></button>
+        <button type="button" className="football-minimal-quiet" aria-label="Desfazer" aria-keyshortcuts="Z" disabled={busy || queuedCount > 0 || !(football?.events.length)} onClick={undo}>Desfazer <kbd aria-hidden="true">Z</kbd></button>
       </div>
 
       <div className="football-minimal-result-space" aria-label="Resultado contextual da finalização">
-        {shotDraft && !shotDraft.originResolved && <button type="button" className="football-minimal-quiet" onClick={() => { setShotDraft({ ...shotDraft, originResolved: true }); setFeedback('Origem não observada; escolha o resultado ou deixe para depois.'); }}>Origem não observada</button>}
+        {shotDraft && !shotDraft.originResolved && <button type="button" className="football-minimal-quiet" onClick={() => { setShotDraft({ ...shotDraft, originResolved: true }); setFeedback('Trajetória não observada; escolha o resultado ou deixe para depois.'); }}>Trajetória não observada</button>}
         {shotDraft?.originResolved && <><span>{shotDraft.origin ? 'Resultado da finalização' : 'Escolha o resultado ou deixe para depois'}</span>{resultOptions.map((outcome) => <button key={outcome} type="button" disabled={busy || queuedCount > 0} onClick={() => saveShot(outcome)}>{resultLabel(outcome)}</button>)}<button type="button" className="football-minimal-quiet" disabled={busy || queuedCount > 0} onClick={() => saveShot('pending')}>Depois</button></>}
         {!shotDraft && reviewShot && <><span>Completar chute de {reviewShot.timestamp.slice(3, 8)}</span>{resultOptions.map((outcome) => <button key={outcome} type="button" onClick={() => completeOldShot(outcome)}>{resultLabel(outcome)}</button>)}</>}
         {!displayedShot && pendingShots.length > 0 && <><span>{pendingShots.length} chute{pendingShots.length === 1 ? '' : 's'} pendente{pendingShots.length === 1 ? '' : 's'}</span>{pendingShots.map((event) => <button type="button" key={event.id} className="football-minimal-quiet" onClick={() => setReviewShot(event)}>Chute {event.timestamp.slice(3, 8)}</button>)}</>}
@@ -540,8 +593,44 @@ export function FootballMinimalScoutScreen({ workspace, busy = false, onObserve,
         <small>Vale para os próximos registros até mudar; reinicia ao trocar o controle ou reabrir o registro.</small>
       </div>
       <div className="football-quick-actions" aria-label="Registro de ação e jogador">
-        <label>Jogador<select aria-label="Jogador da ação" value={playerId} disabled={!activeTeam || busy || !!shotDraft || queuedCount > 0} onChange={e => setPlayerId(e.target.value)}><option value="">Não identificado</option>{workspace.players.filter(p => p.teamId === activeTeam?.id && p.active !== false).map(p => <option key={p.id} value={p.id}>#{p.number}{p.name ? ` ${p.name}` : ''}</option>)}</select></label>
+        {activeTeamPlayers.length > 0 && (
+          <div className="football-quick-players" aria-label="Jogadores rápidos">
+            <span className="football-quick-players-label">Atleta rápido:</span>
+            {activeTeamPlayers.map(p => {
+              const isSelected = playerId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`football-player-chip ${isSelected ? 'selected' : ''}`}
+                  disabled={!activeTeam || busy || !!shotDraft || queuedCount > 0}
+                  onClick={() => setPlayerId(isSelected ? '' : p.id)}
+                  title={`#${p.number} ${p.name || ''}`}
+                >
+                  <strong className="chip-num">#{p.number}</strong>
+                  {p.name && <span className="chip-name">{p.name.split(' ')[0]}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <label>Jogador<select aria-label="Jogador da ação" value={playerId} disabled={!activeTeam || busy || !!shotDraft || queuedCount > 0} onChange={e => setPlayerId(e.target.value)}><option value="">Não identificado</option>{activeTeamPlayers.map(p => <option key={p.id} value={p.id}>#{p.number}{p.name ? ` ${p.name}` : ''}</option>)}</select></label>
         <div className="football-quick-action-buttons">{quickActions.map(([action, label, key, outcome]) => <button type="button" key={key} aria-pressed={quickDraft?.action === action && quickDraft.outcome === outcome} aria-keyshortcuts={key} disabled={!activeTeam || busy || paused || queuedCount > 0 || !!shotDraft || !!reviewShot} onClick={() => chooseAction(action, outcome)}>{label} <kbd>{key.toUpperCase()}</kbd></button>)}</div>
+        <button type="button" className="football-minimal-quiet" aria-expanded={substitutionOpen} aria-controls="football-substitution-form" disabled={busy || queuedCount > 0 || substitutionSaving || !!shotDraft || !!reviewShot} onClick={() => { setSubstitutionOpen(open => !open); setSubstitutionError(''); }}>Substituição</button>
+        {substitutionOpen && <form id="football-substitution-form" className="football-substitution-form" onSubmit={event => { event.preventDefault(); void registerSubstitution(); }}>
+          <label>Equipe<select aria-label="Equipe da substituição" value={substitutionTeamId} disabled={busy || substitutionSaving} onChange={event => { setSubstitutionTeamId(event.target.value); setPlayerOutId(''); setPlayerInId(''); }}>
+            {workspace.teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
+          </select></label>
+          <label>Sai<select aria-label="Atleta que sai" value={playerOutId} disabled={busy || substitutionSaving} onChange={event => setPlayerOutId(event.target.value)}>
+            <option value="">Selecione quem sai</option>{workspace.players.filter(player => player.teamId === substitutionTeamId && player.active !== false).map(player => <option key={player.id} value={player.id}>#{player.number}{player.name ? ` ${player.name}` : ''}</option>)}
+          </select></label>
+          <label>Entra<select aria-label="Atleta que entra" value={playerInId} disabled={busy || substitutionSaving} onChange={event => setPlayerInId(event.target.value)}>
+            <option value="">Selecione quem entra</option>{workspace.players.filter(player => player.teamId === substitutionTeamId && player.active !== false && player.id !== playerOutId).map(player => <option key={player.id} value={player.id}>#{player.number}{player.name ? ` ${player.name}` : ''}</option>)}
+          </select></label>
+          <button type="submit" disabled={busy || substitutionSaving || !playerOutId || !playerInId}>{substitutionSaving ? 'Salvando…' : 'Confirmar substituição'}</button>
+          {substitutionError && <span role="alert">{substitutionError}</span>}
+          <small>O registro identifica quem saiu e quem entrou. A escalação inicial não está sendo presumida.</small>
+        </form>}
         {quickDraft && <div className="football-quick-result"><strong>{quickActions.find(([action, , , outcome]) => action === quickDraft.action && outcome === quickDraft.outcome)?.[1]}</strong><span>{quickSaveFailed ? 'O registro não foi salvo.' : queuedCount ? 'Salvando…' : ['pass', 'carry'].includes(quickDraft.action) ? 'Origem → destino: salva no último clique.' : 'Clique no campo: salva na hora.'}</span>{quickSaveFailed && <button type="button" disabled={busy || queuedCount > 0} onClick={() => saveQuickAction(quickDraft)}>Tentar salvar ação</button>}<button type="button" className="football-minimal-quiet" disabled={queuedCount > 0} onClick={() => setQuickDraft(undefined)}>Cancelar</button></div>}
         <small>Salva automaticamente · F: finalizar · J: jogador · 1/2: equipe · Z: desfazer · Esc: cancelar</small>
       </div>

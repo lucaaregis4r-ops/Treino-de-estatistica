@@ -22,7 +22,7 @@ import {
   projectScoutTimeline,
   type ProjectedScoutEvent,
 } from '../domain/match/events/ScoutTimeline';
-import { type FaultType, type MatchEvent } from '../domain/match/events/MatchEvent';
+import { type FaultType, type MatchEvent, type FutsalClockCommand } from '../domain/match/events/MatchEvent';
 import { MatchEventFactory } from '../domain/match/events/MatchEventFactory';
 import type { MatchState } from '../domain/match/state/MatchState';
 import { swapCourtOrientation } from '../domain/match/state/CourtOrientation';
@@ -54,6 +54,7 @@ import {
   type TacticalRole,
   playerRoleForTacticalRole,
 } from '../domain/match/lineup/SetLineup';
+import { RotationEngine } from '../domain/match/lineup/RotationEngine';
 import type { PlayerRole } from '../domain/match/roles/PlayerRole';
 import {
   DEFAULT_INDOOR_SCORING_RULES,
@@ -83,10 +84,35 @@ import { buildDerivedAnalyticsReport } from './reporting/DerivedAnalyticsReport'
 import { MatchPdfRenderer } from '../infrastructure/export/pdf/MatchPdfRenderer';
 import { StatisticsCsvExporter } from '../infrastructure/export/csv/StatisticsCsvExporter';
 import { resolveMatchSport } from '../domain/match/entities/MatchSport';
+import { projectBasketball, validateBasketballFact, type BasketballFact, type BasketballFactDraft, type BasketballProjection } from '../domain/basketball/BasketballScout';
+import { buildFutsalAnalytics } from '../domain/futsal/FutsalAnalytics';
+import { exportFutsalAnalyticsCsv, renderFutsalAnalyticsPdf } from '../infrastructure/export/futsal/FutsalReportExporters';
 import { createCanonicalFootballEvent, effectiveElapsed, formatFootballTimestamp, projectFootball, type FootballOutcome, type FootballProjection } from '../domain/football/FootballRecorder';
 import { normalizedToStatsBomb, type FootballAction } from '../domain/football/StatsBombContract';
 import { exportCanonicalStatsBomb, OPEN_DATA_VERSION } from '../domain/football/StatsBombOpenData';
 import { footballAssistedCandidateKey, footballAssistedSourceRevision, isValidFootballAssistedRecording, type FootballAssistedRecording } from '../domain/football/FootballAssistedRecording';
+import { DEFAULT_FUTSAL_PERIOD_DURATION_MS, effectiveFutsalElapsed, projectFutsalClock, type FutsalClockState } from '../domain/futsal/FutsalClock';
+import { projectFutsalScout, validateFutsalFact, validateFutsalFactReferences, type FutsalFact, type FutsalFactDraft, type FutsalScoutProjection } from '../domain/futsal/FutsalScout';
+import { analyzeSequenceContextModel as fitSequenceContextModel, projectFootballObservedSequences, projectFutsalObservedSequences, projectVolleyballObservedSequences, type ObservedSequenceProjection, type SequenceContextModelResult } from '../domain/analytics/observed-sequence';
+import type { ObservedSport, ObservedSequence } from '../domain/analytics/observed-sequence/ObservedSequence';
+import { FOOTBALL_ESSENTIAL_RESTART_TYPES, FUTSAL_ESSENTIAL_RESTART_TYPES, projectEssentialFootballActions, projectEssentialFutsalActions, validateEssentialDraft, type EssentialActionCode, type EssentialFoulCard, type EssentialOutcome, type EssentialPassResult, type EssentialProgressionResult, type EssentialProgressionType, type EssentialQualifier, type EssentialRestartType, type EssentialThird, type EssentialThirdAnchor, type EssentialScoutDraft, type EssentialScoutRecord } from '../domain/essential/EssentialScout';
+
+function futsalBackupCoverage(projection: FutsalScoutProjection) {
+  const facts = projection.facts;
+  const shots = facts.filter(item => item.fact.kind === 'shot');
+  const annotations = facts.filter(item => item.fact.kind === 'tactical_annotation');
+  const shotsWithTacticalContext = shots.filter(shot => annotations.some(annotation => {
+    if (annotation.fact.kind !== 'tactical_annotation') return false;
+    if (annotation.fact.scope === 'event') return annotation.fact.targetFactId === shot.fact.id;
+    const startFactId = annotation.fact.startFactId;
+    const endFactId = annotation.fact.endFactId;
+    const start = facts.find(item => item.fact.id === startFactId)?.sequence;
+    const end = facts.find(item => item.fact.id === endFactId)?.sequence;
+    return start !== undefined && end !== undefined && shot.sequence >= start && shot.sequence <= end;
+  })).length;
+  const controls = facts.filter(item => item.fact.kind === 'control');
+  return { facts: facts.length, shots: shots.length, shotsWithPosition: shots.filter(item => item.fact.kind === 'shot' && !!item.fact.position).length, controlMarkers: controls.length, continuousControlMarkers: controls.filter(item => item.fact.kind === 'control' && item.fact.coverage === 'continuous').length, shotsWithTacticalContext };
+}
 
 export interface PlayerRegistrationInput {
   readonly number: number;
@@ -122,7 +148,7 @@ export interface StartNextSetInput {
 }
 
 export interface CreateMatchInput {
-  readonly sport?: 'volleyball' | 'football';
+  readonly sport?: 'volleyball' | 'football' | 'futsal' | 'basketball';
   readonly name?: string;
   readonly teamAName: string;
   readonly teamBName: string;
@@ -163,6 +189,11 @@ export interface MatchWorkspace {
   readonly report: MatchReportModel;
   readonly coverage: ScoutCoverage;
   readonly football?: FootballProjection;
+  readonly futsalClock?: FutsalClockState;
+  readonly futsalScout?: FutsalScoutProjection;
+  readonly basketball?: BasketballProjection;
+  readonly observedSequences: ObservedSequenceProjection;
+  readonly essentialActions: readonly EssentialScoutRecord[];
 }
 
 export interface RegisterFootballEventInput {
@@ -177,6 +208,16 @@ export interface RegisterFootballEventInput {
   readonly location?: { readonly x: number; readonly y: number };
   readonly endLocation?: { readonly x: number; readonly y: number };
   readonly possessionTeamId?: string;
+  readonly essentialCode?: EssentialActionCode;
+  readonly essentialShirtNumber?: number;
+  readonly essentialThird?: EssentialThird;
+  readonly essentialThirdAnchor?: EssentialThirdAnchor;
+  readonly essentialQualifiers?: readonly EssentialQualifier[];
+  readonly essentialPassResult?: EssentialPassResult;
+  readonly essentialProgressionType?: EssentialProgressionType;
+  readonly essentialProgressionResult?: EssentialProgressionResult;
+  readonly essentialFoulCard?: EssentialFoulCard;
+  readonly essentialRestartType?: EssentialRestartType;
 }
 
 /** T03 has no screen: callers persist one versioned local review record at a time. */
@@ -222,7 +263,73 @@ function localExportTimestamp(value: number): string {
   )}`;
 }
 
+const ESSENTIAL_TO_FOOTBALL_OUTCOME: Record<EssentialOutcome, FootballOutcome> = {
+  gol: 'goal', defesa: 'saved', fora: 'off_target', bloqueada: 'blocked', trave: 'post',
+};
+const ESSENTIAL_TO_FUTSAL_OUTCOME: Record<EssentialOutcome, 'goal' | 'saved' | 'off_target' | 'blocked' | 'post'> = {
+  gol: 'goal', defesa: 'saved', fora: 'off_target', bloqueada: 'blocked', trave: 'post',
+};
+
+function essentialFootballInput(draft: EssentialScoutDraft, capturedElapsedMs?: number): RegisterFootballEventInput {
+  const action: FootballAction = draft.code === 'F' ? 'shot' : draft.code === 'P' || draft.code === 'PF' ? 'pass' : draft.code === 'C' ? draft.progressionType === 'dribble' ? 'dribble' : 'carry' : draft.code === 'PP' ? 'loss' : draft.code === 'RP' ? 'ball_recovery' : draft.code === 'FL' ? 'foul' : 'restart';
+  const outcome: FootballOutcome = draft.code === 'F' ? ESSENTIAL_TO_FOOTBALL_OUTCOME[draft.outcome!] : draft.code === 'P' || draft.code === 'PF' ? draft.passResult === 'incomplete' ? 'incomplete' : draft.passResult === 'unknown' ? 'observed' : 'complete' : draft.code === 'C' && draft.progressionType === 'dribble' ? draft.progressionResult === 'retained' ? 'won' : draft.progressionResult === 'lost' ? 'lost' : 'observed' : 'observed';
+  return {
+    teamId: draft.teamId, ...(draft.playerId ? { playerId: draft.playerId } : {}),
+    action, outcome,
+    essentialCode: draft.code,
+    ...(draft.shirtNumber !== undefined ? { essentialShirtNumber: draft.shirtNumber } : {}),
+    ...(draft.third ? { essentialThird: draft.third } : {}),
+    ...(draft.thirdAnchor ? { essentialThirdAnchor: draft.thirdAnchor } : {}),
+    ...(draft.qualifiers ? { essentialQualifiers: [...draft.qualifiers] } : {}),
+    ...(draft.passResult ? { essentialPassResult: draft.passResult } : {}),
+    ...(draft.progressionType ? { essentialProgressionType: draft.progressionType } : {}),
+    ...(draft.progressionResult ? { essentialProgressionResult: draft.progressionResult } : {}),
+    ...(draft.foulCard ? { essentialFoulCard: draft.foulCard } : {}),
+    ...(draft.restartType ? { essentialRestartType: draft.restartType } : {}),
+    ...(draft.position ? { location: draft.position } : {}),
+    ...(draft.destination ? { endLocation: draft.destination } : {}),
+    ...(capturedElapsedMs !== undefined ? { capturedElapsedMs } : {}),
+    observation: { before: { kind: 'unknown' }, coverage: 'suspended', context: { validity: 'partial' } },
+  };
+}
+
+function essentialFutsalDraft(draft: EssentialScoutDraft): FutsalFactDraft {
+  const base = { observation: 'observed' as const, essentialCode: draft.code, ...(draft.position ? { position: draft.position } : {}),
+    ...(draft.shirtNumber !== undefined ? { essentialShirtNumber: draft.shirtNumber } : {}),
+    ...(draft.third ? { essentialThird: draft.third } : {}),
+    ...(draft.thirdAnchor ? { essentialThirdAnchor: draft.thirdAnchor } : {}),
+    ...(draft.qualifiers ? { essentialQualifiers: [...draft.qualifiers] } : {}),
+  };
+  const player = draft.playerId ? { playerId: draft.playerId } : {};
+  switch (draft.code) {
+    case 'F': return { ...base, ...player, kind: 'shot', shootingTeamId: draft.teamId, outcome: ESSENTIAL_TO_FUTSAL_OUTCOME[draft.outcome!], ...(draft.outcome === 'gol' ? { beneficiaryTeamId: draft.teamId } : {}), ...(draft.destination ? { destination: draft.destination } : {}) };
+    case 'P': return { ...base, ...player, kind: 'pass', teamId: draft.teamId, passResult: draft.passResult!, ...(draft.destination ? { destination: draft.destination } : {}) };
+    case 'PF': return { ...base, ...player, kind: 'chance_pass', teamId: draft.teamId, ...(draft.passResult ? { passResult: draft.passResult } : {}), ...(draft.destination ? { destination: draft.destination } : {}) };
+    case 'C': return { ...base, ...player, kind: 'progression', teamId: draft.teamId, progressionType: draft.progressionType!, progressionResult: draft.progressionResult!, ...(draft.destination ? { destination: draft.destination } : {}) };
+    case 'PP': return { ...base, ...player, kind: 'possession_loss', teamId: draft.teamId };
+    case 'RP': return { ...base, ...player, kind: 'ball_recovery', teamId: draft.teamId };
+    case 'FL': return { ...base, ...player, kind: 'foul', offendingTeamId: draft.teamId, accumulated: draft.foulAccumulated!, ...(draft.foulCard ? { card: draft.foulCard } : {}) };
+    case 'RE': return { ...base, ...player, kind: 'restart', teamId: draft.teamId, restart: draft.restartType as import('../domain/futsal/FutsalScout').FutsalRestart };
+  }
+}
+
+function validateEssentialSportDraft(draft: EssentialScoutDraft, sport: 'football' | 'futsal'): string | undefined {
+  if (draft.code === 'RE' && !(sport === 'football' ? FOOTBALL_ESSENTIAL_RESTART_TYPES : FUTSAL_ESSENTIAL_RESTART_TYPES).includes(draft.restartType!)) return 'Tipo de reinício incompatível com a modalidade.';
+  if (draft.code === 'FL' && sport === 'futsal' && draft.foulAccumulated === undefined) return 'Informe se a falta acumula no período.';
+  if (draft.code === 'FL' && sport === 'football' && draft.foulAccumulated !== undefined) return 'Falta acumulada se aplica apenas ao futsal.';
+}
+
+function validateEssentialIdentity(draft: EssentialScoutDraft, workspace: MatchWorkspace): string | undefined {
+  if (!workspace.teams.some(team => team.id === draft.teamId)) return 'Equipe da ação essencial inválida.';
+  if (!draft.playerId) return;
+  const player = workspace.players.find(item => item.id === draft.playerId && item.teamId === draft.teamId);
+  if (!player) return 'Atleta da ação essencial não pertence à equipe.';
+  if (draft.shirtNumber !== undefined && player.number !== draft.shirtNumber) return 'Camisa e atleta informado não correspondem.';
+}
+
 export class ScoutTrainerService {
+  private readonly futsalClockSessions = new Set<string>();
+  private readonly futsalClockReconciliationPending = new Set<string>();
   private readonly resolver: ProfileResolver;
   private readonly openMatch: OpenMatchUseCase;
   private readonly statisticsEngine = new StatisticsEngine(createDefaultMetricRegistry());
@@ -265,6 +372,29 @@ export class ScoutTrainerService {
       : result;
   }
 
+  /** Reads only same-sport history and validates by holding out whole matches. No projection is persisted. */
+  async analyzeSequenceContextModel(sport: ObservedSport): Promise<Result<SequenceContextModelResult, ServiceError>> {
+    const listed = await this.matches.list();
+    if (!listed.ok) return failure(listed.error);
+    const metadata = listed.value.filter(match => resolveMatchSport(match) === sport);
+    const projected = await Promise.all(metadata.map(async match => {
+      const history = await this.events.listByMatch(match.id);
+      if (!history.ok) return failure(history.error);
+      if (sport === 'futsal') return success<readonly ObservedSequence[]>(projectFutsalObservedSequences(match.id, history.value).units);
+      if (sport === 'volleyball') return success<readonly ObservedSequence[]>(projectVolleyballObservedSequences(match.id, history.value).units);
+      const [teamA, teamB] = await Promise.all([this.teams.findById(match.teamAId), this.teams.findById(match.teamBId)]);
+      if (!teamA.ok) return failure(teamA.error);
+      if (!teamB.ok) return failure(teamB.error);
+      if (!teamA.value || !teamB.value) return failure(new RepositoryError('entity_not_found', 'Partida histórica sem equipes disponíveis.'));
+      const football = projectFootball(history.value, teamA.value.id, teamB.value.id, teamA.value.name, teamB.value.name, this.dependencies.now());
+      return success<readonly ObservedSequence[]>(projectFootballObservedSequences(match.id, football.events, history.value, new Map([[teamA.value.name, teamA.value.id], [teamB.value.name, teamB.value.id]])).units);
+    }));
+    const failed = projected.find(result => !result.ok);
+    if (failed && !failed.ok) return failure(failed.error);
+    const units = projected.flatMap(result => result.ok ? result.value : []);
+    return success(fitSequenceContextModel(units));
+  }
+
   listCodeProfiles() {
     return this.profileRegistry.list('code');
   }
@@ -281,7 +411,7 @@ export class ScoutTrainerService {
     const teamARegistrations = input.teamAPlayers.map(normalizePlayerInput);
     const teamBRegistrations = input.teamBPlayers.map(normalizePlayerInput);
     const invalidNumber = [...teamARegistrations, ...teamBRegistrations].find(
-      (player) => !Number.isSafeInteger(player.number) || player.number < 1 || player.number > 99,
+      (player) => !Number.isSafeInteger(player.number) || player.number < (sport === 'basketball' ? 0 : 1) || player.number > 99,
     );
     if (invalidNumber !== undefined) {
       return failure(
@@ -331,6 +461,9 @@ export class ScoutTrainerService {
       ...(sport === 'football'
         ? { footballOrientation: [{ period: 1 as const }, { period: 2 as const }] }
         : {}),
+      ...(sport === 'futsal'
+        ? { futsalOrientation: [{ period: 1 as const }, { period: 2 as const }], futsalSettings: { ruleset: 'fifa-2025-26' as const, periodDurationMs: DEFAULT_FUTSAL_PERIOD_DURATION_MS } }
+        : {}),
       ...(input.complexityProfileId === 'cbv'
         ? {
             competitionProfileId: 'cbv_superliga_reference_2025_26',
@@ -361,13 +494,13 @@ export class ScoutTrainerService {
         const entity = playerEntities.find(
           (candidate) => candidate.teamId === teamA.id && candidate.number === player.number,
         );
-        return player.libero && entity ? [entity.id] : [];
+        return (player.libero || player.registeredRole === 'libero') && entity ? [entity.id] : [];
       }),
       ...teamBRegistrations.flatMap((player) => {
         const entity = playerEntities.find(
           (candidate) => candidate.teamId === teamB.id && candidate.number === player.number,
         );
-        return player.libero && entity ? [entity.id] : [];
+        return (player.libero || player.registeredRole === 'libero') && entity ? [entity.id] : [];
       }),
     ] : [];
     const persistedMetadata: MatchMetadata =
@@ -450,6 +583,7 @@ export class ScoutTrainerService {
         slotId,
         tacticalRole: entry.tacticalRole,
         playerId: player.id,
+        originalPlayerId: player.id,
         activeRole: playerRoleForTacticalRole(entry.tacticalRole),
       };
     }
@@ -556,7 +690,7 @@ export class ScoutTrainerService {
         : {}),
     });
     const zoneSystem = profiles.value.codeProfile.tacticalInput?.zoneSystem;
-    const sequenceAnalytics = zoneSystem
+    const sequenceAnalytics = zoneSystem && resolveMatchSport(state.value.metadata) !== 'basketball'
       ? this.sequenceAnalyticsService.build(
           events.value,
           [loadedTeamA, loadedTeamB],
@@ -568,6 +702,24 @@ export class ScoutTrainerService {
     const football = resolveMatchSport(state.value.metadata) === 'football'
       ? projectFootball(events.value, loadedTeamA.id, loadedTeamB.id, loadedTeamA.name, loadedTeamB.name, this.dependencies.now())
       : undefined;
+    const isFutsal = resolveMatchSport(state.value.metadata) === 'futsal';
+    const firstFutsalLoad = isFutsal && !this.futsalClockSessions.has(matchId);
+    const futsalClock = isFutsal
+      ? projectFutsalClock(events.value, state.value.metadata.futsalSettings?.periodDurationMs, this.dependencies.now(), firstFutsalLoad || this.futsalClockReconciliationPending.has(matchId))
+      : undefined;
+    const futsalScout = isFutsal ? projectFutsalScout(events.value) : undefined;
+    const basketball = resolveMatchSport(state.value.metadata) === 'basketball' ? projectBasketball(events.value) : undefined;
+    const essentialActions = football ? projectEssentialFootballActions(football.events) : futsalScout ? projectEssentialFutsalActions(futsalScout) : [];
+    const observedSequences = football
+      ? projectFootballObservedSequences(matchId, football.events, events.value, new Map([[loadedTeamA.name, loadedTeamA.id], [loadedTeamB.name, loadedTeamB.id]]))
+      : futsalScout
+        ? projectFutsalObservedSequences(matchId, events.value, futsalScout)
+        : basketball ? { units: [], unassigned: [] }
+        : projectVolleyballObservedSequences(matchId, events.value, tacticalRally, zoneSystem);
+    if (isFutsal) {
+      this.futsalClockSessions.add(matchId);
+      if (futsalClock?.status === 'needs_reconciliation') this.futsalClockReconciliationPending.add(matchId);
+    }
     return success({
       state: state.value,
       teams: [loadedTeamA, loadedTeamB],
@@ -585,6 +737,11 @@ export class ScoutTrainerService {
       report,
       coverage,
       ...(football ? { football } : {}),
+      ...(futsalClock ? { futsalClock } : {}),
+      ...(futsalScout ? { futsalScout } : {}),
+      ...(basketball ? { basketball } : {}),
+      observedSequences,
+      essentialActions,
     });
   }
 
@@ -598,6 +755,19 @@ export class ScoutTrainerService {
     const saved = await this.matches.save({ ...metadata, footballOrientation: [...prior.filter(p => p.period !== period), updated] });
     if (!saved.ok) return failure(saved.error);
     await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async setFutsalOrientation(matchId: string, period: 1 | 2, teamId: string, direction: 'x120' | 'x0' | undefined): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const metadata = workspace.value.state.metadata;
+    if (resolveMatchSport(metadata) !== 'futsal' || !workspace.value.teams.some(team => team.id === teamId))
+      return failure(new ValidationError('Equipe de futsal inválida.', []));
+    const prior = metadata.futsalOrientation ?? [];
+    const updated = { ...prior.find(entry => entry.period === period), period, [teamId === metadata.teamAId ? 'teamAAttacksTo' : 'teamBAttacksTo']: direction };
+    const saved = await this.matches.save({ ...metadata, futsalOrientation: [...prior.filter(entry => entry.period !== period), updated] });
+    if (!saved.ok) return failure(saved.error);
     return this.loadMatch(matchId);
   }
 
@@ -635,12 +805,14 @@ export class ScoutTrainerService {
     const teamIndex = workspace.value.teams.findIndex((team) => team.id === input.teamId);
     const playerIndex = input.playerId ? workspace.value.players.findIndex((player) => player.id === input.playerId) : -1;
     const relatedPlayerIndex = input.relatedPlayerId ? workspace.value.players.findIndex((player) => player.id === input.relatedPlayerId) : -1;
+    if (input.action === 'substitution' && (!input.playerId || !input.relatedPlayerId || input.playerId === input.relatedPlayerId))
+      return failure(new ValidationError('Invalid football substitution.', [{ code: 'invalid_football_substitution', message: 'Informe atletas diferentes para saída e entrada.' }]));
     if (teamIndex < 0 || (input.playerId && (playerIndex < 0 || workspace.value.players[playerIndex].teamId !== input.teamId)) || (input.relatedPlayerId && (relatedPlayerIndex < 0 || workspace.value.players[relatedPlayerIndex].teamId !== input.teamId)))
       return failure(new ValidationError('Football team or player was not found.', []));
-    const draftIssue = (input.capturedElapsedMs !== undefined && (!Number.isFinite(input.capturedElapsedMs) || input.capturedElapsedMs < 0) ? 'Horário inválido.' : undefined) ?? validateFootballDraft(input) ?? validateFootballObservation(input.observation, workspace.value);
+    const draftIssue = (input.capturedElapsedMs !== undefined && (!Number.isFinite(input.capturedElapsedMs) || input.capturedElapsedMs < 0) ? 'Horário inválido.' : undefined) ?? validateFootballEssentialInput(input) ?? validateFootballDraft(input) ?? validateFootballObservation(input.observation, workspace.value);
     if (draftIssue) return failure(new ValidationError(draftIssue, []));
-    const requiresEnd = input.action === 'pass' || input.action === 'carry';
-    const requiresLocation = !['loss', 'foul', 'substitution', 'shot'].includes(input.action);
+    const requiresEnd = (input.action === 'pass' || input.action === 'carry') && !input.essentialCode;
+    const requiresLocation = !['loss', 'foul', 'restart', 'substitution', 'shot'].includes(input.action) && !input.essentialCode;
     if ((requiresLocation && !input.location) || (requiresEnd && !input.endLocation))
       return failure(new ValidationError('Football event location is incomplete.', [{ code: 'football_location_incomplete', message: requiresEnd ? 'Marque origem e destino.' : 'Marque a localização.' }]));
     const clock = workspace.value.football.clock;
@@ -653,7 +825,7 @@ export class ScoutTrainerService {
     const canonical = createCanonicalFootballEvent({
       id: eventId, matchId, index: workspace.value.football.events.length + 1, period: clock.period, elapsedMs,
       captureSequence: workspace.value.state.lastSequence + 1,
-      action: input.action, outcome: input.outcome, shotContext: input.shotContext, observation: { before: input.possessionTeamId ? { kind: 'controlled', teamId: input.possessionTeamId } : projectControl(workspace.value.football?.events ?? []).ballControl, ...input.observation, teamId: input.teamId, playerId: input.playerId, recipientId: input.relatedPlayerId },
+      action: input.action, outcome: input.outcome, essentialCode: input.essentialCode, essentialShirtNumber: input.essentialShirtNumber, essentialThird: input.essentialThird, essentialThirdAnchor: input.essentialThirdAnchor, essentialQualifiers: input.essentialQualifiers, essentialPassResult: input.essentialPassResult, essentialProgressionType: input.essentialProgressionType, essentialProgressionResult: input.essentialProgressionResult, essentialFoulCard: input.essentialFoulCard, essentialRestartType: input.essentialRestartType, shotContext: input.shotContext, observation: { before: input.possessionTeamId ? { kind: 'controlled', teamId: input.possessionTeamId } : projectControl(workspace.value.football?.events ?? []).ballControl, ...input.observation, teamId: input.teamId, playerId: input.playerId, recipientId: input.relatedPlayerId },
       team: { id: teamIndex + 1, name: workspace.value.teams[teamIndex].name },
       ...(possession !== undefined ? { possession, possessionTeam } : {}),
       ...(playerIndex >= 0 ? { player: { id: footballNumericId(workspace.value.players[playerIndex].id), name: workspace.value.players[playerIndex].name ?? `Jogador ${workspace.value.players[playerIndex].number}` } } : {}),
@@ -671,20 +843,24 @@ export class ScoutTrainerService {
   async correctFootballEvent(matchId: string, targetEventId: string, input: RegisterFootballEventInput): Promise<Result<MatchWorkspace, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
-    const draftIssue = (input.capturedElapsedMs !== undefined && (!Number.isFinite(input.capturedElapsedMs) || input.capturedElapsedMs < 0) ? 'Horário inválido.' : undefined) ?? validateFootballDraft(input) ?? validateFootballObservation(input.observation, workspace.value);
-    if (draftIssue) return failure(new ValidationError(draftIssue, []));
     const target = workspace.value.football?.events.find((event) => event.id === targetEventId);
     if (!target) return failure(new ValidationError('Football event was not found.', []));
+    if (target.scout_trainer.essential_code && !input.essentialCode)
+      return failure(new ValidationError('Use a correção do scout essencial para este lance.', []));
+    const draftIssue = (input.capturedElapsedMs !== undefined && (!Number.isFinite(input.capturedElapsedMs) || input.capturedElapsedMs < 0) ? 'Horário inválido.' : undefined) ?? validateFootballEssentialInput(input) ?? validateFootballDraft(input) ?? validateFootballObservation(input.observation, workspace.value);
+    if (draftIssue) return failure(new ValidationError(draftIssue, []));
     const team = workspace.value.teams.find((candidate) => candidate.id === input.teamId);
     const player = input.playerId ? workspace.value.players.find((candidate) => candidate.id === input.playerId && candidate.teamId === input.teamId) : undefined;
     const relatedPlayer = input.relatedPlayerId ? workspace.value.players.find((candidate) => candidate.id === input.relatedPlayerId && candidate.teamId === input.teamId) : undefined;
+    if (input.action === 'substitution' && (!input.playerId || !input.relatedPlayerId || input.playerId === input.relatedPlayerId))
+      return failure(new ValidationError('Invalid football substitution.', [{ code: 'invalid_football_substitution', message: 'Informe atletas diferentes para saída e entrada.' }]));
     if (!team || (input.playerId && !player) || (input.relatedPlayerId && !relatedPlayer)) return failure(new ValidationError('Football team or player was not found.', []));
     const teamIndex = workspace.value.teams.findIndex((candidate) => candidate.id === team.id);
     const playerIndex = player ? workspace.value.players.findIndex((candidate) => candidate.id === player.id) : -1;
     const relatedPlayerIndex = relatedPlayer ? workspace.value.players.findIndex((candidate) => candidate.id === relatedPlayer.id) : -1;
     const possessionTeamIndex = input.possessionTeamId ? workspace.value.teams.findIndex((candidate) => candidate.id === input.possessionTeamId) : -1;
     const possessionTeam = possessionTeamIndex >= 0 ? { id: possessionTeamIndex + 1, name: workspace.value.teams[possessionTeamIndex].name } : undefined;
-    const replacement = createCanonicalFootballEvent({ id: target.id, matchId, index: target.index, period: target.period, elapsedMs: input.capturedElapsedMs ?? timestampMs(target.timestamp), captureSequence: target.scout_trainer.capture_sequence, action: input.action, outcome: input.outcome, shotContext: input.shotContext, observation: { ...input.observation, teamId: input.teamId, playerId: input.playerId, recipientId: input.relatedPlayerId }, team: { id: teamIndex + 1, name: team.name }, ...(player ? { player: { id: footballNumericId(workspace.value.players[playerIndex].id), name: player.name ?? `Jogador ${player.number}` } } : {}), ...(relatedPlayer ? { relatedPlayer: { id: footballNumericId(workspace.value.players[relatedPlayerIndex].id), name: relatedPlayer.name ?? `Jogador ${relatedPlayer.number}` } } : {}), ...(input.location ? { location: normalizedToStatsBomb(input.location.x, input.location.y) } : {}), ...(input.endLocation ? { endLocation: normalizedToStatsBomb(input.endLocation.x, input.endLocation.y) } : {}), ...(possessionTeam ? { possession: target.possession ?? 1, possessionTeam } : {}) });
+    const replacement = createCanonicalFootballEvent({ id: target.id, matchId, index: target.index, period: target.period, elapsedMs: input.capturedElapsedMs ?? timestampMs(target.timestamp), captureSequence: target.scout_trainer.capture_sequence, action: input.action, outcome: input.outcome, essentialCode: input.essentialCode, essentialShirtNumber: input.essentialShirtNumber, essentialThird: input.essentialThird, essentialThirdAnchor: input.essentialThirdAnchor, essentialQualifiers: input.essentialQualifiers, essentialPassResult: input.essentialPassResult, essentialProgressionType: input.essentialProgressionType, essentialProgressionResult: input.essentialProgressionResult, essentialFoulCard: input.essentialFoulCard, essentialRestartType: input.essentialRestartType, shotContext: input.shotContext, observation: { ...input.observation, teamId: input.teamId, playerId: input.playerId, recipientId: input.relatedPlayerId }, team: { id: teamIndex + 1, name: team.name }, ...(player ? { player: { id: footballNumericId(workspace.value.players[playerIndex].id), name: player.name ?? `Jogador ${player.number}` } } : {}), ...(relatedPlayer ? { relatedPlayer: { id: footballNumericId(workspace.value.players[relatedPlayerIndex].id), name: relatedPlayer.name ?? `Jogador ${relatedPlayer.number}` } } : {}), ...(input.location ? { location: normalizedToStatsBomb(input.location.x, input.location.y) } : {}), ...(input.endLocation ? { endLocation: normalizedToStatsBomb(input.endLocation.x, input.endLocation.y) } : {}), ...(possessionTeam ? { possession: target.possession ?? 1, possessionTeam } : {}) });
     const correction: MatchEvent = { type: 'football_event_corrected', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), targetEventId, replacementEvent: mergeFootballCorrection(target, replacement) };
     const saved = await this.events.append(correction);
     if (!saved.ok) return failure(saved.error);
@@ -762,6 +938,263 @@ export class ScoutTrainerService {
     const event: MatchEvent = { type: 'football_clock_changed', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: now, period, elapsedMs, running, referenceTimestamp: now };
     const saved = await this.events.append(event);
     if (!saved.ok) return failure(saved.error);
+    return this.loadMatch(matchId);
+  }
+
+  async setFutsalClock(matchId: string, change: {
+    readonly kind: FutsalClockCommand;
+    readonly elapsedMs?: number;
+    readonly reason?: string;
+    readonly resumeAfterReconciliation?: boolean;
+  }): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (resolveMatchSport(workspace.value.state.metadata) !== 'futsal' || !workspace.value.futsalClock)
+      return failure(new ValidationError('Relógio de futsal indisponível.', []));
+    const current = workspace.value.futsalClock;
+    const now = this.dependencies.now();
+    const elapsedNow = effectiveFutsalElapsed(current, now);
+    const duration = current.periodDurationMs || DEFAULT_FUTSAL_PERIOD_DURATION_MS;
+    const reason = change.reason?.trim();
+    let command: FutsalClockCommand = change.kind;
+    let status: Exclude<import('../domain/match/events/MatchEvent').FutsalClockStatus, 'needs_reconciliation'> = current.status === 'needs_reconciliation' ? 'paused' : current.status;
+    let period = current.period;
+    let elapsedMs = elapsedNow;
+    const referenceTimestamp = now;
+
+    switch (change.kind) {
+      case 'start':
+        if (current.status !== 'ready' && current.status !== 'paused') return failure(new ValidationError('O período não pode ser iniciado neste estado.', []));
+        if (elapsedNow >= duration) return failure(new ValidationError('O período terminou. Finalize-o ou autorize a cobrança final.', []));
+        status = 'running';
+        break;
+      case 'pause':
+        if (current.status !== 'running') return failure(new ValidationError('O relógio não está rodando.', []));
+        if (elapsedNow >= duration) { command = 'finish_period'; status = period === 2 ? 'match_finished' : 'period_finished'; elapsedMs = duration; }
+        else status = 'paused';
+        break;
+      case 'finish_period':
+        if (current.status === 'awaiting_final_kick') { status = period === 2 ? 'match_finished' : 'period_finished'; elapsedMs = duration; }
+        else if (current.status === 'running' && elapsedNow >= duration) { status = period === 2 ? 'match_finished' : 'period_finished'; elapsedMs = duration; }
+        else return failure(new ValidationError('O período só termina em 00:00 ou após a cobrança final.', []));
+        break;
+      case 'await_final_kick':
+        if ((current.status !== 'period_finished' && current.status !== 'match_finished') || elapsedNow < duration) return failure(new ValidationError('A cobrança final só pode ser autorizada quando o período terminar.', []));
+        status = 'awaiting_final_kick'; elapsedMs = duration;
+        break;
+      case 'advance_period':
+        if (current.status !== 'period_finished' || current.period !== 1) return failure(new ValidationError('O segundo período só começa após o fim do primeiro.', []));
+        period = 2; elapsedMs = 0; status = 'ready';
+        break;
+      case 'adjust':
+        if (current.status === 'running' || current.status === 'needs_reconciliation') return failure(new ValidationError('Pause ou reconcilie o relógio antes de ajustar.', []));
+        if (!reason) return failure(new ValidationError('Informe o motivo do ajuste do relógio.', []));
+        if (!Number.isFinite(change.elapsedMs) || (change.elapsedMs ?? -1) < 0 || (change.elapsedMs ?? duration + 1) > duration)
+          return failure(new ValidationError('O tempo ajustado deve ficar entre 00:00 e o limite do período.', []));
+        elapsedMs = change.elapsedMs!;
+        status = elapsedMs >= duration ? period === 2 ? 'match_finished' : 'period_finished' : 'paused';
+        break;
+      case 'reconcile':
+        if (current.status !== 'needs_reconciliation') return failure(new ValidationError('Este relógio não precisa de reconciliação.', []));
+        if (!reason) return failure(new ValidationError('Informe a decisão tomada ao reabrir a partida.', []));
+        if (change.resumeAfterReconciliation && elapsedNow < duration) status = 'running';
+        else status = elapsedNow >= duration ? period === 2 ? 'match_finished' : 'period_finished' : 'paused';
+        break;
+    }
+
+    if ((change.kind === 'adjust' || change.kind === 'reconcile') && !reason)
+      return failure(new ValidationError('Informe o motivo da operação do relógio.', []));
+    const event: MatchEvent = {
+      type: 'futsal_clock_changed', id: this.dependencies.createId(), matchId,
+      sequence: workspace.value.state.lastSequence + 1, timestamp: now, command,
+      period, elapsedMs, periodDurationMs: duration, status, referenceTimestamp,
+      ...((change.kind === 'adjust' || change.kind === 'reconcile' || change.kind === 'await_final_kick') && reason ? { reason } : {}),
+    };
+    const saved = await this.events.append(event);
+    if (!saved.ok) return failure(saved.error);
+    this.futsalClockSessions.add(matchId);
+    if (change.kind === 'reconcile') this.futsalClockReconciliationPending.delete(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async registerFutsalFact(matchId: string, draft: FutsalFactDraft, capturedElapsedMs?: number): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const clock = workspace.value.futsalClock;
+    if (resolveMatchSport(workspace.value.state.metadata) !== 'futsal' || !clock || !workspace.value.futsalScout)
+      return failure(new ValidationError('Scout de futsal indisponível.', []));
+    if (clock.status === 'needs_reconciliation' || clock.status === 'period_finished' || clock.status === 'match_finished')
+      return failure(new ValidationError('Reconcilie ou avance o relógio antes de registrar novos fatos.', []));
+    const elapsedMs = capturedElapsedMs ?? effectiveFutsalElapsed(clock, this.dependencies.now());
+    if (!Number.isFinite(elapsedMs) || elapsedMs < 0 || elapsedMs > clock.periodDurationMs)
+      return failure(new ValidationError('Tempo capturado está fora do período.', []));
+    const fact = { ...draft, id: this.dependencies.createId(), period: clock.period, elapsedMs } as FutsalFact;
+    const previousControl = workspace.value.futsalScout.control;
+    if (fact.kind === 'tackle' && previousControl?.period === clock.period && previousControl.kind === 'control' && previousControl.state === 'team' && previousControl.controlledTeamId !== fact.losingTeamId)
+      return failure(new ValidationError('A equipe desarmada deve ser a que controlava a bola.', []));
+    const teamIds = new Set(workspace.value.teams.map(team => team.id));
+    const playerIdsByTeam = new Map(workspace.value.teams.map(team => [team.id, new Set(workspace.value.players.filter(player => player.teamId === team.id).map(player => player.id))]));
+    const invalid = validateFutsalFact(fact, teamIds, playerIdsByTeam);
+    if (invalid) return failure(new ValidationError(invalid, []));
+    const invalidReference = validateFutsalFactReferences(fact, workspace.value.futsalScout.facts);
+    if (invalidReference) return failure(new ValidationError(invalidReference, []));
+    if (fact.kind === 'substitution') {
+      const composition = workspace.value.futsalScout.compositions[fact.teamId];
+      if (composition?.certainty === 'complete' && fact.playerOutId && !composition.playerIds.includes(fact.playerOutId))
+        return failure(new ValidationError('O atleta que sai não está na composição completa observada.', []));
+      if (composition?.playerIds.includes(fact.playerInId ?? ''))
+        return failure(new ValidationError('O atleta que entra já consta em quadra.', []));
+      const projectedIds = new Set(composition?.playerIds ?? []);
+      if (fact.certainty === 'partial' && !fact.playerOutId) projectedIds.clear();
+      else if (fact.playerOutId) projectedIds.delete(fact.playerOutId);
+      if (fact.playerInId) projectedIds.add(fact.playerInId);
+      if (projectedIds.size > 5) return failure(new ValidationError('A composição observada não pode ultrapassar cinco atletas.', []));
+    }
+    if (fact.kind === 'score_adjustment' && fact.delta < 0 && (workspace.value.futsalScout.score[fact.beneficiaryTeamId] ?? 0) < 1)
+      return failure(new ValidationError('O ajuste não pode deixar o placar abaixo de zero.', []));
+    const event: MatchEvent = { type: 'futsal_fact_registered', id: this.dependencies.createId(), matchId, fact, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now() };
+    const saved = await this.events.append(event);
+    if (!saved.ok) return failure(saved.error);
+    return this.loadMatch(matchId);
+  }
+
+  async correctFutsalFact(matchId: string, factId: string, replacement: FutsalFactDraft): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (!workspace.value.futsalScout) return failure(new ValidationError('Scout de futsal indisponível.', []));
+    const target = workspace.value.futsalScout.facts.find(item => item.fact.id === factId)?.fact;
+    if (!target) return failure(new ValidationError('Fato de futsal não encontrado.', []));
+    const corrected = { ...replacement, id: target.id, period: target.period, elapsedMs: target.elapsedMs } as FutsalFact;
+    const teamIds = new Set(workspace.value.teams.map(team => team.id));
+    const playerIdsByTeam = new Map(workspace.value.teams.map(team => [team.id, new Set(workspace.value.players.filter(player => player.teamId === team.id).map(player => player.id))]));
+    const invalid = validateFutsalFact(corrected, teamIds, playerIdsByTeam);
+    if (invalid) return failure(new ValidationError(invalid, []));
+    const invalidReference = validateFutsalFactReferences(corrected, workspace.value.futsalScout.facts.filter(item => item.fact.id !== factId));
+    if (invalidReference) return failure(new ValidationError(invalidReference, []));
+    const targetSequence = workspace.value.futsalScout.facts.find(item => item.fact.id === factId)?.sequence ?? Number.POSITIVE_INFINITY;
+    const compositionBeforeTarget: Record<string, { playerIds: string[]; certainty: 'complete' | 'partial'; shortHanded: boolean }> = {};
+    for (const { fact } of workspace.value.futsalScout.facts.filter(item => item.sequence < targetSequence)) {
+      if (fact.kind === 'composition') compositionBeforeTarget[fact.teamId] = { playerIds: [...fact.playerIds], certainty: fact.certainty, shortHanded: fact.shortHanded === true };
+      if (fact.kind === 'substitution' && compositionBeforeTarget[fact.teamId]) {
+        const state = compositionBeforeTarget[fact.teamId];
+        if (fact.certainty === 'partial' && !fact.playerOutId) state.playerIds = fact.playerInId ? [fact.playerInId] : [];
+        else { if (fact.playerOutId) state.playerIds = state.playerIds.filter(id => id !== fact.playerOutId); if (fact.playerInId && !state.playerIds.includes(fact.playerInId)) state.playerIds.push(fact.playerInId); }
+        if (fact.certainty === 'partial') { state.certainty = 'partial'; state.shortHanded = false; }
+      }
+    }
+    if (corrected.kind === 'substitution') {
+      const composition = compositionBeforeTarget[corrected.teamId];
+      if (composition?.certainty === 'complete' && corrected.playerOutId && !composition.playerIds.includes(corrected.playerOutId))
+        return failure(new ValidationError('O atleta que sai não está na composição completa observada.', []));
+      if (composition?.playerIds.includes(corrected.playerInId ?? '')) return failure(new ValidationError('O atleta que entra já consta em quadra.', []));
+      const projectedIds = new Set(composition?.playerIds ?? []);
+      if (corrected.certainty === 'partial' && !corrected.playerOutId) projectedIds.clear();
+      else if (corrected.playerOutId) projectedIds.delete(corrected.playerOutId);
+      if (corrected.playerInId) projectedIds.add(corrected.playerInId);
+      if (projectedIds.size > 5) return failure(new ValidationError('A composição observada não pode ultrapassar cinco atletas.', []));
+    }
+    const event: MatchEvent = { type: 'futsal_fact_corrected', id: this.dependencies.createId(), matchId, targetFactId: factId, replacementFact: corrected, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now() };
+    const saved = await this.events.append(event);
+    if (!saved.ok) return failure(saved.error);
+    return this.loadMatch(matchId);
+  }
+
+  async undoFutsalFact(matchId: string, factId?: string): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const projection = workspace.value.futsalScout;
+    const targetHistoryEventId = factId ? projection?.facts.find(item => item.fact.id === factId)?.sourceEventId : projection?.undoTargetHistoryEventId;
+    if (!targetHistoryEventId) return failure(new ValidationError('Não há fato de futsal para desfazer.', []));
+    const event: MatchEvent = { type: 'futsal_fact_undone', id: this.dependencies.createId(), matchId, targetHistoryEventId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now() };
+    const saved = await this.events.append(event);
+    if (!saved.ok) return failure(saved.error);
+    return this.loadMatch(matchId);
+  }
+
+  async registerBasketballFact(matchId: string, period: number, draft: BasketballFactDraft): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (!workspace.value.basketball) return failure(new ValidationError('Scout de basquete indisponível.', []));
+    const fact = { ...draft, id: this.dependencies.createId(), period, timestamp: this.dependencies.now() } as BasketballFact;
+    const invalid = validateBasketballFact(fact, new Set(workspace.value.teams.map(team => team.id)), new Map(workspace.value.players.map(player => [player.id, player.teamId])));
+    if (invalid) return failure(new ValidationError(invalid, []));
+    const event: MatchEvent = { type: 'basketball_fact_registered', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), fact };
+    const saved = await this.events.append(event);
+    return saved.ok ? this.loadMatch(matchId) : failure(saved.error);
+  }
+
+  async correctBasketballFact(matchId: string, factId: string, draft: BasketballFactDraft): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const target = workspace.value.basketball?.facts.find(fact => fact.id === factId);
+    if (!target) return failure(new ValidationError('Lance de basquete não encontrado.', []));
+    const replacementFact = { ...draft, id: target.id, period: target.period, timestamp: target.timestamp } as BasketballFact;
+    const invalid = validateBasketballFact(replacementFact, new Set(workspace.value.teams.map(team => team.id)), new Map(workspace.value.players.map(player => [player.id, player.teamId])));
+    if (invalid) return failure(new ValidationError(invalid, []));
+    const event: MatchEvent = { type: 'basketball_fact_corrected', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), targetFactId: factId, replacementFact };
+    const saved = await this.events.append(event);
+    return saved.ok ? this.loadMatch(matchId) : failure(saved.error);
+  }
+
+  async undoBasketballFact(matchId: string): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const targetHistoryEventId = workspace.value.basketball?.undoTargetHistoryEventId;
+    if (!targetHistoryEventId) return failure(new ValidationError('Não há lance de basquete para desfazer.', []));
+    const event: MatchEvent = { type: 'basketball_fact_undone', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), targetHistoryEventId };
+    const saved = await this.events.append(event);
+    return saved.ok ? this.loadMatch(matchId) : failure(saved.error);
+  }
+
+  async registerEssentialAction(matchId: string, draft: EssentialScoutDraft): Promise<Result<MatchWorkspace, ServiceError>> {
+    const invalid = validateEssentialDraft(draft);
+    if (invalid) return failure(new ValidationError(invalid, []));
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const identityIssue = validateEssentialIdentity(draft, workspace.value);
+    if (identityIssue) return failure(new ValidationError(identityIssue, []));
+    const sport = resolveMatchSport(workspace.value.state.metadata);
+    if (sport !== 'football' && sport !== 'futsal') return failure(new ValidationError('Scout essencial disponível apenas para futebol e futsal.', []));
+    const sportIssue = validateEssentialSportDraft(draft, sport);
+    if (sportIssue) return failure(new ValidationError(sportIssue, []));
+    if (sport === 'football') return this.registerFootballEvent(matchId, essentialFootballInput(draft, draft.capturedElapsedMs));
+    return this.registerFutsalFact(matchId, essentialFutsalDraft(draft), draft.capturedElapsedMs);
+  }
+
+  async correctEssentialAction(matchId: string, id: string, draft: EssentialScoutDraft): Promise<Result<MatchWorkspace, ServiceError>> {
+    const invalid = validateEssentialDraft(draft);
+    if (invalid) return failure(new ValidationError(invalid, []));
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const identityIssue = validateEssentialIdentity(draft, workspace.value);
+    if (identityIssue) return failure(new ValidationError(identityIssue, []));
+    const target = workspace.value.essentialActions.find(action => action.id === id);
+    if (!target) return failure(new ValidationError('Ação essencial não encontrada.', []));
+    const sport = resolveMatchSport(workspace.value.state.metadata);
+    if (sport === 'football' || sport === 'futsal') {
+      const sportIssue = validateEssentialSportDraft(draft, sport);
+      if (sportIssue) return failure(new ValidationError(sportIssue, []));
+    }
+    if (sport === 'football') return this.correctFootballEvent(matchId, id, essentialFootballInput(draft, target.elapsedMs));
+    if (sport === 'futsal') return this.correctFutsalFact(matchId, id, essentialFutsalDraft(draft));
+    return failure(new ValidationError('Scout essencial disponível apenas para futebol e futsal.', []));
+  }
+
+  async deleteEssentialAction(matchId: string, id: string): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    if (!workspace.value.essentialActions.some(action => action.id === id)) return failure(new ValidationError('Ação essencial não encontrada.', []));
+    const sport = resolveMatchSport(workspace.value.state.metadata);
+    const registration = workspace.value.events.find((event): event is Extract<MatchEvent, { type: 'football_event_registered' | 'futsal_fact_registered' }> => sport === 'football'
+      ? event.type === 'football_event_registered' && event.event.id === id && event.event.scout_trainer.essential_code !== undefined
+      : event.type === 'futsal_fact_registered' && event.fact.id === id && event.fact.essentialCode !== undefined);
+    if (!registration) return failure(new ValidationError('Inscrição original da ação essencial não encontrada.', []));
+    const event: MatchEvent = sport === 'football'
+      ? { type: 'football_event_undone', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), targetHistoryEventId: registration.id }
+      : { type: 'futsal_fact_undone', id: this.dependencies.createId(), matchId, sequence: workspace.value.state.lastSequence + 1, timestamp: this.dependencies.now(), targetHistoryEventId: registration.id };
+    const saved = await this.events.append(event);
+    if (!saved.ok) return failure(saved.error);
+    await this.invalidateAnalytics(matchId);
     return this.loadMatch(matchId);
   }
 
@@ -1098,7 +1531,11 @@ export class ScoutTrainerService {
       if (offset === 0) continue;
       const positions = Object.fromEntries(ROTATION_POSITIONS.map((position, index) =>
         [position, lineup.positions[ROTATION_POSITIONS[(index + offset) % 6]]])) as SetLineup['positions'];
-      changes.push({ ...identity(), type: 'set_lineup_confirmed', lineup: { ...lineup, positions } });
+      const rotatedLineup = new RotationEngine().rotate(
+        { ...lineup, positions },
+        state.metadata.liberoPlayerIds,
+      );
+      changes.push({ ...identity(), type: 'set_lineup_confirmed', lineup: rotatedLineup });
     }
     for (const [index, team] of teams.entries()) {
       const key = index === 0 ? 'teamA' : 'teamB';
@@ -1116,6 +1553,28 @@ export class ScoutTrainerService {
     const saved = await this.events.appendMany(changes);
     if (!saved.ok) return failure(saved.error);
     await this.invalidateAnalytics(matchId);
+    return this.loadMatch(matchId);
+  }
+
+  async swapVolleyballCourtSides(matchId: string): Promise<Result<MatchWorkspace, ServiceError>> {
+    const workspace = await this.loadMatch(matchId);
+    if (!workspace.ok) return workspace;
+    const { state } = workspace.value;
+    if (resolveMatchSport(state.metadata) !== 'volleyball') {
+      return failure(new ValidationError('A troca de lados está disponível para partidas de vôlei.', []));
+    }
+    if (state.matchCompleted || state.sets.some((set) => set.setNumber === state.currentSet && set.completed)) {
+      return failure(new ValidationError('A troca de lados está disponível durante o set em andamento.', []));
+    }
+    const persisted = await this.events.append({
+      type: 'court_orientation_changed',
+      id: this.dependencies.createId(),
+      matchId,
+      courtOrientation: swapCourtOrientation(state.courtOrientation),
+      sequence: state.lastSequence + 1,
+      timestamp: this.dependencies.now(),
+    });
+    if (!persisted.ok) return failure(persisted.error);
     return this.loadMatch(matchId);
   }
 
@@ -1224,6 +1683,21 @@ export class ScoutTrainerService {
           {
             code: 'invalid_substitution',
             message: 'A substituição não é válida para esta escalação.',
+          },
+        ]),
+      );
+    }
+    const isVolleyball = workspace.value.state.metadata.sport === 'volleyball';
+    const isLiberoIn =
+      playerIn.registeredRole === 'libero' ||
+      (workspace.value.state.metadata.liberoPlayerIds &&
+        workspace.value.state.metadata.liberoPlayerIds.includes(playerIn.id));
+    if (isVolleyball && isLiberoIn && [2, 3, 4].includes(position)) {
+      return failure(
+        new ValidationError('Libero cannot play in front row.', [
+          {
+            code: 'libero_front_row',
+            message: 'O líbero não pode entrar em posições de rede (posições 2, 3 e 4).',
           },
         ]),
       );
@@ -1381,9 +1855,10 @@ export class ScoutTrainerService {
             : {}),
         },
         events: workspace.value.events,
+        ...(workspace.value.futsalScout ? { futsalCoverage: futsalBackupCoverage(workspace.value.futsalScout) } : {}),
         ...(configurations ? { analysisConfigurations: configurations.value } : {}),
         ...(reportCharts ? { reportChartConfigurations: reportCharts.value } : {}),
-        ...(options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
+        ...(resolveMatchSport(workspace.value.state.metadata) !== 'futsal' && resolveMatchSport(workspace.value.state.metadata) !== 'basketball' && options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
           ? { derivedAnalytics: buildDerivedAnalyticsReport(workspace.value.sequenceAnalytics, workspace.value.profiles.codeProfile.tacticalInput.zoneSystem) }
           : {}),
       }),
@@ -1401,6 +1876,10 @@ export class ScoutTrainerService {
   async exportCsv(matchId: string): Promise<Result<string, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
+    if (workspace.value.futsalScout) {
+      const analytics = buildFutsalAnalytics(workspace.value.futsalScout, workspace.value.teams.map(team => team.id));
+      return success(exportFutsalAnalyticsCsv(analytics, Object.fromEntries(workspace.value.teams.map(team => [team.id, team.name]))));
+    }
     return success(
       new CsvMatchExporter().export(workspace.value.timeline.map((item) => item.event)),
     );
@@ -1417,11 +1896,15 @@ export class ScoutTrainerService {
   async exportPdf(matchId: string, options: { readonly includeDerivedAnalytics?: boolean; readonly reportDraft?: ReportDraft } = {}): Promise<Result<string, ServiceError>> {
     const workspace = await this.loadMatch(matchId);
     if (!workspace.ok) return workspace;
+    if (workspace.value.futsalScout) {
+      const analytics = buildFutsalAnalytics(workspace.value.futsalScout, workspace.value.teams.map(team => team.id));
+      return success(renderFutsalAnalyticsPdf(workspace.value.state.metadata.name, analytics, Object.fromEntries(workspace.value.teams.map(team => [team.id, team.name]))));
+    }
     const reportCharts = this.reportCharts
       ? await this.reportCharts.listByMatchId(matchId)
       : undefined;
     if (reportCharts && !reportCharts.ok) return failure(reportCharts.error);
-    const derived = options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
+    const derived = resolveMatchSport(workspace.value.state.metadata) !== 'futsal' && resolveMatchSport(workspace.value.state.metadata) !== 'basketball' && options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
       ? buildDerivedAnalyticsReport(workspace.value.sequenceAnalytics, workspace.value.profiles.codeProfile.tacticalInput.zoneSystem)
       : undefined;
     return success(new MatchPdfRenderer().render(workspace.value.report, reportCharts?.value, derived, options.reportDraft));
@@ -1450,9 +1933,10 @@ export class ScoutTrainerService {
           : {}),
       },
       events: workspace.value.events,
+      ...(workspace.value.futsalScout ? { futsalCoverage: futsalBackupCoverage(workspace.value.futsalScout) } : {}),
       ...(configurations ? { analysisConfigurations: configurations.value } : {}),
       ...(reportCharts ? { reportChartConfigurations: reportCharts.value } : {}),
-      ...(options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
+      ...(resolveMatchSport(workspace.value.state.metadata) !== 'futsal' && resolveMatchSport(workspace.value.state.metadata) !== 'basketball' && options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
         ? { derivedAnalytics: buildDerivedAnalyticsReport(workspace.value.sequenceAnalytics, workspace.value.profiles.codeProfile.tacticalInput.zoneSystem) }
         : {}),
     });
@@ -1472,9 +1956,13 @@ export class ScoutTrainerService {
         'partida.json': json,
         'eventos.csv': new CsvMatchExporter().export(effectiveEvents),
         'scout.txt': new TxtMatchExporter().export(effectiveEvents),
-        'estatisticas.csv': new StatisticsCsvExporter().export(workspace.value.report),
-        'relatorio.pdf': new MatchPdfRenderer().render(workspace.value.report, reportCharts?.value,
-          options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
+        'estatisticas.csv': workspace.value.futsalScout
+          ? exportFutsalAnalyticsCsv(buildFutsalAnalytics(workspace.value.futsalScout, workspace.value.teams.map(team => team.id)), Object.fromEntries(workspace.value.teams.map(team => [team.id, team.name])))
+          : new StatisticsCsvExporter().export(workspace.value.report),
+        'relatorio.pdf': workspace.value.futsalScout
+          ? renderFutsalAnalyticsPdf(workspace.value.state.metadata.name, buildFutsalAnalytics(workspace.value.futsalScout, workspace.value.teams.map(team => team.id)), Object.fromEntries(workspace.value.teams.map(team => [team.id, team.name])))
+          : new MatchPdfRenderer().render(workspace.value.report, reportCharts?.value,
+          resolveMatchSport(workspace.value.state.metadata) !== 'futsal' && resolveMatchSport(workspace.value.state.metadata) !== 'basketball' && options.includeDerivedAnalytics && workspace.value.sequenceAnalytics && workspace.value.profiles.codeProfile.tacticalInput?.zoneSystem
             ? buildDerivedAnalyticsReport(workspace.value.sequenceAnalytics, workspace.value.profiles.codeProfile.tacticalInput.zoneSystem)
             : undefined, options.reportDraft),
       }),
@@ -1539,6 +2027,43 @@ function validateFootballObservation(observation: FootballObservation | undefine
   }
   const pressure = observation.pressure;
   if (pressure && ((pressure.pressingTeamId && !ids.includes(pressure.pressingTeamId)) || (pressure.pressedTeamId && !ids.includes(pressure.pressedTeamId)) || (pressure.pressedTeamId && pressure.pressedTeamId === pressure.pressingTeamId))) return 'Equipes da pressão inválidas.';
+}
+
+function validateFootballEssentialInput(input: RegisterFootballEventInput): string | undefined {
+  if (!input.essentialCode) {
+    if (input.essentialShirtNumber !== undefined || input.essentialThird !== undefined || input.essentialThirdAnchor !== undefined || input.essentialQualifiers !== undefined || input.essentialPassResult !== undefined || input.essentialProgressionType !== undefined || input.essentialProgressionResult !== undefined || input.essentialFoulCard !== undefined || input.essentialRestartType !== undefined) return 'Metadados essenciais exigem código essencial.';
+    return;
+  }
+  const expectedAction = input.essentialCode === 'F' ? 'shot' : input.essentialCode === 'P' || input.essentialCode === 'PF' ? 'pass' : input.essentialCode === 'C' ? input.essentialProgressionType === 'dribble' ? 'dribble' : 'carry' : input.essentialCode === 'PP' ? 'loss' : input.essentialCode === 'RP' ? 'ball_recovery' : input.essentialCode === 'FL' ? 'foul' : 'restart';
+  if (input.action !== expectedAction || input.observation?.coverage !== 'suspended' || input.possessionTeamId !== undefined) return 'Ação essencial incompatível com seu marcador ou cobertura.';
+  if (input.essentialCode === 'RE' && !FOOTBALL_ESSENTIAL_RESTART_TYPES.includes(input.essentialRestartType!)) return 'Tipo de reinício incompatível com futebol.';
+  if (input.endLocation && !['F', 'P', 'PF', 'C'].includes(input.essentialCode)) return 'Destino incompatível com o fundamento.';
+  if (input.endLocation && !input.location && input.essentialCode === 'F') return 'Alvo da finalização exige origem observada.';
+  if (input.essentialCode === 'P' || input.essentialCode === 'PF') {
+    const expectedOutcome = input.essentialPassResult === 'incomplete' ? 'incomplete' : input.essentialPassResult === 'unknown' ? 'observed' : 'complete';
+    if (input.outcome !== expectedOutcome) return 'Resultado do passe incompatível com o fato.';
+  }
+  if (input.essentialCode === 'C' && input.essentialProgressionType === 'dribble') {
+    const expectedOutcome = input.essentialProgressionResult === 'retained' ? 'won' : input.essentialProgressionResult === 'lost' ? 'lost' : 'observed';
+    if (input.outcome !== expectedOutcome) return 'Resultado do drible incompatível com o fato.';
+  }
+  const outcome = input.essentialCode === 'F' ? (Object.keys(ESSENTIAL_TO_FOOTBALL_OUTCOME) as EssentialOutcome[]).find(key => ESSENTIAL_TO_FOOTBALL_OUTCOME[key] === input.outcome) : undefined;
+  return validateEssentialDraft({
+    code: input.essentialCode, teamId: input.teamId,
+    ...(input.playerId ? { playerId: input.playerId } : {}),
+    ...(input.essentialShirtNumber !== undefined ? { shirtNumber: input.essentialShirtNumber } : {}),
+    ...(input.location ? { position: input.location } : {}),
+    ...(input.endLocation ? { destination: input.endLocation } : {}),
+    ...(input.essentialThird !== undefined ? { third: input.essentialThird } : {}),
+    ...(input.essentialThirdAnchor !== undefined ? { thirdAnchor: input.essentialThirdAnchor } : {}),
+    ...(input.essentialQualifiers !== undefined ? { qualifiers: input.essentialQualifiers } : {}),
+    ...(input.essentialPassResult !== undefined ? { passResult: input.essentialPassResult } : {}),
+    ...(input.essentialProgressionType !== undefined ? { progressionType: input.essentialProgressionType } : {}),
+    ...(input.essentialProgressionResult !== undefined ? { progressionResult: input.essentialProgressionResult } : {}),
+    ...(input.essentialFoulCard !== undefined ? { foulCard: input.essentialFoulCard } : {}),
+    ...(input.essentialRestartType !== undefined ? { restartType: input.essentialRestartType } : {}),
+    ...(outcome ? { outcome } : {}),
+  });
 }
 
 function validateFootballAssistedRecording(recording: FootballAssistedRecording, workspace: MatchWorkspace): string | undefined {

@@ -1,6 +1,6 @@
 import type { PlayerRole } from '../roles/PlayerRole';
 
-export type AthleteRegistrationSport = 'volleyball' | 'football';
+export type AthleteRegistrationSport = 'volleyball' | 'football' | 'futsal' | 'basketball';
 
 export type FootballRegistrationPosition =
   | 'goalkeeper'

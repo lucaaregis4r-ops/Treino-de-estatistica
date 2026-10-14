@@ -79,7 +79,7 @@ describe('SequenceAnalyticsPanel', () => {
   it('renders the rally-path explorer with separate estimated and observed readings', () => {
     render(<SequenceAnalyticsPanel analytics={fixture()} teams={[{ id: 'a', name: 'Equipe A' }, { id: 'b', name: 'Equipe B' }]} teamId="a" />);
 
-    expect(screen.getByText('Caminhos do rally', { selector: 'h3' })).toBeInTheDocument();
+    expect(screen.getByText('Próximas ações observadas', { selector: 'h3' })).toBeInTheDocument();
     expect(screen.getByText('Potencial do rally')).toBeInTheDocument();
     expect(screen.getByText('Rallies vencidos nos registros')).toBeInTheDocument();
     expect(screen.getByText('Detalhe: 50% · 12 ocorrências')).toBeInTheDocument();
@@ -91,9 +91,9 @@ describe('SequenceAnalyticsPanel', () => {
 
     expect(screen.getByText('Onde começa este caminho?')).toBeInTheDocument();
     expect(screen.getByText('Comparação por qualidade')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '2 contatos' }));
+    fireEvent.click(screen.getByRole('button', { name: '2 etapas' }));
     expect(screen.getAllByText(/Defesa/).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Zona 1' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Zona 1' })[0]);
     expect(screen.getByText('11 de 11 ações iniciais têm origem registrada')).toBeInTheDocument();
   });
 

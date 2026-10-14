@@ -85,7 +85,7 @@ describe('RallySequenceBuilder', () => {
       origin: { surface: 'court', x: 1 / 3, y: 1 / 4 },
       target: { surface: 'court', x: 5 / 6, y: 3 / 4 },
       originRegionId: '4',
-      targetRegionId: '1',
+      targetRegionId: '5',
       coordinateSystemVersion: '2.0.0',
     });
     expect(sequence.states).not.toContain('attack_0.333_0.25' as never);

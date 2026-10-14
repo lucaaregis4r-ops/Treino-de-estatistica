@@ -1,6 +1,6 @@
 import { withFootballOrientation } from '../../domain/football/FootballOrientation';
 import { FootballAnalyticsPanel } from '../screens/summary/FootballAnalyticsPanel';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ScoutTrainerService,
   type CreateMatchInput,
@@ -17,10 +17,18 @@ import {
   FootballScoutScreen,
   type FootballScoutPresentation,
 } from '../screens/scout/football/FootballScoutScreen';
-import { resolveMatchSport } from '../../domain/match/entities/MatchSport';
+import { BasketballScoutScreen } from '../screens/scout/BasketballScoutScreen';
+import { BasketballAnalyticsScreen } from '../screens/summary/BasketballAnalyticsScreen';
+import { FutsalScoutScreen } from '../screens/scout/FutsalScoutScreen';
+import { EssentialScoutScreen } from '../screens/scout/EssentialScoutScreen';
+import { resolveMatchSport, type MatchSport } from '../../domain/match/entities/MatchSport';
 import { SummaryScreen } from '../screens/summary/SummaryScreen';
 import type { ReportDraft } from '../../application/reporting/ReportDraft';
 import { MatchAnalyticsPanel } from '../screens/summary/MatchAnalyticsPanel';
+import { VolleyballReading } from '../screens/summary/VolleyballReading';
+import { FutsalAnalyticsScreen } from '../screens/summary/FutsalAnalyticsScreen';
+import { ObservedSequencePanel } from '../screens/summary/ObservedSequencePanel';
+import type { SequenceContextModelResult } from '../../domain/analytics/observed-sequence/SequenceContextModel';
 import { TrainingScreen } from '../screens/training/TrainingScreen';
 import {
   browserAnalysisConfigurationRepository,
@@ -82,7 +90,10 @@ export function App({
   analysisConfigurationRepository = browserAnalysisConfigurationRepository,
   reportChartConfigurationRepository = browserReportChartConfigurationRepository,
 }: AppProps) {
+  const [volleyAnalysisView, setVolleyAnalysisView] = useState<'reading' | 'maps'>('reading');
   const [screen, setScreen] = useState<Screen>('home');
+  const [selectedSport, setSelectedSport] = useState<MatchSport>();
+  const [showUnidentifiedMatches, setShowUnidentifiedMatches] = useState(false);
   const [matches, setMatches] = useState<readonly MatchMetadata[]>([]);
   const [matchFilters, setMatchFilters] = useState<MatchFilters>(DEFAULT_MATCH_FILTERS);
   const [workspace, setWorkspace] = useState<MatchWorkspace>();
@@ -102,15 +113,39 @@ export function App({
   const [newMatchDirty, setNewMatchDirty] = useState(false);
   const [footballPresentation, setFootballPresentation] =
     useState<FootballScoutPresentation>('minimal');
+  const [advancedControlsOpen, setAdvancedControlsOpen] = useState(false);
+  const advancedControlsRef = useRef<HTMLElement>(null);
   const [analysisConfigurations, setAnalysisConfigurations] = useState<readonly AnalysisConfiguration[]>([]);
   const [reportChartConfigurations, setReportChartConfigurations] = useState<readonly ReportChartConfiguration[]>([]);
+  const [configurationMatchId, setConfigurationMatchId] = useState<string>();
+  const [sequenceContextState, setSequenceContextState] = useState<{ readonly sport: 'volleyball' | 'football' | 'futsal'; readonly model?: SequenceContextModelResult; readonly loading: boolean; readonly error?: string }>();
 
   function openManual() {
+    if (screen === 'manual') return;
     if (!leaveNewMatchDraft('manual')) return;
-    setManualReturnScreen(
-      screen === 'scout' || screen === 'summary' || screen === 'analysis' ? screen : 'home',
-    );
+    setManualReturnScreen(screen === 'new-match' ? 'matches' : screen);
     setScreen('manual');
+  }
+
+  function openSportPicker() {
+    if (!leaveNewMatchDraft('home')) return;
+    setSelectedSport(undefined);
+    setShowUnidentifiedMatches(false);
+  }
+
+  function selectSport(sport: MatchSport) {
+    setSelectedSport(sport);
+    setShowUnidentifiedMatches(false);
+    setMatchFilters({ ...DEFAULT_MATCH_FILTERS, sport });
+    setScreen('matches');
+    void refreshMatches();
+  }
+
+  function openUnidentifiedMatches() {
+    setSelectedSport(undefined);
+    setShowUnidentifiedMatches(true);
+    setMatchFilters({ ...DEFAULT_MATCH_FILTERS, sport: 'unknown' });
+    setScreen('matches');
   }
 
   function openMatches() {
@@ -162,27 +197,28 @@ export function App({
     };
   }, [profileEditorService]);
 
+  const activeConfigurationMatchId = workspace?.state.metadata.id;
   useEffect(() => {
-    if (!workspace) {
-      setAnalysisConfigurations([]);
-      setReportChartConfigurations([]);
-      return;
-    }
+    if (!activeConfigurationMatchId) return;
     let active = true;
     void Promise.all([
-      analysisConfigurationRepository.listByMatchId(workspace.state.metadata.id),
-      reportChartConfigurationRepository.listByMatchId(workspace.state.metadata.id),
+      analysisConfigurationRepository.listByMatchId(activeConfigurationMatchId),
+      reportChartConfigurationRepository.listByMatchId(activeConfigurationMatchId),
     ]).then(([analysisResult, reportChartResult]) => {
       if (!active) return;
       if (analysisResult.ok) setAnalysisConfigurations(analysisResult.value);
       else setMessage(analysisResult.error.message);
       if (reportChartResult.ok) setReportChartConfigurations(reportChartResult.value);
       else setMessage(reportChartResult.error.message);
+      setConfigurationMatchId(activeConfigurationMatchId);
     });
     return () => {
       active = false;
     };
-  }, [analysisConfigurationRepository, reportChartConfigurationRepository, workspace?.state.metadata.id]);
+  }, [analysisConfigurationRepository, reportChartConfigurationRepository, activeConfigurationMatchId]);
+
+  const visibleAnalysisConfigurations = configurationMatchId === activeConfigurationMatchId ? analysisConfigurations : [];
+  const visibleReportChartConfigurations = configurationMatchId === activeConfigurationMatchId ? reportChartConfigurations : [];
 
   async function saveAnalysisConfiguration(configuration: AnalysisConfiguration) {
     const result = await analysisConfigurationRepository.save(configuration);
@@ -246,7 +282,10 @@ export function App({
     setBusy(false);
     if (result.ok) {
       setWorkspace(result.value);
+      setSelectedSport(input.sport ?? 'volleyball');
+      setShowUnidentifiedMatches(false);
       setFootballPresentation('minimal');
+      setAdvancedControlsOpen(false);
       setScreen('scout');
       window.scrollTo({ top: 0, behavior: 'auto' });
       await refreshMatches();
@@ -260,7 +299,10 @@ export function App({
     if (result.ok) {
       setWorkspace(result.value);
       setFootballPresentation('minimal');
+      setAdvancedControlsOpen(false);
       const sport = resolveMatchSport(result.value.state.metadata);
+      setSelectedSport(sport);
+      setShowUnidentifiedMatches(sport === undefined);
       setScreen(summary && sport === 'volleyball' ? 'summary' : 'scout');
       window.scrollTo({ top: 0, behavior: 'auto' });
     } else setMessage(result.error.message);
@@ -273,6 +315,9 @@ export function App({
     setBusy(false);
     if (result.ok) {
       setWorkspace(result.value);
+      setSelectedSport(resolveMatchSport(result.value.state.metadata));
+      setShowUnidentifiedMatches(resolveMatchSport(result.value.state.metadata) === undefined);
+      setAdvancedControlsOpen(false);
       setScreen('scout');
       await refreshMatches();
       setMessage('Backup restaurado e validado com sucesso.');
@@ -483,35 +528,55 @@ export function App({
   const matchTeamA = workspace?.teams[0];
   const matchTeamB = workspace?.teams[1];
   const workspaceSport = workspace ? resolveMatchSport(workspace.state.metadata) : undefined;
+  const sequenceModelActive = (screen === 'summary' || screen === 'analysis') && Boolean(workspaceSport && workspaceSport !== 'basketball');
+  const currentSequenceContextState = sequenceContextState?.sport === workspaceSport ? sequenceContextState : undefined;
+  const sequenceContextModel = currentSequenceContextState?.model;
+  const sequenceContextLoading = sequenceModelActive && (!currentSequenceContextState || currentSequenceContextState.loading);
+  const sequenceContextError = currentSequenceContextState?.error;
+  useEffect(() => {
+    if ((screen !== 'summary' && screen !== 'analysis') || !workspaceSport || workspaceSport === 'basketball') return;
+    let active = true;
+    const sport = workspaceSport;
+    void service.analyzeSequenceContextModel(sport).then(result => {
+      if (!active) return;
+      if (result.ok) setSequenceContextState({ sport, model: result.value, loading: false });
+      else setSequenceContextState({ sport, loading: false, error: result.error.message });
+    }).catch(error => {
+      if (!active) return;
+      setSequenceContextState({ sport, loading: false, error: error instanceof Error ? error.message : 'Falha inesperada ao avaliar o histórico da modalidade.' });
+    });
+    return () => { active = false; };
+  }, [service, workspaceSport, screen]);
   const matchTeamASets = workspace
     ? workspace.state.sets.filter((set) => set.winnerTeamId === matchTeamA?.id).length
     : 0;
   const matchTeamBSets = workspace
     ? workspace.state.sets.filter((set) => set.winnerTeamId === matchTeamB?.id).length
     : 0;
+  const selectedSportLabel = selectedSport === 'volleyball' ? 'Vôlei' : selectedSport === 'football' ? 'Futebol' : selectedSport === 'futsal' ? 'Futsal' : selectedSport === 'basketball' ? 'Basquete' : undefined;
 
   return (
     <div className="app-shell">
       {!inMatchWorkspace && <header className="app-nav">
-        <button className="brand" type="button" onClick={() => leaveNewMatchDraft('home')}>
+        <button className="brand" type="button" onClick={openSportPicker}>
           <span>ST</span> Scout Trainer
         </button>
         <nav aria-label="Navegação principal">
           <button
             type="button"
             aria-current={screen === 'home' ? 'page' : undefined}
-            onClick={() => leaveNewMatchDraft('home')}
+            onClick={openSportPicker}
           >
-            Início
+            Modalidades
           </button>
-          <button
+          {(selectedSport || showUnidentifiedMatches) && <button
             type="button"
             aria-current={screen === 'matches' ? 'page' : undefined}
             onClick={openMatches}
           >
-            Partidas
-          </button>
-          <button
+            {selectedSportLabel ? `Partidas · ${selectedSportLabel}` : 'Partidas sem modalidade'}
+          </button>}
+          {selectedSport && <button
             type="button"
             aria-current={
               screen === 'registrations' || screen === 'profile-editor' ? 'page' : undefined
@@ -519,21 +584,21 @@ export function App({
             onClick={() => openRegistrations()}
           >
             Equipes e atletas
-          </button>
-          <button
+          </button>}
+          {selectedSport === 'volleyball' && <button
             type="button"
             aria-current={screen === 'training' ? 'page' : undefined}
             onClick={() => void openTraining()}
           >
             Treino
-          </button>
-          <button
+          </button>}
+          {selectedSport && <button
             type="button"
             aria-current={screen === 'manual' ? 'page' : undefined}
             onClick={openManual}
           >
-            Ajuda
-          </button>
+            Manual de {selectedSportLabel}
+          </button>}
         </nav>
       </header>}
 
@@ -548,13 +613,13 @@ export function App({
               {matchTeamA?.name} × {matchTeamB?.name}
             </span>
             <span className="match-workspace-score">
-              <b>{workspaceSport === 'football' ? workspace.football?.score.teamA ?? 0 : workspace.state.score.teamA}</b>
-              <i>×</i>
-              <b>{workspaceSport === 'football' ? workspace.football?.score.teamB ?? 0 : workspace.state.score.teamB}</b>
+              <><b>{workspaceSport === 'football' ? workspace.football?.score.teamA ?? 0 : workspaceSport === 'futsal' ? workspace.futsalScout?.score[workspace.teams[0].id] ?? 0 : workspaceSport === 'basketball' ? workspace.basketball?.score[workspace.teams[0].id] ?? 0 : workspace.state.score.teamA}</b><i>×</i><b>{workspaceSport === 'football' ? workspace.football?.score.teamB ?? 0 : workspaceSport === 'futsal' ? workspace.futsalScout?.score[workspace.teams[1].id] ?? 0 : workspaceSport === 'basketball' ? workspace.basketball?.score[workspace.teams[1].id] ?? 0 : workspace.state.score.teamB}</b></>
               {workspaceSport === 'volleyball' && <small>
                 VÔLEI · SET {workspace.state.currentSet} · Sets {matchTeamASets} : {matchTeamBSets}
               </small>}
               {workspaceSport === 'football' && <small>Futebol · {workspace.football?.clock.period ?? 1}º período</small>}
+              {workspaceSport === 'futsal' && <small>Futsal · {workspace.futsalClock?.period ?? 1}º período</small>}
+              {workspaceSport === 'basketball' && <small>Basquete</small>}
               {workspaceSport === undefined && <small>Modalidade precisa ser identificada</small>}
             </span>
           </div>
@@ -568,13 +633,15 @@ export function App({
                 <button type="button" onClick={() => openRegistrations('scout')}>
                   Equipes e atletas
                 </button>
-                <button type="button" onClick={openManual}>Ajuda</button>
+                {workspaceSport && <button type="button" onClick={openManual}>Manual da modalidade</button>}
                 <button type="button" onClick={() => void exportMatch('json')}>Exportar JSON</button>
+                {workspaceSport === 'futsal' && <><button type="button" onClick={() => void exportMatch('csv')}>Exportar análise CSV</button><button type="button" onClick={() => void exportMatch('pdf')}>Exportar relatório PDF</button></>}
                 {workspaceSport === 'football' && (
                   <button
                     type="button"
                     onClick={() => {
                       setFootballPresentation('review');
+                      setAdvancedControlsOpen(true);
                       setScreen('scout');
                     }}
                   >
@@ -600,12 +667,8 @@ export function App({
         <HomeScreen
           matches={matches}
           busy={busy}
-          onNewMatch={() => { setNewMatchDirty(false); setScreen('new-match'); }}
-          onTraining={() => void openTraining()}
-          onAllMatches={() => {
-            openMatches();
-          }}
-          onOpenMatch={openMatch}
+          onSelectSport={selectSport}
+          onUnidentifiedMatches={openUnidentifiedMatches}
           onImportBackup={importBackup}
         />
       )}
@@ -613,10 +676,12 @@ export function App({
         <MatchesScreen
           matches={matches}
           busy={busy}
-          onNewMatch={() => { setNewMatchDirty(false); setScreen('new-match'); }}
+          onNewMatch={selectedSport ? () => { setNewMatchDirty(false); setScreen('new-match'); } : undefined}
           onOpenMatch={openMatch}
           filters={matchFilters}
           onFiltersChange={setMatchFilters}
+          selectedSport={selectedSport}
+          unidentifiedOnly={showUnidentifiedMatches}
         />
       )}
       {screen === 'registrations' && (
@@ -636,12 +701,51 @@ export function App({
         <NewMatchScreen
           busy={busy}
           codeProfiles={codeProfiles}
-          onCancel={() => leaveNewMatchDraft('home')}
+          onCancel={() => leaveNewMatchDraft('matches')}
           onCreate={createMatch}
           onDraftChange={setNewMatchDirty}
+          initialSport={selectedSport}
         />
       )}
-      {screen === 'scout' && workspace && workspaceSport === 'football' && (
+      {screen === 'scout' && workspace && workspaceSport === 'basketball' && <BasketballScoutScreen workspace={workspace} busy={busy} onRegister={(period, draft) => runWorkspaceAction(() => service.registerBasketballFact(workspace.state.metadata.id, period, draft), { rejectOnFailure: true })} onCorrect={(id, draft) => runWorkspaceAction(() => service.correctBasketballFact(workspace.state.metadata.id, id, draft), { rejectOnFailure: true })} onUndo={() => runWorkspaceAction(() => service.undoBasketballFact(workspace.state.metadata.id), { rejectOnFailure: true })} />}
+      {screen === 'scout' && workspace && (workspaceSport === 'football' || workspaceSport === 'futsal') && (
+        <div hidden={advancedControlsOpen}><EssentialScoutScreen
+          workspace={workspace}
+          busy={busy}
+          shortcutsEnabled={!advancedControlsOpen}
+          onOpenAdvanced={() => {
+            setAdvancedControlsOpen(true);
+            window.requestAnimationFrame(() => advancedControlsRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }));
+          }}
+          onRegister={(draft) => runWorkspaceAction(() => service.registerEssentialAction(workspace.state.metadata.id, draft), { rejectOnFailure: true })}
+          onCorrect={(id, draft) => runWorkspaceAction(() => service.correctEssentialAction(workspace.state.metadata.id, id, draft), { rejectOnFailure: true })}
+          onDelete={(id) => runWorkspaceAction(() => service.deleteEssentialAction(workspace.state.metadata.id, id), { rejectOnFailure: true })}
+          onSetOrientation={(direction) => runWorkspaceAction(async () => {
+            const matchId = workspace.state.metadata.id;
+            const period = workspaceSport === 'futsal' ? workspace.futsalClock?.period ?? 1 : workspace.football?.clock.period ?? 1;
+            const opposite = direction === 'x120' ? 'x0' : 'x120';
+            const first = workspaceSport === 'futsal'
+              ? await service.setFutsalOrientation(matchId, period, workspace.teams[0].id, direction)
+              : await service.setFootballOrientation(matchId, period, workspace.teams[0].id, direction);
+            if (!first.ok) return first;
+            return workspaceSport === 'futsal'
+              ? service.setFutsalOrientation(matchId, period, workspace.teams[1].id, opposite)
+              : service.setFootballOrientation(matchId, period, workspace.teams[1].id, opposite);
+          }, { rejectOnFailure: true })}
+          onClockToggle={() => workspaceSport === 'football'
+            ? runWorkspaceAction(() => service.setFootballClock(workspace.state.metadata.id, { kind: workspace.football?.clock.running ? 'pause' : 'start' }), { rejectOnFailure: true })
+            : runWorkspaceAction(() => service.setFutsalClock(workspace.state.metadata.id, { kind: workspace.futsalClock?.status === 'running' ? 'pause' : 'start' }), { rejectOnFailure: true })}
+        /></div>
+      )}
+      {screen === 'scout' && workspace && (workspaceSport === 'football' || workspaceSport === 'futsal') && (
+        <section
+          ref={advancedControlsRef}
+          className="advanced-recording-panel page-section"
+          hidden={!advancedControlsOpen}
+        >
+          <header className="advanced-recording-heading"><h2>Ajustes da partida</h2><button type="button" className="button secondary" onClick={() => setAdvancedControlsOpen(false)}>← Voltar à quadra</button></header>
+          <p>Configurações e registros detalhados da partida, quando precisar deles.</p>
+          {advancedControlsOpen && workspaceSport === 'football' && (
         <FootballScoutScreen
           workspace={workspace}
           busy={busy}
@@ -658,6 +762,9 @@ export function App({
           presentation={footballPresentation}
           onPresentationChange={setFootballPresentation}
         />
+          )}
+          {advancedControlsOpen && workspaceSport === 'futsal' && matchId && <FutsalScoutScreen workspace={workspace} busy={busy} onOrientation={(period, teamId, direction) => runWorkspaceAction(() => service.setFutsalOrientation(matchId, period, teamId, direction), { rejectOnFailure: true })} onClock={(change) => runWorkspaceAction(() => service.setFutsalClock(matchId, change), { rejectOnFailure: true })} onFact={(draft, capturedElapsedMs) => runWorkspaceAction(() => service.registerFutsalFact(matchId, draft, capturedElapsedMs), { rejectOnFailure: true })} onCorrectFact={(factId, draft) => runWorkspaceAction(() => service.correctFutsalFact(matchId, factId, draft), { rejectOnFailure: true })} onUndoFact={(factId) => runWorkspaceAction(() => service.undoFutsalFact(matchId, factId), { rejectOnFailure: true })} />}
+        </section>
       )}
       {screen === 'scout' && workspace && workspaceSport === undefined && (
         <section className="page-section" aria-labelledby="recover-sport-title">
@@ -717,15 +824,32 @@ export function App({
             })
           }
           onNextSet={(input) => runWorkspaceAction(() => service.startNextSet(matchId, input))}
+          onSwapCourtSides={() => runWorkspaceAction(() => service.swapVolleyballCourtSides(matchId), {
+            rejectOnFailure: true,
+            successMessage: 'Lados da quadra trocados.',
+          })}
           onExport={() => exportMatch('json')}
         />
       )}
-      {(screen === 'summary' || screen === 'analysis') && workspace && workspaceSport === 'football' && <main className="page-section football-analysis"><FootballAnalyticsPanel events={withFootballOrientation(workspace.football?.events ?? [], workspace.state.metadata)} summary={screen === 'summary'} teams={workspace.teams} players={workspace.players} /></main>}
-      {screen === 'analysis' && workspace && workspaceSport === 'volleyball' && <main className="page-section analysis-page"><MatchAnalyticsPanel key={workspace.state.metadata.id} report={workspace.report} sequenceAnalytics={workspace.sequenceAnalytics} matchId={workspace.state.metadata.id} analysisConfigurations={analysisConfigurations} onSaveAnalysisConfiguration={saveAnalysisConfiguration} onDeleteAnalysisConfiguration={deleteAnalysisConfiguration} reportChartConfigurations={reportChartConfigurations} onSaveReportChartConfiguration={saveReportChartConfiguration} onDeleteReportChartConfiguration={deleteReportChartConfiguration}/></main>}
+      {(screen === 'summary' || screen === 'analysis') && workspace && workspaceSport === 'football' && <main className="page-section football-analysis"><ObservedSequencePanel projection={workspace.observedSequences} teams={workspace.teams} history={workspace.events} sportHint="football" contextModel={sequenceContextModel} modelLoading={sequenceContextLoading} modelError={sequenceContextError} /><FootballAnalyticsPanel events={withFootballOrientation(workspace.football?.events ?? [], workspace.state.metadata)} summary={screen === 'summary'} teams={workspace.teams} players={workspace.players} /></main>}
+      {(screen === 'summary' || screen === 'analysis') && workspace && workspaceSport === 'basketball' && <BasketballAnalyticsScreen workspace={workspace} />}
+      {(screen === 'summary' || screen === 'analysis') && workspace && workspaceSport === 'futsal' && <FutsalAnalyticsScreen workspace={workspace} contextModel={sequenceContextModel} modelLoading={sequenceContextLoading} modelError={sequenceContextError} onExport={(format) => void exportMatch(format)} />}
+      {screen === 'analysis' && workspace && workspaceSport === 'volleyball' && <main className="page-section analysis-page">
+        <nav className="court-workbench-nav analysis-destinations" aria-label="Visualização da análise">
+          <button type="button" aria-pressed={volleyAnalysisView === 'reading'} onClick={() => setVolleyAnalysisView('reading')}>Leitura da partida</button>
+          <button type="button" aria-pressed={volleyAnalysisView === 'maps'} onClick={() => setVolleyAnalysisView('maps')}>Mapas e sequências</button>
+        </nav>
+        {volleyAnalysisView === 'reading' && <VolleyballReading workspace={workspace} />}
+        {volleyAnalysisView === 'maps' && <section className="volleyball-analysis-advanced">
+          <p className="summary-note">Dados completos da partida; os filtros da leitura acima se aplicam apenas ao painel principal.</p>
+          <ObservedSequencePanel projection={workspace.observedSequences} teams={workspace.teams} history={workspace.events} sportHint="volleyball" contextModel={sequenceContextModel} modelLoading={sequenceContextLoading} modelError={sequenceContextError} />
+          <MatchAnalyticsPanel key={workspace.state.metadata.id} report={workspace.report} sequenceAnalytics={workspace.sequenceAnalytics} matchId={workspace.state.metadata.id} analysisConfigurations={visibleAnalysisConfigurations} onSaveAnalysisConfiguration={saveAnalysisConfiguration} onDeleteAnalysisConfiguration={deleteAnalysisConfiguration} reportChartConfigurations={visibleReportChartConfigurations} onSaveReportChartConfiguration={saveReportChartConfiguration} onDeleteReportChartConfiguration={deleteReportChartConfiguration}/>
+        </section>}
+      </main>}
       {screen === 'summary' && workspace && workspaceSport === 'volleyball' && (
         <SummaryScreen
           key={workspace.state.metadata.id}
-          reportCharts={reportChartConfigurations}
+          reportCharts={visibleReportChartConfigurations}
           workspace={workspace}
           onBack={() => setScreen('scout')}
           onAnalysis={() => setScreen('analysis')}
@@ -752,7 +876,7 @@ export function App({
             workspace={trainingWorkspace}
             feedback={trainingFeedback}
             busy={busy}
-            onBack={() => setScreen('home')}
+            onBack={openSportPicker}
             onStart={startTraining}
             onResume={resumeTraining}
             onSubmit={submitTraining}
@@ -774,13 +898,13 @@ export function App({
           onExport={exportCodeProfile}
         />
       )}
-      {screen === 'manual' && <ManualScreen onBack={() => setScreen(manualReturnScreen)} />}
+      {screen === 'manual' && <ManualScreen sport={selectedSport ?? workspaceSport} onBack={() => setScreen(manualReturnScreen)} />}
       {screen === 'free-log' && (
         <FreeLogScreen
           sessions={freeLogSessions}
           session={freeLogSession}
           busy={busy}
-          onBack={() => setScreen('home')}
+          onBack={openSportPicker}
           onStart={startFreeLog}
           onOpen={openFreeLogSession}
           onRegister={registerFreeLog}

@@ -80,11 +80,12 @@ export class GestureRallyEngine {
         qualifiesPreviousAttack: action.crossesNet,
       };
     }
-    if (action.skill === 'free_ball' && state.phase === 'waiting_defense') {
+    if (action.skill === 'free_ball') {
       return {
         state: { phase: 'waiting_reception' },
-        attackInference: 'forced_free_ball',
-        qualifiesPreviousAttack: true,
+        ...(state.phase === 'waiting_defense'
+          ? { attackInference: 'forced_free_ball' as const, qualifiesPreviousAttack: true }
+          : {}),
       };
     }
     return { state };

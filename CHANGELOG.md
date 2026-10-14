@@ -2,21 +2,39 @@
 
 Todas as mudanças relevantes do Scout Trainer são registradas neste arquivo.
 
-## [Não lançado] — Futebol, cadastros e empacotamento — 2026-09-25
+## [0.7.0] — Voleibol Pro, Grafos Táticos Markov e Multi-Modalidade — 2026-10-14
+
+- **Voleibol: Correção e Proteção Rígida do Líbero na Rede:**
+  - Aplicação estrita da regra oficial FIVB/CBV: líberos são terminantemente proibidos de ocupar a rede (P4, P3, P2).
+  - Restauração automática da central titular quando o slot rotaciona para a rede no `RotationEngine`, `ScoutTrainerService` e `PlayerQuickPicker`.
+  - Sincronização 100% fiel entre a quadra visual (`visualCourtPlayers`) e os botões da barra lateral (`courtPlayers`), eliminando o bug de slots vazios com "Líbero abaixo" na rede.
+  - Reconhecimento global de líberos nos metadados da partida a partir do cadastro de função (`registeredRole: 'libero'`) e da seleção inicial.
+- **Análise Preditiva e Árvore Tática de Markov:**
+  - Perspectiva canônica orientada: equipe observada sempre posicionada na metade esquerda atacando para a direita (0..0.5 defesa/origem, 0.5..1.0 ataque/destino), garantindo consistência na leitura espacial.
+  - Resumos táticos em linguagem natural (*Briefing do Treinador*) com taxas reais de conversão de ponto/virada de bola após passe A, B, C e D.
+  - Seletor de fundamentos com filtros dinâmicos (Todos, Recepção, Ataque, Saque).
+  - Demarcações oficiais de zonas FIVB (Z1 a Z6) integradas na quadra vetorial.
+- **Arquitetura Multi-Esporte de Alta Densidade:**
+  - Basquete com HUD de 1 toque para ações de alta frequência (+2, +3, Rebotes, Perdas) e relógios de jogo e posse (24s/14s).
+  - Futsal com marcação de quadra por toque e teclado, controle de faltas acumuladas e suporte a goleiro-linha.
+  - Futebol com coleta esparsa por controle de posse, pressão e intercâmbio de dados StatsBomb.
+
+## [0.5.0] — Futebol, cadastros e empacotamento — 2026-09-25
 
 - Registro mínimo de futebol por controle da bola, posições, ações e finalizações, com pressão, detalhes opcionais, sugestões locais e revisão voluntária.
 - Cadastro por modalidade, entrada de atletas por linhas e reaproveitamento de equipes e elencos.
 - Documentação reorganizada por versão, arquitetura, referência e histórico; README atualizado com os recursos e as pendências de piloto e análise por posse.
 - Empacotamento Windows seleciona a distribuição de Electron do destino, sem reutilizar obrigatoriamente o Electron instalado no sistema de desenvolvimento.
-- Mantida a versão `0.4.0`; o pacote desta revisão não encerra o piloto humano de T10 nem as etapas T11/T12.
+- Versão desta entrega definida como `0.5.0`, com metadados, executável Windows e pacote para o Drive atualizados. Substitui a identificação `0.4.0` usada inicialmente para esta revisão.
+- O piloto humano de T10, a adaptação das análises de T11 e a validação integral de T12 continuam pendentes.
 
-## [Não lançado] — Futebol F5 — 2026-09-19
+### Futebol F5 — incorporado à 0.5.0 (2026-09-19)
 
 - Adicionados adaptadores de importação/exportação de eventos StatsBomb Open Data v4.0.0 com preservação de campos crus, desconhecidos, extras e manifesto de compatibilidade.
 - Adicionada fixture pinada de teste da partida 15946 e referência offline reproduzível de chutes/progressão, com cobertura, fonte, SHA e `alpha=10` documentado.
 - Relatórios de futebol distinguem referência pública, observado local e combinação suavizada; a combinação é desativada quando estados/cobertura não são equivalentes. Nenhum parâmetro externo é aplicado a `3+1`.
 
-## [Não lançado] — Caminhos do rally — 2026-09-15
+### Caminhos do rally — incorporado à 0.5.0 (2026-09-15)
 
 - Substituída a apresentação técnica de Sequências/Markov pelo explorador visual `Caminhos do rally`.
 - Adicionados potencial por absorção, frequência observada por rally distinto, fluxo de prefixos reais, comparação por qualidade, quadra proporcional e detalhe auditável dos rallies.
@@ -24,14 +42,14 @@ Todas as mudanças relevantes do Scout Trainer são registradas neste arquivo.
 - Exibição responsiva para desktop e móvel, com tabelas técnicas recolhidas e mensagens de cobertura/amostra.
 - Sem alteração de registro, schema, persistência ou regras matemáticas existentes; o modelo continua de primeira ordem.
 
-## [Não lançado] — Registro rápido — 2026-09-14
+### Registro rápido — incorporado à 0.5.0 (2026-09-14)
 
 - Números e nomes mais legíveis no Gestual, ação/equipe em destaque e opção explícita de registrar ao soltar a trajetória.
 - Bola de graça registra seu próprio contato espacial e prepara a defesa adversária no Gestual, sem corrigir indevidamente o ataque anterior.
 - Ajuste conjunto de rotação via P1, equipe sacadora e placar, com escrita atômica usando os eventos existentes; retomada pelo saque somente quando solicitada.
 - Falhas de gravação mantêm rascunho/escolhas; ausência de atleta e confirmação manual preservadas. Guia em `docs/versoes/v0.4/REGISTRO_RAPIDO.md`.
 
-## [Não lançado] — Interface local — 2026-09-13
+### Interface local — incorporada à 0.5.0 (2026-09-13)
 
 - Navegação Início/Partidas e espaço Registro/Resumo/Análise organizados com tokens compartilhados, seleções explícitas e controles de teclado/toque.
 - Registro gestual redimensionado para manter os comandos operacionais visíveis em 1366×640, preservando a quadra 2:1 e as coordenadas capturadas.

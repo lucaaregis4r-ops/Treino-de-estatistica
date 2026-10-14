@@ -8,7 +8,7 @@ import type { AttackBlockOutcome } from '../../../domain/scout/tactical/Tactical
 import { AttackBlockSelector, type AttackBlockerOption } from './AttackBlockSelector';
 
 interface VisualScoutFormProps {
-  readonly mode: Exclude<ScoutInputMode, 'typed'>;
+  readonly mode: Exclude<ScoutInputMode, 'typed'> | 'unified';
   readonly teams: readonly Team[];
   readonly players: readonly Player[];
   readonly teamId: string;
@@ -69,21 +69,21 @@ export function VisualScoutForm({
     <form className="visual-scout-form" onSubmit={onSubmit}>
       <div className="visual-scout-heading">
         <div>
-          <p className="eyebrow">Entrada {mode === 'visual' ? 'visual' : 'híbrida'}</p>
-          <h2>{mode === 'visual' ? 'Registrar contato' : 'Confirmar e enriquecer código'}</h2>
+          <p className="eyebrow">Registro por campos</p>
+          <h2>{mode === 'unified' ? 'Preencha e registre' : mode === 'visual' ? 'Registrar contato' : 'Confirmar e enriquecer código'}</h2>
         </div>
         {suggestion && <small>Próxima ação sugerida: {suggestion}</small>}
       </div>
-      {mode === 'hybrid' && (
+      {(mode === 'hybrid' || mode === 'unified') && (
         <label className="visual-scout-code">
-          Código digitado
+          {mode === 'unified' ? 'Código associado (opcional)' : 'Código digitado'}
           <input
             value={hybridCode}
             onChange={(event) => onHybridCodeChange(event.target.value)}
             placeholder="*08A#"
             autoComplete="off"
             autoCapitalize="characters"
-            required
+            required={mode === 'hybrid'}
           />
         </label>
       )}

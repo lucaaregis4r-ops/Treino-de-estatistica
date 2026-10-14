@@ -49,10 +49,15 @@ const profileOptions: readonly { id: CreateMatchInput['complexityProfileId']; na
 ];
 
 function roleOptions(sport: Sport): readonly [string, string][] {
-  return sport === 'volleyball' ? Object.entries(volleyballRoles) : Object.entries(footballPositions);
+  if (sport === 'volleyball') return Object.entries(volleyballRoles);
+  if (sport === 'football') return Object.entries(footballPositions);
+  return [];
 }
 function roleIsValid(sport: Sport, position: string): boolean {
   return !position || roleOptions(sport).some(([value]) => value === position);
+}
+function sportName(sport: Sport): string {
+  return sport === 'volleyball' ? 'vôlei' : sport === 'football' ? 'futebol' : sport === 'basketball' ? 'basquete' : 'futsal';
 }
 function validRows(
   rows: readonly AthleteRosterDraftRow[],
@@ -66,16 +71,23 @@ function validRows(
       if (requireMatchNumber && !row.number.trim()) {
         issues.push('Informe a camisa para inscrever este atleta na partida.');
       }
-      if (row.number && number > 99) issues.push('A camisa da partida deve ser de 1 a 99.');
+      if (row.number && number > 99) issues.push(sport === 'basketball' ? 'A camisa da partida deve ser de 0 a 99.' : 'A camisa da partida deve ser de 1 a 99.');
       if (!roleIsValid(sport, row.position)) issues.push('Posição incompatível com a modalidade.');
       return { ...row, issues: [...new Set(issues)] };
     });
 }
-function playerInputs(rows: readonly AthleteRosterDraftRow[], sport: Sport): readonly PlayerRegistrationInput[] {
-  return rows.map((row) => ({
-    number: Number(row.number), name: normalizeAthleteName(row.name),
-    ...(sport === 'volleyball' && row.position ? { registeredRole: row.position as PlayerRole } : {}),
-  }));
+function playerInputs(rows: readonly AthleteRosterDraftRow[], sport: Sport, liberoNumber?: number): readonly PlayerRegistrationInput[] {
+  return rows.map((row) => {
+    const isLibero = sport === 'volleyball' && (row.position === 'libero' || (liberoNumber !== undefined && Number(row.number) === liberoNumber));
+    return {
+      number: Number(row.number),
+      name: normalizeAthleteName(row.name),
+      ...(sport === 'volleyball' && (row.position || isLibero) ? {
+        registeredRole: (isLibero ? 'libero' : row.position) as PlayerRole,
+        libero: isLibero,
+      } : {}),
+    };
+  });
 }
 function hasValidLineup(players: readonly PlayerRegistrationInput[], lineup: readonly LineupPositionInput[]): boolean {
   const numbers = new Set(players.map((player) => player.number));
@@ -109,12 +121,13 @@ interface NewMatchScreenProps {
   readonly onCreate: (input: CreateMatchInput) => Promise<void>;
   readonly codeProfiles: readonly CodeProfile[];
   readonly onDraftChange?: (dirty: boolean) => void;
+  readonly initialSport?: Sport;
 }
 
-export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles, onDraftChange }: NewMatchScreenProps) {
+export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles, onDraftChange, initialSport }: NewMatchScreenProps) {
   const [registeredTeams, setRegisteredTeams] = useState<readonly TeamRegistration[]>([]);
   const [registeredAthletes, setRegisteredAthletes] = useState<readonly AthleteRegistration[]>([]);
-  const [sport, setSport] = useState<Sport>('volleyball');
+  const [sport, setSport] = useState<Sport>(initialSport ?? 'volleyball');
   const [teamAName, setTeamAName] = useState('Equipe A');
   const [teamBName, setTeamBName] = useState('Equipe B');
   const [teamARows, setTeamARows] = useState<readonly AthleteRosterDraftRow[]>([]);
@@ -155,11 +168,11 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles, onDraft
     rowNameInputs.current.get(`${side}:${id}`)?.focus();
   }, [teamARows, teamBRows]);
   useEffect(() => {
-    const dirty = sport !== 'volleyball' || teamAName !== 'Equipe A' || teamBName !== 'Equipe B'
+    const dirty = sport !== (initialSport ?? 'volleyball') || teamAName !== 'Equipe A' || teamBName !== 'Equipe B'
       || teamARows.length > 0 || teamBRows.length > 0 || Boolean(pasteText);
     onDraftChange?.(dirty);
     return () => onDraftChange?.(false);
-  }, [onDraftChange, pasteText, sport, teamAName, teamARows.length, teamBName, teamBRows.length]);
+  }, [initialSport, onDraftChange, pasteText, sport, teamAName, teamARows.length, teamBName, teamBRows.length]);
 
   const availableTeams = useMemo(() => registeredTeams.filter((team) => team.sport === sport || !team.sport)
     .filter((team) => team.name.toLocaleLowerCase('pt-BR').includes(teamQuery.toLocaleLowerCase('pt-BR'))), [registeredTeams, sport, teamQuery]);
@@ -188,7 +201,7 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles, onDraft
   function applyTeam(side: Side, id: string) {
     const team = registeredTeams.find((item) => item.id === id);
     if (!team) return;
-    if (!team.sport && !window.confirm(`A equipe ${team.name} é legada e não tem modalidade. Usá-la nesta partida de ${sport === 'volleyball' ? 'vôlei' : 'futebol'} sem alterar seu cadastro?`)) return;
+    if (!team.sport && !window.confirm(`A equipe ${team.name} é legada e não tem modalidade. Usá-la nesta partida de ${sportName(sport)} sem alterar seu cadastro?`)) return;
     const rows = teamRows(team, registeredAthletes).map((row) => roleIsValid(sport, row.position) ? row : { ...row, position: '' });
     setRows(side, rows); setError(''); setNotice(`Elenco de ${team.name} carregado como linhas editáveis desta partida.`);
     if (side === 'A') { setTeamAId(team.id); setTeamAName(team.name); setTeamALineup([]); setTeamALibero(undefined); }
@@ -197,6 +210,7 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles, onDraft
   function addExistingAthlete(side: Side, athleteId: string) {
     const athlete = registeredAthletes.find((item) => item.id === athleteId);
     if (!athlete) return;
+    if (!athlete.sport && !window.confirm(`O atleta ${athlete.name} é legado e não tem modalidade. Usá-lo nesta partida de ${sportName(sport)} sem alterar o cadastro?`)) return;
     if (getRows(side).some((row) => row.athleteId === athlete.id)) {
       setNotice(`${athlete.name} já está no elenco desta partida.`); return;
     }
@@ -261,7 +275,7 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles, onDraft
   }
   async function submit(event: FormEvent) {
     event.preventDefault(); const checked = validateAll(true); if (!checked) return;
-    const [a, b] = checked; const playersA = playerInputs(a, sport); const playersB = playerInputs(b, sport);
+    const [a, b] = checked; const playersA = playerInputs(a, sport, teamALibero); const playersB = playerInputs(b, sport, teamBLibero);
     await onCreate({ sport, teamAName, teamBName, teamAPlayers: playersA, teamBPlayers: playersB,
       ...(sport === 'volleyball' && hasValidLineup(playersA, teamALineup) ? { teamALineup } : {}),
       ...(sport === 'volleyball' && hasValidLineup(playersB, teamBLineup) ? { teamBLineup } : {}),
@@ -287,7 +301,7 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles, onDraft
       <h2 id={`roster-${side}`}>{label}</h2>
       <label htmlFor={`saved-team-${side}`}>Usar equipe salva<select id={`saved-team-${side}`} value={side === 'A' ? teamAId ?? '' : teamBId ?? ''} onChange={(event) => applyTeam(side, event.target.value)}><option value="">Preencher nesta partida</option>{availableTeams.map((team) => <option key={team.id} value={team.id}>{team.name}{team.sport ? '' : ' · modalidade a confirmar'}</option>)}</select></label>
       <label htmlFor={`team-name-${side}`}>Nome da equipe<input id={`team-name-${side}`} required value={side === 'A' ? teamAName : teamBName} onChange={(event) => side === 'A' ? setTeamAName(event.target.value) : setTeamBName(event.target.value)} /></label>
-      <label htmlFor={`saved-athlete-${side}`}>Adicionar atleta cadastrado<select id={`saved-athlete-${side}`} defaultValue="" onChange={(event) => { addExistingAthlete(side, event.target.value); event.currentTarget.value = ''; }}><option value="">Buscar: {athleteQuery || 'todos'}</option>{availableAthletes.map((athlete) => <option key={athlete.id} value={athlete.id}>{athlete.name}{athlete.number ? ` · ${athlete.number}` : ''}{athlete.sport ? '' : ' · modalidade a confirmar'}</option>)}</select></label>
+      <label htmlFor={`saved-athlete-${side}`}>Adicionar atleta cadastrado<select id={`saved-athlete-${side}`} defaultValue="" onChange={(event) => { addExistingAthlete(side, event.target.value); event.currentTarget.value = ''; }}><option value="">Buscar: {athleteQuery || 'todos'}</option>{availableAthletes.map((athlete) => <option key={athlete.id} value={athlete.id}>{athlete.name}{athlete.number !== undefined ? ` · ${athlete.number}` : ''}{athlete.sport ? '' : ' · modalidade a confirmar'}</option>)}</select></label>
       <div className="match-roster-header" aria-hidden="true"><span>Camisa</span><span>Nome</span><span>Posição/função</span><span>Remover</span></div>
       {rows.map((row, index) => <div className="match-roster-row" key={row.clientRowId}><label><span className="sr-only">Camisa {label} {index + 1}</span><input inputMode="numeric" value={row.number} onKeyDown={(event) => handleRowKeyDown(event, side, index)} onChange={(event) => updateRow(side, row.clientRowId, { number: event.target.value })} /></label><label><span className="sr-only">Nome {label} {index + 1}</span><input ref={(element) => { const key = `${side}:${row.clientRowId}`; if (element) rowNameInputs.current.set(key, element); else rowNameInputs.current.delete(key); }} value={row.name} onKeyDown={(event) => handleRowKeyDown(event, side, index)} onChange={(event) => updateRow(side, row.clientRowId, { name: event.target.value })} /></label><label><span className="sr-only">Posição {label} {index + 1}</span><select value={row.position} onKeyDown={(event) => handleRowKeyDown(event, side, index)} onChange={(event) => updateRow(side, row.clientRowId, { position: event.target.value })}><option value="">Não informada</option>{row.position && !roleIsValid(sport, row.position) && <option value={row.position}>Importada: {row.position} (revise)</option>}{roleOptions(sport).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label><button type="button" className="button secondary" onClick={() => removeRow(side, row.clientRowId)}>Remover</button>{row.issues.length > 0 && <p className="row-error" role="alert">{row.issues.join(' ')}</p>}</div>)}
       <div className="hero-actions"><button type="button" className="button secondary" onClick={() => addRow(side)}>Adicionar atleta</button><button type="button" className="button secondary" disabled={savingTeam !== undefined || busy} onClick={() => void saveReusableTeam(side)}>{savingTeam === side ? 'Salvando equipe…' : 'Salvar equipe reutilizável'}</button></div>
@@ -298,21 +312,23 @@ export function NewMatchScreen({ busy, onCancel, onCreate, codeProfiles, onDraft
     const rows = side === 'A' ? teamARows : teamBRows; const lineup = side === 'A' ? teamALineup : teamBLineup;
     const libero = side === 'A' ? teamALibero : teamBLibero; const setLibero = side === 'A' ? setTeamALibero : setTeamBLibero;
     if (!lineup.length) return null;
-    return <fieldset className="lineup-card"><legend>Escalação inicial · equipe {side}</legend><p>Revise cada atleta e função; a sugestão nunca é salva automaticamente.</p><label>Líbero (opcional)<select value={libero ?? ''} onChange={(event) => setLibero(event.target.value ? Number(event.target.value) : undefined)}><option value="">Sem líbero definido</option>{rows.filter((row) => row.number).map((row) => <option key={row.clientRowId} value={row.number}>{row.number} {rosterName(row)}</option>)}</select></label>{lineup.map((entry, index) => <div className="lineup-row" key={entry.position}><strong>P{entry.position}</strong><label>Função<select value={entry.tacticalRole} onChange={(event) => updateLineup(side, index, { tacticalRole: event.target.value as TacticalRole })}>{tacticalRoles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}</select></label><label>Atleta<select value={entry.playerNumber} onChange={(event) => updateLineup(side, index, { playerNumber: Number(event.target.value) })}>{rows.filter((row) => row.number).map((row) => <option key={row.clientRowId} value={row.number}>{row.number} {rosterName(row)}</option>)}</select></label></div>)}</fieldset>;
+    return <fieldset className="lineup-card"><legend>Escalação inicial · equipe {side}</legend><p>Revise cada atleta e função; a sugestão nunca é salva automaticamente.</p><label>Líbero (opcional)<select value={libero ?? ''} onChange={(event) => setLibero(event.target.value ? Number(event.target.value) : undefined)}><option value="">Sem líbero definido</option>{rows.filter((row) => row.number).map((row) => <option key={row.clientRowId} value={row.number}>{row.number} {rosterName(row)}</option>)}</select></label>{lineup.map((entry, index) => <div className="lineup-row" key={entry.position}><strong>P{entry.position}</strong><label>Função<select value={entry.tacticalRole} onChange={(event) => updateLineup(side, index, { tacticalRole: event.target.value as TacticalRole })}>{tacticalRoles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}</select></label><label>Atleta<select value={entry.playerNumber} onChange={(event) => updateLineup(side, index, { playerNumber: Number(event.target.value) })}>{rows.filter((row) => row.number && Number(row.number) !== libero).map((row) => <option key={row.clientRowId} value={row.number}>{row.number} {rosterName(row)}</option>)}</select></label></div>)}</fieldset>;
   }
 
   return <section className="page-section setup-screen" aria-labelledby="setup-title">
     <div className="section-heading"><div><p className="eyebrow">Configuração</p><h1 id="setup-title">Nova partida</h1></div><button className="button ghost" type="button" onClick={onCancel}>Voltar</button></div>
     {error && <p id="new-match-error" role="alert">{error}</p>}{notice && <p className="form-notice" role="status">{notice}</p>}
     <form className="setup-form" onSubmit={(event) => void submit(event)}>
-      <label className="match-sport-select" htmlFor="match-sport">Modalidade<select id="match-sport" value={sport} onChange={(event) => changeSport(event.target.value as Sport)}><option value="volleyball">Vôlei</option><option value="football">Futebol</option></select></label>
+      {initialSport ? <p className="match-sport-fixed"><span>Modalidade</span><strong>{sportName(initialSport)}</strong></p> : <label className="match-sport-select" htmlFor="match-sport">Modalidade<select id="match-sport" value={sport} onChange={(event) => changeSport(event.target.value as Sport)}><option value="volleyball">Vôlei</option><option value="football">Futebol</option><option value="futsal">Futsal</option><option value="basketball">Basquete</option></select></label>}
       <div className="match-searches"><label className="team-search" htmlFor="team-search">Buscar equipe salva<input id="team-search" value={teamQuery} onChange={(event) => setTeamQuery(event.target.value)} /></label><label className="team-search" htmlFor="athlete-search">Buscar atleta cadastrado<input id="athlete-search" value={athleteQuery} onChange={(event) => setAthleteQuery(event.target.value)} /></label></div>
       <div className="match-roster-grid">{rosterEditor('A')}<div className="versus" aria-hidden="true">×</div>{rosterEditor('B')}</div>
       {registeredTeams.some((team) => !team.sport) && <p className="form-help">Equipes legadas sem modalidade exibem confirmação antes do uso e só passam a ter modalidade explícita quando você as salva deliberadamente.</p>}
       <details className="match-paste"><summary>Importar lista para a prévia</summary><label>Equipe<select value={pasteSide ?? ''} onChange={(event) => setPasteSide((event.target.value || undefined) as Side | undefined)}><option value="">Escolha</option><option value="A">Equipe A</option><option value="B">Equipe B</option></select></label><label>Texto copiado<textarea value={pasteText} onChange={(event) => setPasteText(event.target.value)} placeholder={'8 Ana Souza\n9;Bia Lima'} /></label><label className="paste-legacy-option"><input type="checkbox" checked={pasteLegacyComma} onChange={(event) => setPasteLegacyComma(event.target.checked)} /> Usar formato legado com vírgulas</label><button type="button" className="button secondary" onClick={importPreview}>Importar para prévia editável</button></details>
       {sport === 'football' && <p className="form-help sport-specific-help">Futebol pode iniciar scout coletivo sem elenco, escalação ou posições. Atletas incluídos aqui só existem nesta partida até você escolher salvar a equipe.</p>}
+      {sport === 'basketball' && <p className="form-help sport-specific-help">Basquete pode começar sem elenco. Você poderá registrar ações coletivas e informar atletas quando forem identificados.</p>}
+      {sport === 'futsal' && <p className="form-help sport-specific-help">Futsal pode iniciar scout coletivo sem escalação inicial. As posições do elenco não confirmam quem está em quadra.</p>}
       {sport === 'volleyball' && <><button className="button ghost" type="button" onClick={useDemonstrationRoster}>Usar elenco demonstrativo</button><div className="lineup-setup-grid">{lineupEditor('A')}{lineupEditor('B')}</div><fieldset className="serving-choice"><legend>Quem começa sacando?</legend><label><input type="radio" name="initial-server" checked={initialServingTeam === 'teamA'} onChange={() => setInitialServingTeam('teamA')} />{teamAName}</label><label><input type="radio" name="initial-server" checked={initialServingTeam === 'teamB'} onChange={() => setInitialServingTeam('teamB')} />{teamBName}</label></fieldset><fieldset className="profile-choice"><legend>Perfil de complexidade</legend>{profileOptions.map((profile) => <label key={profile.id} className={complexityProfileId === profile.id ? 'selected' : ''}><input type="radio" name="profile" value={profile.id} checked={complexityProfileId === profile.id} onChange={() => setComplexityProfileId(profile.id)} /><span><strong>{profile.name}</strong></span></label>)}</fieldset><label className="code-profile-select">Linguagem de código<select value={codeProfileId} onChange={(event) => setCodeProfileId(event.target.value)}>{codeProfiles.map((profile) => <option key={`${profile.id}@${profile.version}`} value={profile.id}>{profile.name} · v{profile.version}</option>)}</select></label></>}
-      <button className="button primary submit-match" type="submit" disabled={busy || savingTeam !== undefined}>{busy ? 'Criando…' : sport === 'football' ? 'Iniciar partida' : 'Criar e iniciar scout'}</button>
+      <button className="button primary submit-match" type="submit" disabled={busy || savingTeam !== undefined}>{busy ? 'Criando…' : sport === 'volleyball' ? 'Criar e iniciar scout' : 'Iniciar partida'}</button>
     </form>
   </section>;
 }

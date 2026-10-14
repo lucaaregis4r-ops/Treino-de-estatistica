@@ -1,3 +1,4 @@
+import type { ContactQuality } from '../../scout/entities/ContactQuality';
 import type { SpatialMetadata } from '../../scout/spatial/SpatialMetadata';
 import type { GestureExpectedAction } from './GestureExpectedActionResolver';
 import type { AttackBlockOutcome } from '../../scout/tactical/TacticalMetadata';
@@ -15,7 +16,7 @@ export interface GestureDraftState {
   readonly trajectory?: SpatialMetadata;
   readonly playerId?: string;
   readonly playerSelection?: 'identified' | 'unidentified';
-  readonly outcome?: '#' | '=';
+  readonly outcome?: ContactQuality;
   readonly blockOutcome?: AttackBlockOutcome;
   readonly blockerIds?: readonly string[];
   readonly error?: string;
@@ -83,7 +84,7 @@ export function selectGesturePlayer(
 
 export function setGestureOutcome(
   state: GestureDraftState,
-  outcome?: '#' | '=',
+  outcome?: ContactQuality,
 ): GestureDraftState {
   return {
     ...state,

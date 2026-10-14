@@ -1,4 +1,6 @@
-# Estado — 0.5 proposta
+# Estado — 0.5.0
+
+**Atualização de entrega — 25/09/2026:** o responsável pelo projeto definiu esta entrega como **0.5.0**, autorizando a atualização dos metadados, documentação, executável Windows e pacote para o Drive. A pasta `v0.5-proposta` mantém o nome histórico para preservar links. Esta decisão substitui a identificação 0.4.0 usada inicialmente no pacote de 25/09; não declara concluídos o piloto humano, T11 ou a validação integral de T12.
 
 Atualizado em 23/09/2026. **Roteiro vigente: [Implementação Terra](implementacao-terra/README.md), T01–T12.** T01 a T10 foram verificadas tecnicamente nesta data; T10 ainda aguarda o piloto humano e as demais etapas continuam no estado indicado abaixo.
 
@@ -21,7 +23,7 @@ Esta tabela é a única fila operacional atual. Atualizar aqui; preservar relato
 | [T09](implementacao-terra/T09_ATLETAS_E_ELENCOS.md) Cadastro/reuso | Verificada tecnicamente | Cadastro por linhas, reuso explícito, validação de camisa na inscrição e fluxos futebol/vôlei verificados | T08; base M2/M3 |
 | [T10](implementacao-terra/T10_VALIDACAO_E_PILOTO.md) Verificação/piloto | Verificada tecnicamente / Aguardando piloto | Regressões, persistência, responsividade e build verificados; falta trecho autorizado e operador humano | T01–T09 |
 | [T11](implementacao-terra/T11_ANALISES_POR_POSSE.md) Análises | Aguardando piloto | Dependência T10 sem aceite; módulos existentes exigem reavaliação contra a coleta esparsa | T10 com aceite operacional |
-| [T12](implementacao-terra/T12_ENTREGA.md) Entrega | Planejada | Sem release autorizada | T10/T11 |
+| [T12](implementacao-terra/T12_ENTREGA.md) Entrega | Parcial: pacote 0.5.0 autorizado | Versão e empacotamento autorizados em 25/09/2026; validação integral e pendências de T10/T11 preservadas | T10/T11 para conclusão integral |
 
 ## Histórico anterior — M0–M9
 

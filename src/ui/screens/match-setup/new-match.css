@@ -1,3 +1,8 @@
+.setup-screen .setup-form {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+.setup-screen .setup-form > * { min-width: 0; }
 .match-roster-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);

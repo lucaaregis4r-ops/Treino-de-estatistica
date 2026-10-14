@@ -66,6 +66,14 @@ describe('GestureRallyEngine', () => {
     expect(freeBall.qualifiesPreviousAttack).toBe(true);
   });
 
+  it.each(['waiting_serve', 'waiting_reception', 'waiting_attack', 'waiting_defense'] as const)(
+    'accepts a free ball during %s and transfers to reception', (phase) => {
+      const result = new GestureRallyEngine().transition({ phase }, { skill: 'free_ball' });
+      expect(result.state.phase).toBe('waiting_reception');
+      expect(result.qualifiesPreviousAttack).toBe(phase === 'waiting_defense' ? true : undefined);
+    },
+  );
+
   it('distinguishes attack out and block out', () => {
     const target = { surface: 'outZone' as const, x: 0.9, y: 0.5 };
     expect(run({ skill: 'serve' }, { skill: 'reception' }, { skill: 'attack', outcome: '=', target }).attackInference).toBe('attack_out');

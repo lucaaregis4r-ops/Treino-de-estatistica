@@ -18,12 +18,22 @@ export interface MatchMetadata {
   readonly complexityProfileId: string;
   readonly competitionProfileId?: string;
   readonly competitionProfileVersion?: string;
-  /** Absent in legacy volleyball backups; absence is intentionally read as volleyball. */
+  /** Absent in legacy backups; infer volleyball only from persisted volleyball evidence. */
   readonly sport?: MatchSport;
   readonly footballOrientation?: readonly FootballPeriodOrientation[];
+  readonly futsalOrientation?: readonly MatchPeriodOrientation[];
+  readonly futsalSettings?: FutsalMatchSettings;
 }
 
-export interface FootballPeriodOrientation {
+export interface FutsalMatchSettings {
+  readonly ruleset: 'fifa-2025-26' | 'competition-custom';
+  readonly periodDurationMs: number;
+  readonly courtMeters?: { readonly length: number; readonly width: number };
+}
+
+export type FootballPeriodOrientation = MatchPeriodOrientation;
+
+export interface MatchPeriodOrientation {
   readonly period: 1 | 2;
   readonly teamAAttacksTo?: 'x120' | 'x0';
   readonly teamBAttacksTo?: 'x120' | 'x0';

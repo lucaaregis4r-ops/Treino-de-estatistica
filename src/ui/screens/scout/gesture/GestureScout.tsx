@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import type { ContactQuality } from '../../../../domain/scout/entities/ContactQuality';
+import { useState } from 'react';
 import type { SetLineup } from '../../../../domain/match/lineup/SetLineup';
 import type { Skill } from '../../../../domain/scout/entities/Skill';
 import type { SpatialMetadata } from '../../../../domain/scout/spatial/SpatialMetadata';
@@ -22,9 +23,13 @@ export interface GesturePlayerSuggestion {
 
 export interface GestureScoutProps {
   readonly sport?: 'volleyball' | 'football';
+  readonly playerStats?: { readonly actions: number; readonly points: number; readonly errors: number };
   readonly phase: string;
   readonly skill: Skill;
   readonly teamName?: string;
+  readonly sendingTeamId?: string;
+  readonly teamOptions?: readonly { readonly id: string; readonly name: string }[];
+  readonly onFreeBallTeamChange?: (teamId: string) => void;
   readonly trajectoryReady?: boolean;
   readonly attackOutcomeAvailable?: boolean;
   readonly suggestion: GesturePlayerSuggestion;
@@ -37,10 +42,14 @@ export interface GestureScoutProps {
   readonly lineup?: SetLineup;
   readonly rosterIds?: readonly string[];
   readonly liberoIds?: readonly string[];
+  readonly courtPlayers?: readonly {
+    readonly position: number;
+    readonly player?: { readonly id: string };
+  }[];
   readonly courtTeamNames?: readonly [string, string];
   readonly selectedPlayerId?: string;
   readonly playerSelection?: 'identified' | 'unidentified';
-  readonly outcome?: '#' | '=';
+  readonly outcome?: ContactQuality;
   readonly blockOutcome?: AttackBlockOutcome;
   readonly blockerIds?: readonly string[];
   readonly blockers?: readonly AttackBlockerOption[];
@@ -49,7 +58,7 @@ export interface GestureScoutProps {
   readonly draftKey?: number;
   readonly onTrajectory?: (trajectory: SpatialMetadata) => void;
   readonly onPlayerSelected?: (playerId?: string) => void;
-  readonly onAttackOutcome?: (outcome?: '#' | '=') => void;
+  readonly onAttackOutcome?: (outcome?: ContactQuality) => void;
   readonly onBlockOutcome?: (outcome: AttackBlockOutcome) => void;
   readonly onBlockersChange?: (ids: readonly string[]) => void;
   readonly onQuickAction?: (action: QuickAction) => void;
@@ -60,10 +69,14 @@ export interface GestureScoutProps {
 }
 
 export function GestureScout({
+  playerStats,
   sport = 'volleyball',
   phase,
   skill,
   teamName,
+  sendingTeamId,
+  teamOptions,
+  onFreeBallTeamChange,
   trajectoryReady,
   suggestion,
   playerLabels,
@@ -75,6 +88,7 @@ export function GestureScout({
   lineup,
   rosterIds,
   liberoIds,
+  courtPlayers,
   courtTeamNames,
   selectedPlayerId,
   playerSelection,
@@ -96,10 +110,8 @@ export function GestureScout({
   onUndo,
   onCommit,
 }: GestureScoutProps) {
-  const [selectedQuickAction, setSelectedQuickAction] = useState<QuickAction>();
-  useEffect(() => {
-    setSelectedQuickAction(undefined);
-  }, [draftKey]);
+  const [quickActionState, setQuickActionState] = useState<{ draftKey?: number; action?: QuickAction }>({ draftKey });
+  const selectedQuickAction = quickActionState.draftKey === draftKey ? quickActionState.action : undefined;
   const effectivePlayerId = playerSelection === 'unidentified'
     ? undefined
     : selectedPlayerId ?? suggestion.automatic;
@@ -116,11 +128,13 @@ export function GestureScout({
       } as const)[selectedFault]
     : undefined;
   function cancelQuickAction() {
-    setSelectedQuickAction(undefined);
+    setQuickActionState({ draftKey });
     onCancelQuickAction?.();
   }
   const instruction = selectedFault
     ? `${faultLabel} — ${teamName ?? 'Equipe não identificada'} · ponto: ${faultPointTeamName ?? 'adversário'}`
+    : freeBallSelected && !trajectoryReady
+    ? 'Trace o passe enviado ao outro lado da rede'
     : !trajectoryReady
     ? 'Trace a trajetória da bola'
     : !effectivePlayerId
@@ -136,20 +150,20 @@ export function GestureScout({
         const target = event.target as HTMLElement;
         if (target.closest('input,select,textarea,[data-native-keys]') || event.nativeEvent.isComposing) return;
         if (
-          (event.key === '#' || event.key === '=') && !event.repeat && onAttackOutcome) {
+          (event.key === '#' || event.key === '+' || event.key === '-' || event.key === '=') && !event.repeat && onAttackOutcome) {
           event.preventDefault();
           onAttackOutcome(outcome === event.key ? undefined : event.key);
         }
       }}
     >
       <div className="gesture-preparation-panel">
-        <div className="gesture-scout-status sr-only" role="status" data-phase={phase}>
-          <span>AÇÃO ATUAL</span>
-          <strong>{SKILL_LABELS[skill].toUpperCase()}{teamName ? ` — ${teamName}` : ''}</strong>
-          <small>{instruction}</small>
+        <div className="gesture-scout-status" role="status" data-phase={phase}>
+          <span>01 · Atleta da ação</span>
+          <strong>{playerLabel ?? 'Sem atleta identificado'}</strong>
+          <small>{SKILL_LABELS[skill]}{teamName ? ` · ${teamName}` : ''}</small>
         </div>
         <div className="gesture-control-group">
-          <strong>Atleta</strong>
+          <strong className="sr-only">Atleta</strong>
           <PlayerQuickPicker
             suggestion={suggestion}
             playerLabels={playerLabels}
@@ -158,12 +172,17 @@ export function GestureScout({
             lineup={lineup}
             rosterIds={rosterIds}
             liberoIds={liberoIds}
+            courtPlayers={courtPlayers}
             selectedPlayerId={selectedPlayerId}
             playerSelection={playerSelection}
             onSelect={onPlayerSelected}
             allowUnidentified
           />
         </div>
+        {playerStats && <div className="court-player-stats" key={effectivePlayerId} aria-label="Estatísticas do atleta selecionado">
+          <span><b>{playerStats.actions}</b>ações</span><span><b>{playerStats.points}</b>pontos</span><span><b>{playerStats.errors}</b>erros</span>
+          <small>Observados nesta partida</small>
+        </div>}
         {error && <p className="gesture-scout-error" role="alert">{error}</p>}
       </div>
       {sport === 'football' && <FootballContextDrawer />}
@@ -177,7 +196,7 @@ export function GestureScout({
         </label>
         {!selectedFault && (
           <div className="gesture-control-group">
-            <strong>Qualidade</strong>
+            <strong>03 · Resultado</strong>
             <AttackOutcomeBar
               skill={skill}
               outcome={outcome}
@@ -203,14 +222,23 @@ export function GestureScout({
           <QuickActionRail
             selectedAction={freeBallSelected ? 'free_ball' : selectedQuickAction}
             onAction={(action) => {
-              setSelectedQuickAction(selectedQuickAction === action ? undefined : action);
+              setQuickActionState({ draftKey, action: selectedQuickAction === action ? undefined : action });
               onQuickAction?.(action);
             }}
           />
+          {freeBallSelected && teamOptions && (
+            <label className="gesture-free-ball-team">
+              Equipe que envia a bola de graça
+              <select aria-label="Equipe que envia a bola de graça" value={sendingTeamId ?? ''} onChange={(event) => onFreeBallTeamChange?.(event.target.value)}>
+                {teamOptions.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+              </select>
+              <small>Registre o passe que cruzou a rede. A próxima ação será sugerida para o adversário.</small>
+            </label>
+          )}
         </div>
       </div>
       <div className="gesture-operation-bar" aria-label="Confirmação da ação">
-        <span>{selectedFault ? `${faultLabel} — ${teamName ?? 'Equipe não identificada'} · Ponto: ${faultPointTeamName ?? 'adversário'}` : trajectoryReady ? 'Trajetória pronta' : 'Trace a trajetória para registrar'}</span>
+        <span aria-live="polite">{selectedFault ? `${faultLabel} — ${teamName ?? 'Equipe não identificada'} · Ponto: ${faultPointTeamName ?? 'adversário'}` : instruction}</span>
         <button className="gesture-scout-undo" type="button" onClick={selectedFault ? cancelQuickAction : onUndo}>
           ↶ Desfazer
         </button>

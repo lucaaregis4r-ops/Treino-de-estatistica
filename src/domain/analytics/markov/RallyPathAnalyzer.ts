@@ -1,3 +1,4 @@
+import { analyticalContacts, projectRallyPathStates, type RallyPathModelOptions } from './RallyPathStates';
 import type { MatchEvent } from '../../match/events/MatchEvent';
 import { matchEventSequence } from '../../match/events/MatchEvent';
 import { projectEffectiveMatchEvents } from '../../match/events/ScoutTimeline';
@@ -18,9 +19,22 @@ export interface PathStateDescriptor {
   readonly skill: RallyPathSkill | 'terminal';
   readonly quality?: string;
   readonly terminal?: boolean;
+  readonly originRegionId?: string;
+  readonly targetRegionId?: string;
+  readonly exchange?: {
+    readonly teamId: string;
+    readonly skill: RallyPathSkill;
+    readonly pressureQuality?: string;
+    readonly originRegionId?: string;
+    readonly targetRegionId?: string;
+  };
 }
 
 export interface RallyPathContact {
+  readonly analyticalStepId?: string;
+  readonly qualitySource?: 'recorded' | 'response';
+  readonly recordedQuality?: string;
+  readonly responsePressure?: { readonly quality: string; readonly sourceEventId: string };
   readonly sourceEventId: string;
   readonly teamId: string;
   readonly skill: RallyPathSkill;
@@ -414,8 +428,9 @@ export function buildRallyPathModel(
   rallies: readonly RallyPathRally[],
   referenceTeamId: string,
   setNumber?: number,
+  options: RallyPathModelOptions = {},
 ): RallyPathModel {
-  const scoped = scopedRallies(rallies, setNumber);
+  const scoped = scopedRallies(projectRallyPathStates(rallies, options), setNumber);
   const descriptors = stateDescriptorMap(scoped.eligible);
   const counts = new Map<
     string,
@@ -424,7 +439,7 @@ export function buildRallyPathModel(
   const rowTotals = new Map<string, number>();
   scoped.eligible.forEach((rally) => {
     const states = [
-      ...rally.contacts.map((contact) => contact.state),
+      ...analyticalContacts(rally.contacts).map((contact) => contact.state),
       ...(rally.terminal ? [rally.terminal.state] : []),
     ];
     states.slice(0, -1).forEach((from, index) => {
@@ -436,6 +451,9 @@ export function buildRallyPathModel(
       rowTotals.set(from.key, (rowTotals.get(from.key) ?? 0) + 1);
     });
   });
+  // Spatial states make the matrix sparse: visit observed outgoing edges only.
+  const outgoing = new Map<string, { to: PathStateDescriptor; count: number }[]>();
+  counts.forEach(item => outgoing.set(item.from.key, [...(outgoing.get(item.from.key) ?? []), item]));
   const transient = [...descriptors.values()].filter((item) => !item.terminal);
   const terminal = [...descriptors.values()].filter((item) => item.terminal);
   if (scoped.eligible.length === 0) {
@@ -503,8 +521,7 @@ export function buildRallyPathModel(
     transient.forEach((from) => {
       const denominator = rowTotals.get(from.key) ?? 0;
       if (!denominator) return;
-      const value = [...counts.values()]
-        .filter((item) => item.from.key === from.key)
+      const value = (outgoing.get(from.key) ?? [])
         .reduce(
           (sum, item) => sum + (item.count / denominator) * (values.get(item.to.key) ?? 0),
           0,
@@ -521,8 +538,7 @@ export function buildRallyPathModel(
   }
   const residual = transient.reduce((max, from) => {
     const denominator = rowTotals.get(from.key) ?? 0;
-    const expected = [...counts.values()]
-      .filter((item) => item.from.key === from.key)
+    const expected = (outgoing.get(from.key) ?? [])
       .reduce((sum, item) => sum + (item.count / denominator) * (values.get(item.to.key) ?? 0), 0);
     return Math.max(max, Math.abs(expected - (values.get(from.key) ?? 0)));
   }, 0);
@@ -561,12 +577,12 @@ function matchesFocus(contact: RallyPathContact, filters: RallyPathFocusFilters)
   if (filters.rotation !== undefined && contact.rotation !== filters.rotation) return false;
   if (filters.spatialRegionId !== undefined) {
     const point =
-      filters.spatialRole === 'origin' ? contact.spatial.origin : contact.spatial.target;
+      (filters.spatialRole ?? 'origin') === 'origin' ? contact.spatial.origin : contact.spatial.target;
     if (filters.spatialRegionId === '__outside__') {
       if (point?.surface !== 'outZone') return false;
     } else {
       const region =
-        filters.spatialRole === 'origin'
+        (filters.spatialRole ?? 'origin') === 'origin'
           ? contact.spatial.originRegionId
           : contact.spatial.targetRegionId;
       if (region !== filters.spatialRegionId) return false;
@@ -587,11 +603,13 @@ export function selectRallyPathFocus(
   model.eligibleRallies.forEach((rally) => {
     rally.contacts.forEach((contact, index) => {
       if (!matchesFocus(contact, filters)) return;
-      const nextState = rally.contacts[index + 1]?.state ?? terminalFor(rally);
+      const future = analyticalContacts(rally.contacts.slice(index + 1).filter(item =>
+        !contact.analyticalStepId || item.analyticalStepId !== contact.analyticalStepId));
+      const nextState = future[0]?.state ?? terminalFor(rally);
       if (!nextState) return;
       const path = [
         contact.state,
-        ...rally.contacts.slice(index + 1).map((item) => item.state),
+        ...future.map((item) => item.state),
         ...(rally.terminal ? [rally.terminal.state] : []),
       ];
       occurrences.push({
@@ -800,12 +818,12 @@ export function buildRallyPathFlow(
     (left, right) =>
       left.depth - right.depth || right.count - left.count || left.id.localeCompare(right.id),
   );
-  const keep = new Set(
-    ordered
-      .filter((node) => node.kind === 'state')
-      .slice(0, 12)
-      .map((node) => node.id),
-  );
+  const stateNodes = ordered.filter((node) => node.kind === 'state');
+  const keep = new Set<string>();
+  for (let d = 0; d <= horizon; d++) {
+    const depthStates = stateNodes.filter((node) => node.depth === d).slice(0, 10);
+    depthStates.forEach((node) => keep.add(node.id));
+  }
   const remap = (id: string): string =>
     keep.has(id) || raw.nodes.get(id)?.kind === 'other'
       ? id

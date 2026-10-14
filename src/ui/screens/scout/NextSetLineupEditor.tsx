@@ -21,10 +21,16 @@ type Selection = Record<CourtRotationPosition, string>;
 
 function initialSelection(workspace: MatchWorkspace, teamId: string): Selection {
   const lineup = workspace.currentLineups.find((candidate) => candidate.teamId === teamId);
+  const liberos = workspace.state.metadata.liberoPlayerIds ?? [];
   return Object.fromEntries(
     ROTATION_POSITIONS.map((position) => {
       const slotId = lineup?.positions[position];
-      return [position, slotId ? (lineup?.slots[slotId]?.playerId ?? '') : ''];
+      const slot = slotId ? lineup?.slots[slotId] : undefined;
+      let playerId = slot?.playerId ?? '';
+      if (playerId && liberos.includes(playerId) && slot?.originalPlayerId) {
+        playerId = slot.originalPlayerId;
+      }
+      return [position, playerId];
     }),
   ) as Selection;
 }
@@ -62,6 +68,8 @@ export function NextSetLineupEditor({ workspace, busy, onConfirm }: NextSetLineu
   const [teamA, teamB] = workspace.teams;
   const observesTeamA = workspace.coverage.mode !== 'team_b';
   const observesTeamB = workspace.coverage.mode !== 'team_a';
+  const teamAHasPlayers = workspace.players.some((player) => player.teamId === teamA.id && player.active !== false);
+  const teamBHasPlayers = workspace.players.some((player) => player.teamId === teamB.id && player.active !== false);
   const [teamASelection, setTeamASelection] = useState(() => initialSelection(workspace, teamA.id));
   const [teamBSelection, setTeamBSelection] = useState(() => initialSelection(workspace, teamB.id));
   const [servingTeamId, setServingTeamId] = useState(workspace.state.servingTeamId ?? teamA.id);
@@ -73,10 +81,20 @@ export function NextSetLineupEditor({ workspace, busy, onConfirm }: NextSetLineu
     selection: Selection,
     setSelection: (value: Selection) => void,
   ) {
+    const liberos = workspace.state.metadata.liberoPlayerIds ?? [];
     const players = workspace.players
-      .filter((player) => player.teamId === teamId && player.active !== false)
+      .filter(
+        (player) =>
+          player.teamId === teamId &&
+          player.active !== false &&
+          player.registeredRole !== 'libero' &&
+          !liberos.includes(player.id),
+      )
       .slice()
       .sort((left, right) => left.number - right.number);
+    if (players.length === 0) {
+      return <p className="next-set-empty-team">{teamName}: sem atletas cadastrados. O set pode começar sem escalação desta equipe.</p>;
+    }
     return (
       <fieldset>
         <legend>{teamName}</legend>
@@ -114,18 +132,21 @@ export function NextSetLineupEditor({ workspace, busy, onConfirm }: NextSetLineu
     event.preventDefault();
     const teamAPlayers = Object.values(teamASelection);
     const teamBPlayers = Object.values(teamBSelection);
+    const validSelection = (players: string[]) => players.every(Boolean) && new Set(players).size === 6;
+    const includeTeamA = teamAHasPlayers && (observesTeamA || teamAPlayers.some(Boolean));
+    const includeTeamB = teamBHasPlayers && (observesTeamB || teamBPlayers.some(Boolean));
     if (
-      (observesTeamA && (teamAPlayers.some((playerId) => !playerId) || new Set(teamAPlayers).size !== 6)) ||
-      (observesTeamB && (teamBPlayers.some((playerId) => !playerId) || new Set(teamBPlayers).size !== 6))
+      (includeTeamA && !validSelection(teamAPlayers)) ||
+      (includeTeamB && !validSelection(teamBPlayers))
     ) {
-      setError('Escolha seis atletas diferentes para cada equipe observada.');
+      setError('Escolha seis atletas diferentes para cada equipe com escalação informada.');
       return;
     }
     setError('');
     await onConfirm({
       servingTeamId,
-      ...(observesTeamA ? { teamALineup: lineupInput(workspace, teamA.id, teamASelection) } : {}),
-      ...(observesTeamB ? { teamBLineup: lineupInput(workspace, teamB.id, teamBSelection) } : {}),
+      ...(includeTeamA ? { teamALineup: lineupInput(workspace, teamA.id, teamASelection) } : {}),
+      ...(includeTeamB ? { teamBLineup: lineupInput(workspace, teamB.id, teamBSelection) } : {}),
     });
   }
 

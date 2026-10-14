@@ -1,3 +1,4 @@
+import { VOLLEYBALL_ZONE_ORDER } from '../../../components/volleyballCourtGeometry';
 import { useState } from 'react';
 import type { SetLineup } from '../../../../domain/match/lineup/SetLineup';
 import type { GesturePlayerSuggestion } from './GestureScout';
@@ -14,6 +15,7 @@ export function PlayerQuickPicker({
   lineup,
   rosterIds,
   liberoIds = [],
+  courtPlayers,
 }: {
   readonly suggestion: GesturePlayerSuggestion;
   readonly playerLabels?: Readonly<Record<string, string>>;
@@ -26,6 +28,10 @@ export function PlayerQuickPicker({
   readonly lineup?: SetLineup;
   readonly rosterIds?: readonly string[];
   readonly liberoIds?: readonly string[];
+  readonly courtPlayers?: readonly {
+    readonly position: number;
+    readonly player?: { readonly id: string };
+  }[];
 }) {
   const [chosenLibero, setChosenLibero] = useState<string>();
   const players = rosterIds ?? [...suggestion.highlighted, ...suggestion.others];
@@ -35,11 +41,38 @@ export function PlayerQuickPicker({
     liberos.find((id) => id === chosenLibero) ??
     liberos.find((id) => id === suggestion.automatic) ??
     liberos[0];
-  const positions = [4, 3, 2, 5, 6, 1] as const;
-  const onCourt = positions.map((position) => ({
-    position,
-    playerId: lineup?.slots[lineup.positions[position]]?.playerId,
-  }));
+  const positions = VOLLEYBALL_ZONE_ORDER;
+  const onCourt = positions.map((position) => {
+    if (courtPlayers) {
+      const match = courtPlayers.find((c) => c.position === position);
+      let playerId = match?.player?.id;
+      if ([4, 3, 2].includes(position) && playerId && liberos.includes(playerId)) {
+        playerId = undefined;
+      }
+      if (playerId) return { position, playerId };
+    }
+    const slot = lineup?.slots[lineup.positions[position]];
+    let playerId = slot?.playerId;
+    if ([4, 3, 2].includes(position) && playerId && liberos.includes(playerId)) {
+      if (slot?.originalPlayerId && !liberos.includes(slot.originalPlayerId)) {
+        playerId = slot.originalPlayerId;
+      } else {
+        playerId = undefined;
+      }
+    }
+    return { position, playerId };
+  });
+
+  const occupiedIds = new Set(onCourt.map((c) => c.playerId).filter(Boolean));
+  for (const cell of onCourt) {
+    if ([4, 3, 2].includes(cell.position) && (!cell.playerId || liberos.includes(cell.playerId))) {
+      const fallback = players.find((id) => !liberos.includes(id) && !occupiedIds.has(id));
+      if (fallback) {
+        cell.playerId = fallback;
+        occupiedIds.add(fallback);
+      }
+    }
+  }
   const reserves = players.filter(
     (id) => !liberos.includes(id) && !onCourt.some((cell) => cell.playerId === id),
   );
@@ -88,7 +121,9 @@ export function PlayerQuickPicker({
                   <span className="gesture-player-empty" key={position}>
                     P{position}
                     <small>
-                      {playerId && liberos.includes(playerId) ? 'Líbero abaixo' : 'Sem atleta'}
+                      {playerId && liberos.includes(playerId) && ![4, 3, 2].includes(position)
+                        ? 'Líbero abaixo'
+                        : 'Sem atleta'}
                     </small>
                   </span>
                 ),
@@ -125,10 +160,10 @@ export function PlayerQuickPicker({
           </div>
         )}
         {lineup && reserves.length > 0 && (
-          <details className="gesture-reserves" data-native-keys>
-            <summary>Reservas ({reserves.length})</summary>
+          <section className="gesture-reserves" data-native-keys>
+            <strong>Reservas ({reserves.length})</strong>
             <div className="gesture-player-grid">{reserves.map((id) => playerButton(id))}</div>
-          </details>
+          </section>
         )}
       </div>
       {allowUnidentified && (
@@ -142,7 +177,7 @@ export function PlayerQuickPicker({
           Sem atleta identificado
         </button>
       )}
-      <small className={`gesture-selected-name${playerNames ? ' sr-only' : ''}`}>
+      <small className="gesture-selected-name" key={effectiveSelectedPlayerId ?? 'unidentified'} aria-live="polite">
         {effectiveSelectedPlayerId
           ? playerTitles?.[effectiveSelectedPlayerId]
           : 'Sem atleta identificado'}

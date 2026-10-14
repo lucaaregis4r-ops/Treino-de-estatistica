@@ -75,8 +75,8 @@ describe('M2 Markov and spatial value', () => {
           origin: { surface: 'court', x: 0.2, y: 0.75 },
           destination: {
             surface: 'court',
-            x: inRegionThree ? 0.5 : 0.16,
-            y: inRegionThree ? 0.25 : 0.75,
+            x: inRegionThree ? 0.625 : 0.875,
+            y: inRegionThree ? 0.5 : 5 / 6,
           },
         },
       });
@@ -105,14 +105,14 @@ describe('M2 Markov and spatial value', () => {
     const events = [
       event('a1', 'r1', 1, 'attack', {
         spatial: {
-          origin: { surface: 'court', x: 1 / 6, y: 1 / 4 },
-          destination: { surface: 'court', x: 5 / 6, y: 3 / 4 },
+          origin: { surface: 'court', x: .375, y: 1 / 6 },
+          destination: { surface: 'court', x: .875, y: 1 / 6 },
         },
       }),
       event('a2', 'r2', 1, 'attack', {
         spatial: {
-          origin: { surface: 'court', x: 1 / 6, y: 1 / 4 },
-          destination: { surface: 'court', x: 1 / 6, y: 3 / 4 },
+          origin: { surface: 'court', x: .375, y: 1 / 6 },
+          destination: { surface: 'court', x: .875, y: 5 / 6 },
         },
       }),
       event('a3', 'r3', 1, 'attack'),

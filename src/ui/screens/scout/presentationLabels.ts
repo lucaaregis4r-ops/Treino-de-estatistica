@@ -16,7 +16,7 @@ export const EVALUATION_LABELS: Readonly<Partial<Record<Skill, Readonly<Record<s
   set: { '#': '0–1 bloqueador', '+': 'Jogável', '=': 'Erro' },
   attack: { '#': 'Ponto', '+': 'Positivo', '!': 'Coberto', '-': 'Defendido', '/': 'Abafado pelo bloqueio', '=': 'Erro' },
   block: { '#': 'Ponto', '+': 'Positivo', '!': 'Cobertura', '-': 'Sem efeito', '/': 'Violação', '=': 'Erro' },
-  dig: { '#': 'Perfeita', '+': 'Positiva', '!': 'Limitada', '-': 'Devolvida', '/': 'Muito negativa', '=': 'Erro' },
+  dig: { '#': 'Perfeita', '+': 'Positiva', '!': 'Limitada', '-': 'Negativa', '/': 'Muito negativa', '=': 'Erro' },
   free_ball: { '#': 'Alvo perfeito', '+': 'Controlada', '!': 'Neutra', '-': 'Fácil', '/': 'Muito negativa', '=': 'Erro' },
 };
 

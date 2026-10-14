@@ -1,0 +1,22 @@
+.futsal-surface {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #236b46;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: .35rem;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 15%);
+}
+.futsal-surface[data-flipped='true'] { transform: rotate(180deg); }
+.futsal-court-lines, .futsal-trajectory { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.futsal-court-lines { fill: none; stroke: rgb(255 255 255 / 88%); stroke-width: .11; }
+.futsal-court-lines .futsal-court-boundary { fill: rgb(24 93 59 / 32%); }
+.futsal-court-lines .futsal-court-spot { fill: rgb(255 255 255 / 94%); stroke: none; }
+.futsal-court-lines .futsal-ten-metre-spot { fill: #ffd166; }
+.futsal-court-lines .futsal-distance-mark { fill: rgb(255 255 255 / 88%); }
+.futsal-court-lines .futsal-goal { fill: rgb(255 255 255 / 12%); }
+.futsal-trajectory line { stroke: #ffd166; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.futsal-marker { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); box-shadow: 0 0 0 3px #e76f51; pointer-events: none; }
+.futsal-marker-destination { box-shadow: 0 0 0 3px #ffd166; }

@@ -59,11 +59,8 @@ export class SequenceAnalyticsService {
       ...tacticalRally.rallies.map(
         (rally) => `${rally.rallyId}:${rally.winnerTeamId ?? ''}:${rally.servingTeamId ?? ''}`,
       ),
-      ...events.map((event) =>
-        'type' in event
-          ? `${event.type}:${event.type === 'scout_registered' ? `${event.event.id}:${event.event.sequence}:${event.event.timestamp}:${event.event.evaluation ?? ''}:${event.event.outcome ?? ''}` : `${event.id}:${event.sequence}:${event.timestamp}`}`
-          : `${event.id}:${event.sequence}:${event.timestamp}:${event.evaluation ?? ''}:${event.outcome ?? ''}`,
-      ),
+      // Corrections to grades, teams, athletes or coordinates must invalidate every projection.
+      ...events.map(event => JSON.stringify(event)),
     ].join('|');
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;

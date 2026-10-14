@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import { ToolDialog } from '../../components/ToolDialog';
 import type { MatchWorkspace } from '../../../application/ScoutTrainerService';
 import type { Skill } from '../../../domain/scout/entities/Skill';
 import type { ScoutCoverageMode } from '../../../domain/scout/events/ScoutEvent';
@@ -6,16 +6,6 @@ import type { MatchContextAdjustmentInput } from '../../../application/ScoutTrai
 import { QuickMatchAdjustment } from './QuickMatchAdjustment';
 
 const ROTATION_BY_SETTER_POSITION = Object.freeze({ 1: 1, 6: 2, 5: 3, 4: 4, 3: 5, 2: 6 });
-
-function closeDisclosure(event: KeyboardEvent<HTMLDetailsElement>) {
-  if (event.key !== 'Escape') return;
-  const details = (event.target as HTMLElement).closest('details');
-  if (!details?.open) return;
-  event.preventDefault();
-  event.stopPropagation();
-  details.open = false;
-  details.querySelector('summary')?.focus();
-}
 
 interface MatchContextBarProps {
   readonly workspace: MatchWorkspace;
@@ -25,6 +15,7 @@ interface MatchContextBarProps {
   readonly teamCodes?: { readonly home: string; readonly away: string };
   readonly onActiveTeamChange: (teamId: string) => void;
   readonly onScoreAdjust: (teamId: string, delta: number) => Promise<void>;
+  readonly onSwapCourtSides: () => Promise<void>;
   readonly onAdjustContext?: (input: MatchContextAdjustmentInput) => Promise<void>;
   readonly onRecoverySkillChange: (skill?: Skill) => void;
   readonly coverageMode: ScoutCoverageMode;
@@ -39,6 +30,7 @@ export function MatchContextBar({
   teamCodes,
   onActiveTeamChange,
   onScoreAdjust,
+  onSwapCourtSides,
   onAdjustContext,
   onRecoverySkillChange,
   coverageMode,
@@ -102,12 +94,15 @@ export function MatchContextBar({
               ? 'Configure o próximo set abaixo'
               : 'Set em andamento'}
         </span>
-      </div>
-
+      <ToolDialog label="Ajustes da partida">
       <div className="match-context-secondary-row">
         {onAdjustContext && <QuickMatchAdjustment workspace={workspace} busy={busy} onApply={onAdjustContext} />}
-        <details className="match-context-details" data-native-keys onKeyDown={closeDisclosure}>
-          <summary>Detalhes da partida</summary>
+        <div className="court-sides-control">
+          <span>Esquerda: <strong>{leftTeam?.name ?? '—'}</strong> · Direita: <strong>{rightTeam?.name ?? '—'}</strong></span>
+          <button type="button" onClick={() => void onSwapCourtSides()} disabled={busy || Boolean(setCompleted) || workspace.state.matchCompleted}>
+            Trocar lados
+          </button>
+        </div>
           <div className="match-context-details-content">
             <span>Set: <strong>{workspace.state.currentSet}</strong></span>
             <span className="court-orientation">
@@ -146,8 +141,8 @@ export function MatchContextBar({
                 ))}
               </div>
             )}
-            <details className="score-adjustment">
-              <summary>Ajustar placar</summary>
+            <section className="score-adjustment">
+              <h3>Ajustar placar</h3>
               <div>
                 {[teamA, teamB].map((team, index) => {
                   const score = index === 0 ? workspace.state.score.teamA : workspace.state.score.teamB;
@@ -175,14 +170,11 @@ export function MatchContextBar({
                   );
                 })}
               </div>
-            </details>
+            </section>
           </div>
-        </details>
 
-        <details className="recovery-tools" data-native-keys onKeyDown={closeDisclosure}>
-          <summary>Partida precisa de correção</summary>
           <div className="recovery-content">
-          <p>Use estas ferramentas somente para recuperar uma sequência inconsistente.</p>
+          <h3>Retomar sequência</h3><p>Escolha o fundamento para retomar uma sequência interrompida.</p>
           <div className="recovery-next-action" role="group" aria-label="Próxima ação">
             <span>Próxima ação:</span>
             {([
@@ -201,7 +193,8 @@ export function MatchContextBar({
             </button>
           </div>
           </div>
-        </details>
+      </div>
+      </ToolDialog>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import type { ScoutEvent } from '../../scout/events/ScoutEvent';
-import { CourtZoneResolver } from '../../scout/tactical/CourtGeometry';
+import { CourtZoneResolver, displayPointToCourtLocation } from '../../scout/tactical/CourtGeometry';
 import type { CourtLocation } from '../../scout/tactical/TacticalMetadata';
 import { tacticalValue } from '../../scout/tactical/TacticalMetadataAdapter';
 import type { ZoneSystemProfile } from '../../scout/tactical/ZoneSystemProfile';
@@ -39,7 +39,10 @@ function region(
   profile: ZoneSystemProfile,
 ): string | undefined {
   if (point && point.surface !== 'serviceZone' && point.surface !== 'outZone') {
-    return new CourtZoneResolver().resolve(point, profile)?.id;
+    const local = point.surface === 'court'
+      ? displayPointToCourtLocation(point, point.x < .5 ? 'origin' : 'target')
+      : point;
+    return new CourtZoneResolver().resolve(local, profile)?.id;
   }
   return location?.zoneId;
 }

@@ -1,5 +1,6 @@
 import type { CanonicalFootballEvent, FootballAction, FootballTacticalContext, StatsBombLocation } from './StatsBombContract';
 import type { FootballOutcome } from './FootballRecorder';
+import type { EssentialActionCode } from '../essential/EssentialScout';
 
 export type BallControl = { readonly kind: 'controlled'; readonly teamId: string; readonly playerId?: string } | { readonly kind: 'contested' | 'unknown' } | { readonly kind: 'dead_ball'; readonly restartTeamId?: string };
 export const FOOTBALL_POSSESSION_PROTOCOL = {
@@ -64,16 +65,19 @@ export function outcomeName(event: CanonicalFootballEvent): string | undefined {
   return typeof value === 'string' ? value : value && typeof value === 'object' && 'name' in value ? String(value.name) : event.type.id === 30 ? 'Complete' : undefined;
 }
 export function readFootballOutcome(event: CanonicalFootballEvent): FootballOutcome {
+  if (event.scout_trainer.essential_pass_result === 'unknown') return 'observed';
   const names: Record<string, FootballOutcome> = { Complete: 'complete', Incomplete: 'incomplete', Goal: 'goal', Saved: 'saved', Blocked: 'blocked', 'Off T': 'off_target', Post: 'post', Won: 'won', Lost: 'lost' };
   return names[outcomeName(event) ?? ''] ?? 'observed';
 }
 export const allowedOutcomes: Record<FootballAction, readonly FootballOutcome[]> = {
-  pass: ['complete', 'incomplete'], carry: ['observed'], dribble: ['won', 'lost'], duel: ['won', 'lost'], shot: ['pending', 'goal', 'saved', 'blocked', 'off_target', 'post'], interception: ['observed'], ball_recovery: ['observed'], loss: ['observed'], foul: ['observed'], substitution: ['observed'],
+  pass: ['complete', 'incomplete', 'observed'], carry: ['observed'], dribble: ['won', 'lost', 'observed'], duel: ['won', 'lost'], shot: ['pending', 'goal', 'saved', 'blocked', 'off_target', 'post'], interception: ['observed'], ball_recovery: ['observed'], loss: ['observed'], foul: ['observed'], restart: ['observed'], substitution: ['observed'],
 };
-export function validateFootballDraft(input: { action: FootballAction; outcome: FootballOutcome; location?: { x: number; y: number }; endLocation?: { x: number; y: number } }): string | undefined {
+export function validateFootballDraft(input: { action: FootballAction; outcome: FootballOutcome; location?: { x: number; y: number }; endLocation?: { x: number; y: number }; essentialCode?: EssentialActionCode }): string | undefined {
   if (!allowedOutcomes[input.action]?.includes(input.outcome)) return 'Resultado incompatível com a ação.';
-  if (!['loss', 'foul', 'substitution', 'shot'].includes(input.action) && !input.location) return 'Marque a localização.';
-  if (['pass', 'carry'].includes(input.action) && !input.endLocation) return 'Marque origem e destino.';
+  const essentialSparse = input.essentialCode !== undefined;
+  if (!essentialSparse && !['loss', 'foul', 'substitution', 'shot'].includes(input.action) && !input.location) return 'Marque a localização.';
+  if (!essentialSparse && ['pass', 'carry'].includes(input.action) && !input.endLocation) return 'Marque origem e destino.';
+  if (input.endLocation && !input.location && !['PF', 'P', 'C'].includes(input.essentialCode ?? '')) return 'Destino exige origem observada.';
   if ([input.location, input.endLocation].some(p => p && (![p.x, p.y].every(Number.isFinite) || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1))) return 'Coordenadas fora do campo.';
 }
 export function timestampMs(timestamp: string): number {
@@ -114,7 +118,7 @@ function markFor(event: CanonicalFootballEvent, before: BallControl, after: Ball
   const position = observation?.position ?? event.location;
   return {
     eventId: event.id,
-    captureSequence: event.scout_trainer.capture_sequence,
+    captureSequence: event.scout_trainer?.capture_sequence ?? event.index,
     period: event.period,
     timestamp: event.timestamp,
     before,
@@ -157,12 +161,12 @@ export function projectControl(events: readonly CanonicalFootballEvent[]) {
   const controlledMs: Record<string, number> = {};
   let excludedMs = 0;
   let position: { location: StatsBombLocation; timestamp: string; eventId: string } | undefined;
-  for (const event of [...events].sort((left, right) => left.index - right.index || left.scout_trainer.capture_sequence - right.scout_trainer.capture_sequence)) {
-    const obs: FootballObservation | undefined = event.scout_trainer.observation;
+  for (const event of [...events].sort((left, right) => left.index - right.index || (left.scout_trainer?.capture_sequence ?? left.index) - (right.scout_trainer?.capture_sequence ?? right.index))) {
+    const obs: FootballObservation | undefined = event.scout_trainer?.observation;
     const samePeriod = previous?.period === event.period;
     if (!samePeriod) { finish(segment, true); segment = undefined; ballControl = { kind: 'unknown' }; }
     if (obs?.restart) { finish(segment, true); segment = undefined; ballControl = { kind: 'dead_ball', restartTeamId: obs.before?.kind === 'controlled' ? obs.before.teamId : undefined }; }
-    if (previous && samePeriod && obs?.coverage !== undefined && previous.scout_trainer?.observation?.coverage === 'continuous') {
+    if (previous && samePeriod && obs?.coverage === 'continuous' && previous.scout_trainer?.observation?.coverage === 'continuous') {
       const duration = Math.max(0, timestampMs(event.timestamp) - timestampMs(previous.timestamp));
       if (ballControl.kind === 'controlled') controlledMs[ballControl.teamId] = (controlledMs[ballControl.teamId] ?? 0) + duration;
       else excludedMs += duration;
@@ -201,13 +205,19 @@ export function mergeFootballCorrection(previous: CanonicalFootballEvent, next: 
     if (!(key in next)) delete merged[key];
   }
   if (previous.type.id === next.type.id) {
-    if (next.shot) merged.shot = { ...previous.shot, ...next.shot };
-    if (next.pass) { merged.pass = { ...previous.pass, ...next.pass }; if (!next.pass.outcome) delete (merged.pass as { outcome?: unknown }).outcome; }
+    if (next.shot) { merged.shot = { ...previous.shot, ...next.shot }; if (!next.shot.end_location) delete (merged.shot as { end_location?: unknown }).end_location; }
+    if (next.pass) { merged.pass = { ...previous.pass, ...next.pass }; if (!next.pass.outcome) delete (merged.pass as { outcome?: unknown }).outcome; if (!next.pass.end_location) delete (merged.pass as { end_location?: unknown }).end_location; }
   }
   const tactical = next.scout_trainer.tactical_context ?? previous.scout_trainer?.tactical_context;
-  return { ...merged, scout_trainer: { ...previous.scout_trainer, ...next.scout_trainer,
+  const extension = { ...previous.scout_trainer, ...next.scout_trainer,
     ...(tactical ? { tactical_context: tactical } : {}),
-    observation: { ...previous.scout_trainer?.observation, ...next.scout_trainer.observation } } };
+    observation: { ...previous.scout_trainer?.observation, ...next.scout_trainer.observation } };
+  if (previous.scout_trainer.essential_code || next.scout_trainer.essential_code) {
+    for (const field of ['essential_shirt_number', 'essential_third', 'essential_third_anchor', 'essential_qualifiers', 'essential_pass_result', 'essential_progression_type', 'essential_progression_result', 'essential_foul_card', 'essential_restart_type', 'essential_destination'] as const) {
+      if (!(field in next.scout_trainer)) delete (extension as { [key: string]: unknown })[field];
+    }
+  }
+  return { ...merged, scout_trainer: extension };
 }
 
 /** Internal IDs are authoritative; numeric IDs are stable interchange aliases. */

@@ -5,6 +5,16 @@ import { GestureScout } from './GestureScout';
 afterEach(cleanup);
 
 describe('GestureScout', () => {
+  it('lets the scout choose which team sends a free ball after a pass', () => {
+    const onFreeBallTeamChange = vi.fn();
+    render(<GestureScout phase="free_ball" skill="free_ball" freeBallSelected
+      sendingTeamId="team_a" teamOptions={[{ id: 'team_a', name: 'Olympico' }, { id: 'team_b', name: 'Adversário' }]}
+      suggestion={{ highlighted: [], others: [] }} onFreeBallTeamChange={onFreeBallTeamChange} />);
+    expect(screen.getByText('Registre o passe que cruzou a rede. A próxima ação será sugerida para o adversário.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Equipe que envia a bola de graça'), { target: { value: 'team_b' } });
+    expect(onFreeBallTeamChange).toHaveBeenCalledWith('team_b');
+  });
+
   it('accepts both quality symbols for free ball', () => {
     const onOutcome = vi.fn();
     const { getByRole } = render(<GestureScout phase="free_ball" skill="free_ball"
@@ -53,12 +63,11 @@ describe('GestureScout', () => {
       />,
     );
 
-    fireEvent.click(getByText('Outras ações'));
     const netTouch = getByRole('button', { name: 'Toque na rede' });
     fireEvent.click(netTouch);
 
     expect(netTouch).toHaveAttribute('aria-pressed', 'true');
-    expect(getByText('Outras ações')).toHaveAttribute('aria-pressed', 'true');
+    expect(getByRole('group', { name: 'Infrações' })).toBeInTheDocument();
     expect(screen.queryByRole('application')).not.toBeInTheDocument();
     expect(getByText('Toque na rede — Equipe não identificada · Ponto: adversário')).toBeInTheDocument();
   });
@@ -153,7 +162,7 @@ describe('GestureScout', () => {
     expect(onOutcome).toHaveBeenNthCalledWith(2, '=');
   });
 
-  it('shows human action language and keeps secondary actions collapsed', () => {
+  it('shows human action language and exposes fault actions directly', () => {
     const { getByRole, getByText } = render(
       <GestureScout
         phase="dig"
@@ -162,10 +171,24 @@ describe('GestureScout', () => {
         suggestion={{ highlighted: [], others: ['p5'] }}
       />,
     );
-    expect(getByText('DEFESA — Equipe A')).toBeInTheDocument();
+    expect(getByText('Defesa · Equipe A')).toBeInTheDocument();
     expect(getByText('Trace a trajetória da bola')).toBeInTheDocument();
-    expect(getByRole('group', { name: 'Ações rápidas' }).querySelector('details')).not.toHaveAttribute('open');
+    expect(getByRole('group', { name: 'Ações rápidas' }).querySelector('details')).toBeNull();
     expect(getByRole('button', { name: 'Bola de graça' })).toBeInTheDocument();
     expect(getByRole('button', { name: 'Registrar · Enter' })).toBeInTheDocument();
+  });
+});
+
+
+describe('Four contact grades', () => {
+  it.each(['reception', 'dig'] as const)('offers all four grades for %s via buttons and keyboard', skill => {
+    const onOutcome = vi.fn();
+    render(<GestureScout phase={skill} skill={skill} suggestion={{ highlighted: [], others: [] }} onAttackOutcome={onOutcome} />);
+    for (const grade of ['#', '+', '-', '=']) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`Qualidade \\${grade}`) }));
+      expect(onOutcome).toHaveBeenLastCalledWith(grade);
+      fireEvent.keyDown(screen.getByRole('region', { name: 'Scout gestual' }), { key: grade });
+      expect(onOutcome).toHaveBeenLastCalledWith(grade);
+    }
   });
 });

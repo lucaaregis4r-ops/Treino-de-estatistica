@@ -28,11 +28,7 @@ export function QuickActionRail({
       >
         Bola de graça
       </button>
-      <details>
-        <summary aria-pressed={selectedAction !== undefined && selectedAction !== 'free_ball'}>
-          Outras ações
-        </summary>
-        <div>
+      <div className="gesture-fault-actions" role="group" aria-label="Infrações">
           {secondaryActions.map(([action, label]) => (
             <button
               key={action}
@@ -43,8 +39,7 @@ export function QuickActionRail({
               {label}
             </button>
           ))}
-        </div>
-      </details>
+      </div>
     </div>
   );
 }

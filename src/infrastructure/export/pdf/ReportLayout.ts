@@ -79,6 +79,32 @@ export function drawSummary(pdf: PdfDocument, report: MatchReportModel) {
     'Percentuais acompanhados de [numerador/denominador]. “-” indica ausência de amostra.',
     8,
   );
+  pdf.ensure(125);
+  pdf.heading('DESTAQUES OBSERVADOS POR ATLETA');
+  let hasHighlights = false;
+  for (const team of report.teams) {
+    const athletes = report.players.filter((player) => player.teamId === team.id).map((player) => {
+      const attack = report.attack.find((row) => row.playerId === player.id);
+      const serve = report.serve.find((row) => row.playerId === player.id);
+      const reception = report.reception.find((row) => row.playerId === player.id);
+      const block = report.block.find((row) => row.playerId === player.id);
+      const directPoints = (attack?.points ?? 0) + (serve?.aces ?? 0) + (block?.points ?? 0);
+      const positiveReceptions = (reception?.A ?? 0) + (reception?.B ?? 0);
+      const issues = (attack?.errors ?? 0) + (attack?.blocked ?? 0) + (serve?.errors ?? 0) + (reception?.errors ?? 0);
+      const attempts = (attack?.volume ?? 0) + (serve?.volume ?? 0) + (reception?.volume ?? 0);
+      return { player, directPoints, positiveReceptions, issues, attempts };
+    });
+    const positive = athletes.filter((item) => item.directPoints + item.positiveReceptions > 0)
+      .sort((left, right) => right.directPoints + right.positiveReceptions - left.directPoints - left.positiveReceptions)[0];
+    const attention = athletes.filter((item) => item.issues >= 2 && item.attempts >= 4)
+      .sort((left, right) => right.issues - left.issues)[0];
+    if (!positive && !attention) continue;
+    hasHighlights = true;
+    pdf.paragraph(team.name, 9);
+    if (positive) pdf.paragraph(`Contribuição positiva: #${positive.player.number} ${positive.player.name} — ${positive.directPoints} pontos diretos e ${positive.positiveReceptions} recepções positivas.`, 8);
+    if (attention) pdf.paragraph(`Para acompanhar: #${attention.player.number} ${attention.player.name} — ${attention.issues} erros ou ataques bloqueados em ${attention.attempts} ações observadas.`, 8);
+  }
+  if (!hasHighlights) pdf.paragraph('Sem contribuições individuais ou padrão com amostra suficiente para destaque.', 8);
 }
 
 export function drawReportPages(

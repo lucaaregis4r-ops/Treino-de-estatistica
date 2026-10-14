@@ -148,6 +148,21 @@ describe('MatchReducer', () => {
     });
   });
 
+  it('replays a manual side change and swaps again at the next set', () => {
+    const state = replayMatch(metadata, [
+      {
+        type: 'court_orientation_changed', id: 'side_1', matchId: metadata.id,
+        courtOrientation: { leftTeamId: metadata.teamBId, rightTeamId: metadata.teamAId },
+        sequence: 1, timestamp: 1,
+      },
+      {
+        type: 'set_started', id: 'set_2', matchId: metadata.id, setNumber: 2,
+        initialScore: { teamA: 0, teamB: 0 }, sequence: 2, timestamp: 2,
+      },
+    ]);
+    expect(state.courtOrientation).toEqual({ leftTeamId: metadata.teamAId, rightTeamId: metadata.teamBId });
+  });
+
   it('is deterministic even when storage returns events out of order', () => {
     expect(replayMatch(metadata, [...events].reverse())).toEqual(replayMatch(metadata, events));
   });
@@ -329,6 +344,7 @@ describe('MatchReducer', () => {
       slotId: 'slot',
       tacticalRole: 'opposite',
       playerId: 'player_7',
+      originalPlayerId: 'player_14',
       activeRole: 'opposite',
     });
     expect(state.lineups[0]?.positions[1]).toBe('slot');

@@ -92,6 +92,16 @@ const baseEvents: readonly MatchEvent[] = [
 ];
 
 describe('RallyContextResolver', () => {
+  it('expects the opponent to receive when a pass becomes a free ball', () => {
+    const projection = new RallyContextResolver().project(metadata, [
+      ...baseEvents.slice(0, -1),
+      { type: 'scout_registered', event: scout('free-ball', 7, 'b', 'free_ball', 'neutral') },
+    ]);
+    expect(projection.expectedNextAction).toMatchObject({
+      skill: 'reception', teamId: 'a', reason: 'free_ball_sent',
+    });
+  });
+
   it('derives phases, expected action, reception quality, serving team, and rotation', () => {
     const projection = new RallyContextResolver().project(metadata, baseEvents);
 

@@ -129,6 +129,8 @@ export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState
     }
     case 'serving_team_changed':
       return { ...base, servingTeamId: event.servingTeamId };
+    case 'court_orientation_changed':
+      return { ...base, courtOrientation: event.courtOrientation };
     case 'set_lineup_confirmed': {
       const tacticalState = tacticalStateForLineup(event.lineup);
       return {
@@ -169,7 +171,10 @@ export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState
       );
       const lineups =
         receivingTeamWon && currentLineup
-          ? replaceLineup(previous.lineups, rotationEngine.rotate(currentLineup))
+          ? replaceLineup(
+              previous.lineups,
+              rotationEngine.rotate(currentLineup, previous.metadata.liberoPlayerIds),
+            )
           : previous.lineups;
       const rotatedLineup = lineups.find(
         (lineup) => lineup.setNumber === previous.currentSet && lineup.teamId === winnerTeamId,
@@ -203,7 +208,12 @@ export function reduceMatch(previous: MatchState, event: MatchEvent): MatchState
         ...lineup,
         slots: {
           ...lineup.slots,
-          [event.slotId]: { ...slot, playerId: event.playerInId, activeRole: playerInRole },
+          [event.slotId]: {
+            ...slot,
+            playerId: event.playerInId,
+            originalPlayerId: slot.originalPlayerId ?? slot.playerId,
+            activeRole: playerInRole,
+          },
         },
       };
       const previousTacticalState =

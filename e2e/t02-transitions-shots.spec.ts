@@ -29,11 +29,12 @@ test('T02 records immediate changes, pending and completed shots without retrosp
   await expect(page.getByText('Equipe A com a bola registrado.')).toBeVisible();
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await clickField(page, .72, .45);
+  await clickField(page, .95, .45);
   await page.getByRole('button', { name: 'Defendida', exact: true }).click();
   await expect(page.getByText('Finalização registrada: Defendida.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await page.getByRole('button', { name: 'Origem não observada', exact: true }).click();
+  await page.getByRole('button', { name: 'Trajetória não observada', exact: true }).click();
   await page.getByRole('button', { name: 'Depois', exact: true }).click();
   await expect(page.getByText('Chute salvo; resultado para revisar depois.')).toBeVisible();
   await teamB.click();
@@ -47,6 +48,7 @@ test('T02 records immediate changes, pending and completed shots without retrosp
   for (const result of ['Bloqueada', 'Trave']) {
     await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
     await clickField(page);
+    await clickField(page, .95, .45);
     await page.getByRole('button', { name: result, exact: true }).click();
   }
   await expect(page.getByText('Finalização registrada: Trave.')).toBeVisible();
@@ -79,7 +81,7 @@ test('T02 treats dispute, stop/restart, pause and Escape as explicit state chang
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await page.getByRole('application').press('Escape');
   await expect(page.getByText('Intenção de finalização cancelada.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Origem não observada', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Trajetória não observada', exact: true })).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.screenshot({ path: `${output}/states-390x844.png`, fullPage: true });

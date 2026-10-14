@@ -91,53 +91,56 @@
 .spatial-points-court {
   display: block;
   width: 100%;
-  max-width: 480px;
-  margin: 20px auto 0;
+  max-width: 680px;
+  margin: 10px auto 0;
   aspect-ratio: 2 / 1;
+  background: var(--st-court, #1E293B);
+  border-radius: var(--st-radius-surface, 6px);
 }
 .spatial-points-floor {
-  fill: #bd6133;
+  fill: var(--st-court, #1E293B);
 }
 .spatial-points-border {
   fill: none;
-  stroke: #fff4df;
-  stroke-width: 1.6;
+  stroke: var(--st-court-line, #475569);
+  stroke-width: 1.5;
 }
 .spatial-points-attack-line {
-  stroke: #fff4df;
+  stroke: var(--st-court-line, #475569);
   stroke-width: 1;
   opacity: 0.8;
 }
 .spatial-points-net {
-  stroke: #fff;
-  stroke-width: 2;
+  stroke: #F8FAFC;
+  stroke-width: 2.2;
 }
 .spatial-point {
-  stroke: #183a51;
+  stroke: var(--st-bg, #0B0F19);
   stroke-width: 0.8;
 }
 .spatial-point-point,
 .legend-marker-point {
-  fill: #50ddcf;
-  stroke: #0b2f2a;
+  fill: var(--st-success, #10B981);
+  stroke: #042f24;
 }
 .spatial-point-neutral,
 .legend-marker-neutral {
-  fill: #ffe66b;
-  stroke: #725d00;
+  fill: var(--st-accent, #3B82F6);
+  stroke: #1e3a8a;
 }
 .spatial-point-error,
 .legend-marker-error {
-  stroke: #ff6b6b;
-  stroke-width: 1.5;
+  stroke: var(--st-danger, #F43F5E);
+  stroke-width: 1.8;
 }
 .spatial-marker-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 12px 18px;
   align-items: center;
-  color: var(--muted);
+  color: var(--st-muted, #94A3B8);
   font-size: 0.78rem;
+  margin-top: 8px;
 }
 .legend-marker {
   display: inline-block;
@@ -156,7 +159,7 @@
   left: 0;
   width: 12px;
   height: 2px;
-  background: #ff6b6b;
+  background: var(--st-danger, #F43F5E);
   content: '';
 }
 .legend-marker-error::before { transform: rotate(45deg); }
@@ -165,28 +168,80 @@
   margin: 12px auto 0;
   max-width: 680px;
   padding: 8px 10px;
-  border-left: 3px solid var(--accent);
-  color: var(--ink);
+  border-left: 3px solid var(--st-accent, #3B82F6);
+  background: var(--st-surface-raised, #1E293B);
+  color: var(--st-text, #F8FAFC);
   font-size: 0.82rem;
+  border-radius: 0 4px 4px 0;
 }
 .spatial-play-line {
-  stroke: #50ddcf;
-  stroke-width: 1;
-  opacity: 0.75;
+  fill: none;
+  stroke: var(--st-success, #10B981);
+  stroke-width: 2.2;
+  opacity: 0.85;
+  transition: opacity 120ms ease;
 }
-.spatial-play-neutral { stroke: #ffe66b; }
-.spatial-play-error { stroke: #ff6b6b; }
+.spatial-play-line:hover {
+  opacity: 1;
+  stroke-width: 3.5;
+}
+.spatial-play-neutral { stroke: var(--st-accent, #3B82F6); }
+.spatial-play-error { stroke: var(--st-danger, #F43F5E); }
 .spatial-play-origin {
-  fill: #e3ff4f;
+  fill: var(--st-accent, #3B82F6);
+  stroke: #F8FAFC;
+  stroke-width: 0.8;
 }
 .spatial-play-target {
-  fill: #50ddcf;
+  fill: var(--st-success, #10B981);
   stroke: #07100e;
   stroke-width: 0.6;
 }
 .spatial-points-empty {
   margin: 22px 0 4px;
-  color: #c8d3da;
+  color: var(--st-muted, #94A3B8);
+}
+.spatial-court-perspective-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 680px;
+  margin: 14px auto 6px;
+  padding: 6px 12px;
+  background: var(--st-surface, #111827);
+  border: 1px solid var(--st-border, #334155);
+  border-radius: var(--st-radius-control, 4px);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.court-perspective-side {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.court-perspective-side.attack {
+  color: var(--st-accent, #3B82F6);
+}
+.court-perspective-side.defense {
+  color: var(--st-success, #10B981);
+}
+.court-perspective-net {
+  color: var(--st-muted, #94A3B8);
+  font-size: 10px;
+  padding: 2px 8px;
+  border: 1px solid var(--st-border, #334155);
+  border-radius: 3px;
+  background: var(--st-surface-raised, #1E293B);
+}
+.spatial-normalize-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--st-text, #F8FAFC);
+  font-size: 12px;
 }
 .analysis-page .match-analytics {
   margin: 0;
@@ -491,3 +546,5 @@
     grid-column: 1 / -1;
   }
 }
+.spatial-points-floor { fill: var(--st-court); }
+.analysis-heat-court { background: var(--st-court); }

@@ -21,6 +21,26 @@ const match: MatchMetadata = {
 describe('match JSON', () => {
   const exporter = new JsonMatchExporter();
 
+  it('preserves a manual court side change in a backup', () => {
+    const serialized = exporter.export({
+      match,
+      teams: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }],
+      players: [],
+      profiles: { code: defaultCompactV1, complexity: basicProfile },
+      events: [{
+        type: 'court_orientation_changed', id: 'side_1', matchId: match.id,
+        sequence: 1, timestamp: 1,
+        courtOrientation: { leftTeamId: 'b', rightTeamId: 'a' },
+      }],
+    });
+    const imported = new JsonMatchImporter().import(serialized);
+    expect(imported.ok).toBe(true);
+    if (imported.ok) expect(imported.value.events[0]).toMatchObject({
+      type: 'court_orientation_changed',
+      courtOrientation: { leftTeamId: 'b', rightTeamId: 'a' },
+    });
+  });
+
   it('exports and reimports an equivalent event stream', () => {
     const serialized = new JsonMatchExporter().export({
       match,
@@ -87,7 +107,7 @@ describe('match JSON', () => {
 
     expect(imported.ok).toBe(true);
     if (imported.ok) {
-      expect(imported.value.schemaVersion).toBe('1.2.0');
+      expect(imported.value.schemaVersion).toBe('1.3.0');
       expect(imported.value.modality).toBe('unknown');
       expect(imported.value.events).toHaveLength(2);
       expect(imported.value.events[1]).toMatchObject({
@@ -153,11 +173,57 @@ describe('match JSON', () => {
     expect(new JsonMatchImporter().import(JSON.stringify(duplicateSequence)).ok).toBe(false);
   });
 
+  it('preserva eventos de basquete e rejeita correções sem lance original', () => {
+    const basketballMatch: MatchMetadata = { ...match, sport: 'basketball' };
+    const fact = { id: 'basket-fact', period: 1, timestamp: 10, kind: 'shot' as const, teamId: 'a', value: 3 as const, outcome: 'made' as const, tactic: 'pick_roll' as const, position: { x: .8, y: .4 } };
+    const events = [
+      { type: 'basketball_fact_registered' as const, id: 'basket-event-1', matchId: match.id, sequence: 1, timestamp: 10, fact },
+      { type: 'basketball_fact_corrected' as const, id: 'basket-event-2', matchId: match.id, sequence: 2, timestamp: 11, targetFactId: fact.id, replacementFact: { ...fact, outcome: 'missed' as const } },
+      { type: 'basketball_fact_undone' as const, id: 'basket-event-3', matchId: match.id, sequence: 3, timestamp: 12, targetHistoryEventId: 'basket-event-2' },
+    ];
+    const serialized = exporter.export({ match: basketballMatch, teams: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], players: [], profiles: { code: defaultCompactV1, complexity: basicProfile }, events });
+    const imported = new JsonMatchImporter().import(serialized);
+    expect(imported.ok).toBe(true);
+    if (imported.ok) expect(imported.value.events).toEqual(events);
+    const broken = JSON.parse(serialized) as { events: Array<Record<string, unknown>> };
+    broken.events[1].targetFactId = 'missing';
+    expect(new JsonMatchImporter().import(JSON.stringify(broken)).ok).toBe(false);
+  });
+
+  it('round-trips futsal facts and validates goal beneficiaries and history links', () => {
+    const futsalMatch: MatchMetadata = { ...match, sport: 'futsal', futsalSettings: { ruleset: 'fifa-2025-26', periodDurationMs: 1_200_000 } };
+    const goal = { id: 'fact_1', kind: 'shot' as const, period: 1 as const, elapsedMs: 25_000, observation: 'observed' as const, shootingTeamId: 'a', outcome: 'goal' as const, beneficiaryTeamId: 'b', position: { x: .2, y: .5 }, destination: { x: .9, y: .5 } };
+    const events = [
+      { type: 'futsal_fact_registered' as const, id: 'history_1', matchId: 'match_1', sequence: 1, timestamp: 1, fact: goal },
+      { type: 'futsal_fact_corrected' as const, id: 'history_2', matchId: 'match_1', sequence: 2, timestamp: 2, targetFactId: 'fact_1', replacementFact: { ...goal, outcome: 'saved' as const, beneficiaryTeamId: undefined } },
+      { type: 'futsal_fact_undone' as const, id: 'history_3', matchId: 'match_1', sequence: 3, timestamp: 3, targetHistoryEventId: 'history_2' },
+      { type: 'futsal_fact_registered' as const, id: 'history_4', matchId: 'match_1', sequence: 4, timestamp: 4, fact: { id: 'fact_2', kind: 'tactical_annotation' as const, period: 1 as const, elapsedMs: 35_000, observation: 'observed' as const, scope: 'event' as const, targetFactId: 'fact_1', organization: 'transition' as const } },
+      { type: 'futsal_fact_registered' as const, id: 'history_5', matchId: 'match_1', sequence: 5, timestamp: 5, fact: { id: 'fact_3', kind: 'composition' as const, period: 1 as const, elapsedMs: 30_000, observation: 'partial' as const, teamId: 'a', playerIds: [], certainty: 'partial' as const } },
+      { type: 'futsal_fact_registered' as const, id: 'history_6', matchId: 'match_1', sequence: 6, timestamp: 6, fact: { id: 'fact_4', kind: 'substitution' as const, period: 1 as const, elapsedMs: 31_000, observation: 'partial' as const, teamId: 'a', certainty: 'partial' as const } },
+      { type: 'futsal_fact_registered' as const, id: 'history_7', matchId: 'match_1', sequence: 7, timestamp: 7, fact: { id: 'fact_5', kind: 'tactical_context' as const, period: 1 as const, elapsedMs: 32_000, observation: 'observed' as const, teamId: 'a', numericalSituation: 'own_flying_goalkeeper' as const, active: true } },
+      { type: 'futsal_fact_registered' as const, id: 'history_8', matchId: 'match_1', sequence: 8, timestamp: 8, fact: { id: 'fact_6', kind: 'tackle' as const, period: 1 as const, elapsedMs: 36_000, observation: 'observed' as const, winningTeamId: 'b', losingTeamId: 'a', position: { x: .4, y: .5 } } },
+    ];
+    const serialized = exporter.export({ match: futsalMatch, teams: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], players: [], profiles: { code: defaultCompactV1, complexity: basicProfile }, events });
+    const imported = new JsonMatchImporter().import(serialized);
+    expect(imported.ok).toBe(true);
+    if (imported.ok) expect(imported.value.events).toEqual(events);
+
+    const broken = JSON.parse(serialized) as { events: Array<Record<string, unknown>> };
+    broken.events[2].targetHistoryEventId = 'missing';
+    expect(new JsonMatchImporter().import(JSON.stringify(broken)).ok).toBe(false);
+    const brokenTacticalTarget = JSON.parse(serialized) as { events: Array<{ fact?: { targetFactId?: string } }> };
+    brokenTacticalTarget.events[3].fact!.targetFactId = 'missing';
+    expect(new JsonMatchImporter().import(JSON.stringify(brokenTacticalTarget)).ok).toBe(false);
+    const brokenDestination = JSON.parse(serialized) as { events: Array<{ fact?: { destination?: { x: number; y: number } } }> };
+    brokenDestination.events[0].fact!.destination!.x = 1.2;
+    expect(new JsonMatchImporter().import(JSON.stringify(brokenDestination)).ok).toBe(false);
+  });
+
   it('migrates a legacy 1.0.0 backup without changing its event stream', () => {
     const current = JSON.parse(exporter.export({ match, teams: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], players: [], profiles: { code: defaultCompactV1, complexity: basicProfile }, events: [] })) as Record<string, unknown>;
     current.schemaVersion = '1.0.0'; delete current.modality; delete current.compatibility;
     const imported = new JsonMatchImporter().import(JSON.stringify(current));
-    expect(imported.ok && imported.value).toMatchObject({ schemaVersion: '1.2.0', modality: 'unknown', events: [] });
+    expect(imported.ok && imported.value).toMatchObject({ schemaVersion: '1.3.0', modality: 'unknown', events: [] });
   });
 
   it('keeps a versioned local control mark in the backup and accepts a 1.1 backup', () => {
@@ -182,7 +248,7 @@ describe('match JSON', () => {
     expect(new JsonMatchImporter().import(JSON.stringify(malformed)).ok).toBe(false);
     current.schemaVersion = '1.1.0';
     const legacy = new JsonMatchImporter().import(JSON.stringify(current));
-    expect(legacy.ok && legacy.value).toMatchObject({ schemaVersion: '1.2.0', events: [{ event: { type: { id: 1000 }, scout_trainer: { observation: { position: [24, 40] } } } }] });
+    expect(legacy.ok && legacy.value).toMatchObject({ schemaVersion: '1.3.0', events: [{ event: { type: { id: 1000 }, scout_trainer: { observation: { position: [24, 40] } } } }] });
   });
 
   it('validates football event envelopes and rejects fabricated coordinates', () => {

@@ -1,0 +1,759 @@
+{
+  "schemaVersion": "1.0.0",
+  "match": {
+    "id": "7ed26045-890e-4c37-8371-889224b1af9a",
+    "name": "Serra Vôlei x Lagoa AC",
+    "teamAId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+    "teamBId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+    "createdAt": 1789323979780,
+    "status": "in_progress",
+    "initialServingTeamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+    "scoringRules": {
+      "regularSetTarget": 25,
+      "decidingSetTarget": 15,
+      "minimumLead": 2,
+      "setsToWin": 3
+    },
+    "codeProfileId": "data_volley_basic_v1",
+    "codeProfileVersion": "1.0.0",
+    "complexityProfileId": "basic",
+    "liberoPlayerIds": [
+      "86ad0958-bfaa-4c52-b3a2-b5d355404d2e",
+      "43412331-95bf-4064-8fdc-0d6aa50ae150"
+    ]
+  },
+  "teams": [
+    {
+      "id": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "name": "Serra Vôlei"
+    },
+    {
+      "id": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "name": "Lagoa AC"
+    }
+  ],
+  "players": [
+    {
+      "id": "38ea6875-379d-439c-bf1d-41926cce0d95",
+      "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "number": 1,
+      "name": "Ana Souza",
+      "active": true
+    },
+    {
+      "id": "a3932aa9-9230-487e-a935-35f3a0d63cfa",
+      "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "number": 2,
+      "name": "Beatriz Lima",
+      "active": true
+    },
+    {
+      "id": "0928453e-5f3b-4640-ac8a-cfb48fa5f1e8",
+      "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "number": 3,
+      "name": "Carla Santos",
+      "active": true
+    },
+    {
+      "id": "75f9176d-e1d0-4d26-8745-35f1079b372d",
+      "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "number": 4,
+      "name": "Diana Reis",
+      "active": true
+    },
+    {
+      "id": "70bb1516-f57a-4bf8-813b-1670d77294f1",
+      "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "number": 5,
+      "name": "Elisa Silva",
+      "active": true
+    },
+    {
+      "id": "888bf1ad-1ef8-4c90-8abd-041c684ab56b",
+      "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "number": 6,
+      "name": "Fernanda Costa",
+      "active": true
+    },
+    {
+      "id": "86ad0958-bfaa-4c52-b3a2-b5d355404d2e",
+      "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "number": 13,
+      "name": "Gabriela Líbero",
+      "active": true,
+      "registeredRole": "libero"
+    },
+    {
+      "id": "b3d6c9b0-ddd7-48a5-8d3d-35ee18e71b17",
+      "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "number": 14,
+      "name": "Helena Reserva",
+      "active": true
+    },
+    {
+      "id": "e0607437-1246-41a0-b6e6-5fe4e24a5ca0",
+      "teamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "number": 7,
+      "name": "Igor Souza",
+      "active": true
+    },
+    {
+      "id": "27a05e61-afa8-4014-99d5-2315bcfd6df4",
+      "teamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "number": 8,
+      "name": "João Lima",
+      "active": true
+    },
+    {
+      "id": "b2bfa5ef-d09c-46a9-952c-69651b6093b8",
+      "teamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "number": 9,
+      "name": "Kaique Santos",
+      "active": true
+    },
+    {
+      "id": "9647ba14-a11a-4edc-8944-9d5f5f5f5ab0",
+      "teamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "number": 10,
+      "name": "Lucas Reis",
+      "active": true
+    },
+    {
+      "id": "47a89c33-174b-4af7-8beb-77700cfe9474",
+      "teamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "number": 11,
+      "name": "Marcos Silva",
+      "active": true
+    },
+    {
+      "id": "8e365d7c-37b7-46d5-919c-f8d4ab181071",
+      "teamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "number": 12,
+      "name": "Nicolas Costa",
+      "active": true
+    },
+    {
+      "id": "43412331-95bf-4064-8fdc-0d6aa50ae150",
+      "teamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "number": 15,
+      "name": "Oscar Líbero",
+      "active": true,
+      "registeredRole": "libero"
+    },
+    {
+      "id": "a310e819-84d6-4c34-ac92-a24e2ee183d4",
+      "teamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "number": 16,
+      "name": "Paulo Reserva",
+      "active": true
+    }
+  ],
+  "profiles": {
+    "code": {
+      "kind": "code",
+      "id": "data_volley_basic_v1",
+      "version": "1.0.0",
+      "name": "Data Volley",
+      "grammar": [
+        "team",
+        "player",
+        "skill",
+        "evaluation"
+      ],
+      "teamCodes": {
+        "home": "*",
+        "away": "A"
+      },
+      "skills": {
+        "S": "serve",
+        "R": "reception",
+        "A": "attack",
+        "B": "block",
+        "D": "dig",
+        "E": "set",
+        "F": "free_ball"
+      },
+      "evaluations": {
+        "#": "excellent",
+        "+": "positive",
+        "!": "neutral",
+        "-": "negative",
+        "/": "very_negative",
+        "=": "error"
+      },
+      "aliases": {},
+      "characterEquivalents": {},
+      "tacticalInput": {
+        "fields": {
+          "origin": {
+            "prefix": "o"
+          },
+          "target": {
+            "prefix": "t"
+          },
+          "direction": {
+            "prefix": "d",
+            "values": {
+              "d": "diagonal",
+              "p": "paralela",
+              "g": "paragonal",
+              "c": "paragonal"
+            }
+          },
+          "skillType": {
+            "prefix": "y"
+          },
+          "setterCall": {
+            "prefix": "l"
+          },
+          "combination": {
+            "prefix": "c"
+          },
+          "tempo": {
+            "prefix": "q"
+          },
+          "blockers": {
+            "prefix": "b"
+          }
+        },
+        "zoneSystem": {
+          "id": "indoor-six-zone",
+          "version": "2.0.0",
+          "name": "Quadra indoor regulamentar — posições 1 a 6",
+          "zones": [
+            {
+              "id": "4",
+              "name": "Zona 4",
+              "aliases": [
+                "z4"
+              ],
+              "x": 0.16666666666666666,
+              "y": 0.25
+            },
+            {
+              "id": "3",
+              "name": "Zona 3",
+              "aliases": [
+                "z3"
+              ],
+              "x": 0.5,
+              "y": 0.25
+            },
+            {
+              "id": "2",
+              "name": "Zona 2",
+              "aliases": [
+                "z2"
+              ],
+              "x": 0.8333333333333334,
+              "y": 0.25
+            },
+            {
+              "id": "5",
+              "name": "Zona 5",
+              "aliases": [
+                "z5"
+              ],
+              "x": 0.16666666666666666,
+              "y": 0.75
+            },
+            {
+              "id": "1",
+              "name": "Zona 1",
+              "aliases": [
+                "z1"
+              ],
+              "x": 0.8333333333333334,
+              "y": 0.75
+            },
+            {
+              "id": "6",
+              "name": "Zona 6",
+              "aliases": [
+                "z6"
+              ],
+              "x": 0.5,
+              "y": 0.75
+            }
+          ],
+          "directionRules": [
+            {
+              "id": "paralela",
+              "originZoneIds": [
+                "4",
+                "5"
+              ],
+              "targetZoneIds": [
+                "1",
+                "2"
+              ]
+            },
+            {
+              "id": "paralela",
+              "originZoneIds": [
+                "1",
+                "2"
+              ],
+              "targetZoneIds": [
+                "4",
+                "5"
+              ]
+            },
+            {
+              "id": "paragonal",
+              "targetZoneIds": [
+                "3",
+                "6"
+              ]
+            },
+            {
+              "id": "diagonal",
+              "originZoneIds": [
+                "4",
+                "5"
+              ],
+              "targetZoneIds": [
+                "4",
+                "5"
+              ]
+            },
+            {
+              "id": "diagonal",
+              "originZoneIds": [
+                "1",
+                "2"
+              ],
+              "targetZoneIds": [
+                "1",
+                "2"
+              ]
+            },
+            {
+              "id": "diagonal",
+              "originZoneIds": [
+                "3",
+                "6"
+              ],
+              "targetZoneIds": [
+                "1",
+                "2",
+                "4",
+                "5"
+              ]
+            }
+          ]
+        },
+        "shortcuts": {
+          "quickEditor": "Alt+T",
+          "focusScout": "Alt+S",
+          "editLast": "ArrowUp",
+          "selectOrigin": "Alt+O",
+          "selectTarget": "Alt+D"
+        }
+      },
+      "outcomeMappings": {
+        "serve": {
+          "#": "ace",
+          "=": "error"
+        },
+        "reception": {
+          "#": "perfect",
+          "=": "error"
+        },
+        "attack": {
+          "#": "point",
+          "=": "error"
+        },
+        "block": {
+          "#": "point",
+          "=": "error"
+        }
+      }
+    },
+    "complexity": {
+      "kind": "complexity",
+      "id": "basic",
+      "version": "1.0.0",
+      "name": "Básico",
+      "level": "basic",
+      "requiredFields": [
+        "player",
+        "skill",
+        "evaluation"
+      ],
+      "optionalFields": [],
+      "captureRequirements": {
+        "player": "blocking",
+        "skill": "blocking",
+        "evaluation": "blocking",
+        "team": "derived",
+        "rally": "derived",
+        "set": "derived"
+      }
+    }
+  },
+  "events": [
+    {
+      "type": "set_lineup_confirmed",
+      "id": "88e4c3da-a55e-40bc-84e9-aa60dca127dc",
+      "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+      "lineup": {
+        "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+        "setNumber": 1,
+        "positions": {
+          "1": "cf54aa3c-d23a-49a2-82c3-ae104b8b604a",
+          "2": "5a49dab4-a69b-4cd0-9a1f-18eb4b000d18",
+          "3": "468a694d-d9e7-49ff-8719-b13371f254c0",
+          "4": "622cb890-845e-4e67-939e-e1807badc1f8",
+          "5": "f93f48d8-13ff-49ae-8eb1-423c9ddc014e",
+          "6": "51c9a45b-e723-4f17-9825-45c2fae5bcf8"
+        },
+        "slots": {
+          "cf54aa3c-d23a-49a2-82c3-ae104b8b604a": {
+            "slotId": "cf54aa3c-d23a-49a2-82c3-ae104b8b604a",
+            "tacticalRole": "setter",
+            "playerId": "38ea6875-379d-439c-bf1d-41926cce0d95",
+            "activeRole": "setter"
+          },
+          "5a49dab4-a69b-4cd0-9a1f-18eb4b000d18": {
+            "slotId": "5a49dab4-a69b-4cd0-9a1f-18eb4b000d18",
+            "tacticalRole": "outside_1",
+            "playerId": "a3932aa9-9230-487e-a935-35f3a0d63cfa",
+            "activeRole": "outside"
+          },
+          "468a694d-d9e7-49ff-8719-b13371f254c0": {
+            "slotId": "468a694d-d9e7-49ff-8719-b13371f254c0",
+            "tacticalRole": "middle_1",
+            "playerId": "0928453e-5f3b-4640-ac8a-cfb48fa5f1e8",
+            "activeRole": "middle"
+          },
+          "622cb890-845e-4e67-939e-e1807badc1f8": {
+            "slotId": "622cb890-845e-4e67-939e-e1807badc1f8",
+            "tacticalRole": "opposite",
+            "playerId": "75f9176d-e1d0-4d26-8745-35f1079b372d",
+            "activeRole": "opposite"
+          },
+          "f93f48d8-13ff-49ae-8eb1-423c9ddc014e": {
+            "slotId": "f93f48d8-13ff-49ae-8eb1-423c9ddc014e",
+            "tacticalRole": "outside_2",
+            "playerId": "70bb1516-f57a-4bf8-813b-1670d77294f1",
+            "activeRole": "outside"
+          },
+          "51c9a45b-e723-4f17-9825-45c2fae5bcf8": {
+            "slotId": "51c9a45b-e723-4f17-9825-45c2fae5bcf8",
+            "tacticalRole": "middle_2",
+            "playerId": "888bf1ad-1ef8-4c90-8abd-041c684ab56b",
+            "activeRole": "middle"
+          }
+        }
+      },
+      "sequence": 1,
+      "timestamp": 1789323979984
+    },
+    {
+      "type": "set_lineup_confirmed",
+      "id": "96a0f3a7-b858-4404-8b5b-f27d3f6beb1b",
+      "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+      "lineup": {
+        "teamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+        "setNumber": 1,
+        "positions": {
+          "1": "e91a4a7e-229f-410a-8b85-a70858509846",
+          "2": "b30f490a-369c-4e45-8ae4-a6391f2f4563",
+          "3": "db65e6a0-b477-487c-b597-0c5d2a110574",
+          "4": "9019e62c-14a9-4f4b-8df7-293fa443a7a1",
+          "5": "8c1c4c98-7b4a-499e-9c18-17e20eb4017e",
+          "6": "01ccdbcf-ae2b-4ff7-87f2-8cdc1b5f29b7"
+        },
+        "slots": {
+          "e91a4a7e-229f-410a-8b85-a70858509846": {
+            "slotId": "e91a4a7e-229f-410a-8b85-a70858509846",
+            "tacticalRole": "setter",
+            "playerId": "e0607437-1246-41a0-b6e6-5fe4e24a5ca0",
+            "activeRole": "setter"
+          },
+          "b30f490a-369c-4e45-8ae4-a6391f2f4563": {
+            "slotId": "b30f490a-369c-4e45-8ae4-a6391f2f4563",
+            "tacticalRole": "outside_1",
+            "playerId": "27a05e61-afa8-4014-99d5-2315bcfd6df4",
+            "activeRole": "outside"
+          },
+          "db65e6a0-b477-487c-b597-0c5d2a110574": {
+            "slotId": "db65e6a0-b477-487c-b597-0c5d2a110574",
+            "tacticalRole": "middle_1",
+            "playerId": "b2bfa5ef-d09c-46a9-952c-69651b6093b8",
+            "activeRole": "middle"
+          },
+          "9019e62c-14a9-4f4b-8df7-293fa443a7a1": {
+            "slotId": "9019e62c-14a9-4f4b-8df7-293fa443a7a1",
+            "tacticalRole": "opposite",
+            "playerId": "9647ba14-a11a-4edc-8944-9d5f5f5f5ab0",
+            "activeRole": "opposite"
+          },
+          "8c1c4c98-7b4a-499e-9c18-17e20eb4017e": {
+            "slotId": "8c1c4c98-7b4a-499e-9c18-17e20eb4017e",
+            "tacticalRole": "outside_2",
+            "playerId": "47a89c33-174b-4af7-8beb-77700cfe9474",
+            "activeRole": "outside"
+          },
+          "01ccdbcf-ae2b-4ff7-87f2-8cdc1b5f29b7": {
+            "slotId": "01ccdbcf-ae2b-4ff7-87f2-8cdc1b5f29b7",
+            "tacticalRole": "middle_2",
+            "playerId": "8e365d7c-37b7-46d5-919c-f8d4ab181071",
+            "activeRole": "middle"
+          }
+        }
+      },
+      "sequence": 2,
+      "timestamp": 1789323979984
+    },
+    {
+      "type": "rally_started",
+      "id": "8fa6d7b7-c475-48da-93a1-2a3a79c6ecaa",
+      "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+      "rallyId": "85510e37-0555-4251-b32e-b57ce4dd9027",
+      "sequence": 3,
+      "timestamp": 1789323981017,
+      "targetScoutEventId": "a94bdd0d-fb8a-43cf-80d0-3977d2934c2b",
+      "sourceHistoryEventId": "a94bdd0d-fb8a-43cf-80d0-3977d2934c2b"
+    },
+    {
+      "type": "scout_registered",
+      "event": {
+        "id": "a94bdd0d-fb8a-43cf-80d0-3977d2934c2b",
+        "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+        "rallyId": "85510e37-0555-4251-b32e-b57ce4dd9027",
+        "sequence": 4,
+        "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+        "playerId": "38ea6875-379d-439c-bf1d-41926cce0d95",
+        "lineupContext": {
+          "slotId": "cf54aa3c-d23a-49a2-82c3-ae104b8b604a",
+          "tacticalRole": "setter",
+          "rotationPosition": 1
+        },
+        "setterPlayerId": "38ea6875-379d-439c-bf1d-41926cce0d95",
+        "setterPosition": 1,
+        "formationState": "normal",
+        "skill": "serve",
+        "outcome": "ace",
+        "evaluation": "excellent",
+        "setNumber": 1,
+        "scoreBefore": {
+          "teamA": 0,
+          "teamB": 0
+        },
+        "timestamp": 1789323981016,
+        "inputMode": "typed",
+        "rawCode": "*01S#",
+        "normalizedCode": "*01S#",
+        "codeProfileId": "data_volley_basic_v1",
+        "codeProfileVersion": "1.0.0",
+        "complexityProfileId": "basic",
+        "metadata": {
+          "coverage": {
+            "mode": "both",
+            "observedTeamIds": [
+              "e0571306-aa4b-424c-9619-ac6f984afdb8",
+              "a66b6615-6e9a-4013-ab76-5020aab83672"
+            ]
+          },
+          "schemaVersion": "2.0.0",
+          "tactical": {}
+        },
+        "completeness": {
+          "status": "complete",
+          "missingRecommendedFields": []
+        }
+      }
+    },
+    {
+      "type": "rally_result",
+      "id": "750f0a99-a8d0-463b-ba60-a2f9ac11cd83",
+      "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+      "rallyId": "85510e37-0555-4251-b32e-b57ce4dd9027",
+      "winnerTeamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "previousServingTeamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "reason": "serve_ace",
+      "targetScoutEventId": "a94bdd0d-fb8a-43cf-80d0-3977d2934c2b",
+      "sourceHistoryEventId": "a94bdd0d-fb8a-43cf-80d0-3977d2934c2b",
+      "sequence": 5,
+      "timestamp": 1789323981017
+    },
+    {
+      "type": "rally_started",
+      "id": "76ff4edc-4ef0-488c-9f4f-9cd800158edf",
+      "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+      "rallyId": "c37c970a-eaa6-4dce-a59d-2650f79f42ac",
+      "sequence": 6,
+      "timestamp": 1789323981363,
+      "targetScoutEventId": "3b5fb0f0-adf6-4847-99f7-add6e54015d7",
+      "sourceHistoryEventId": "3b5fb0f0-adf6-4847-99f7-add6e54015d7"
+    },
+    {
+      "type": "scout_registered",
+      "event": {
+        "id": "3b5fb0f0-adf6-4847-99f7-add6e54015d7",
+        "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+        "rallyId": "c37c970a-eaa6-4dce-a59d-2650f79f42ac",
+        "sequence": 7,
+        "teamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+        "playerId": "e0607437-1246-41a0-b6e6-5fe4e24a5ca0",
+        "lineupContext": {
+          "slotId": "e91a4a7e-229f-410a-8b85-a70858509846",
+          "tacticalRole": "setter",
+          "rotationPosition": 1
+        },
+        "setterPlayerId": "e0607437-1246-41a0-b6e6-5fe4e24a5ca0",
+        "setterPosition": 1,
+        "formationState": "normal",
+        "skill": "attack",
+        "outcome": "point",
+        "evaluation": "excellent",
+        "setNumber": 1,
+        "scoreBefore": {
+          "teamA": 1,
+          "teamB": 0
+        },
+        "timestamp": 1789323981362,
+        "inputMode": "typed",
+        "rawCode": "A07A#",
+        "normalizedCode": "A07A#",
+        "codeProfileId": "data_volley_basic_v1",
+        "codeProfileVersion": "1.0.0",
+        "complexityProfileId": "basic",
+        "metadata": {
+          "coverage": {
+            "mode": "both",
+            "observedTeamIds": [
+              "e0571306-aa4b-424c-9619-ac6f984afdb8",
+              "a66b6615-6e9a-4013-ab76-5020aab83672"
+            ]
+          },
+          "schemaVersion": "2.0.0",
+          "tactical": {
+            "trajectory": {
+              "origin": {
+                "zoneId": "1"
+              },
+              "captureMethod": "derived"
+            },
+            "attack": {
+              "trajectory": {
+                "origin": {
+                  "zoneId": "1"
+                },
+                "captureMethod": "derived"
+              }
+            }
+          }
+        },
+        "completeness": {
+          "status": "complete",
+          "missingRecommendedFields": []
+        }
+      }
+    },
+    {
+      "type": "rally_result",
+      "id": "c1921b73-221c-414e-a3d8-d81f05279f50",
+      "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+      "rallyId": "c37c970a-eaa6-4dce-a59d-2650f79f42ac",
+      "winnerTeamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "previousServingTeamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "reason": "attack_point",
+      "targetScoutEventId": "3b5fb0f0-adf6-4847-99f7-add6e54015d7",
+      "sourceHistoryEventId": "3b5fb0f0-adf6-4847-99f7-add6e54015d7",
+      "sequence": 8,
+      "timestamp": 1789323981363
+    },
+    {
+      "type": "rally_started",
+      "id": "f903ef19-87dc-4ab3-b489-8bcec41149ad",
+      "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+      "rallyId": "9a1e3473-2550-4aac-b8dd-8482de82282e",
+      "sequence": 9,
+      "timestamp": 1789323981527,
+      "targetScoutEventId": "6e717537-952c-40f4-ae2e-5e63af9516f3",
+      "sourceHistoryEventId": "6e717537-952c-40f4-ae2e-5e63af9516f3"
+    },
+    {
+      "type": "scout_registered",
+      "event": {
+        "id": "6e717537-952c-40f4-ae2e-5e63af9516f3",
+        "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+        "rallyId": "9a1e3473-2550-4aac-b8dd-8482de82282e",
+        "sequence": 10,
+        "teamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+        "playerId": "75f9176d-e1d0-4d26-8745-35f1079b372d",
+        "lineupContext": {
+          "slotId": "622cb890-845e-4e67-939e-e1807badc1f8",
+          "tacticalRole": "opposite",
+          "rotationPosition": 4
+        },
+        "setterPlayerId": "38ea6875-379d-439c-bf1d-41926cce0d95",
+        "setterPosition": 1,
+        "formationState": "normal",
+        "skill": "attack",
+        "outcome": "point",
+        "evaluation": "excellent",
+        "setNumber": 1,
+        "scoreBefore": {
+          "teamA": 1,
+          "teamB": 1
+        },
+        "timestamp": 1789323981527,
+        "inputMode": "typed",
+        "rawCode": "*04A#",
+        "normalizedCode": "*04A#",
+        "codeProfileId": "data_volley_basic_v1",
+        "codeProfileVersion": "1.0.0",
+        "complexityProfileId": "basic",
+        "metadata": {
+          "coverage": {
+            "mode": "both",
+            "observedTeamIds": [
+              "e0571306-aa4b-424c-9619-ac6f984afdb8",
+              "a66b6615-6e9a-4013-ab76-5020aab83672"
+            ]
+          },
+          "schemaVersion": "2.0.0",
+          "tactical": {
+            "trajectory": {
+              "origin": {
+                "zoneId": "4"
+              },
+              "captureMethod": "derived"
+            },
+            "attack": {
+              "trajectory": {
+                "origin": {
+                  "zoneId": "4"
+                },
+                "captureMethod": "derived"
+              }
+            }
+          }
+        },
+        "completeness": {
+          "status": "complete",
+          "missingRecommendedFields": []
+        }
+      }
+    },
+    {
+      "type": "rally_result",
+      "id": "d2abb06e-6802-4620-b329-dccfb242adf4",
+      "matchId": "7ed26045-890e-4c37-8371-889224b1af9a",
+      "rallyId": "9a1e3473-2550-4aac-b8dd-8482de82282e",
+      "winnerTeamId": "e0571306-aa4b-424c-9619-ac6f984afdb8",
+      "previousServingTeamId": "a66b6615-6e9a-4013-ab76-5020aab83672",
+      "reason": "attack_point",
+      "targetScoutEventId": "6e717537-952c-40f4-ae2e-5e63af9516f3",
+      "sourceHistoryEventId": "6e717537-952c-40f4-ae2e-5e63af9516f3",
+      "sequence": 11,
+      "timestamp": 1789323981527
+    }
+  ],
+  "analysisConfigurations": [],
+  "reportChartConfigurations": []
+}

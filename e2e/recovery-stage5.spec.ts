@@ -10,7 +10,15 @@ async function createFootball(page: import('@playwright/test').Page, roster = ''
   await page.getByLabel('Modalidade').selectOption('football');
   await page.getByLabel('Nome da equipe').first().fill('Azul FC');
   await page.getByLabel('Nome da equipe').last().fill('Verde FC');
-  if (roster) await page.getByLabel('Atletas (camisa e nome)').first().fill(roster);
+  if (roster) {
+    const lines = roster.split('\n');
+    for (let index = 0; index < lines.length; index += 1) {
+      const [number, ...name] = lines[index].split(' ');
+      await page.getByRole('button', { name: 'Adicionar atleta' }).first().click();
+      await page.getByLabel(`Camisa Equipe A ${index + 1}`).fill(number);
+      await page.getByLabel(`Nome Equipe A ${index + 1}`).fill(name.join(' '));
+    }
+  }
   await page.getByRole('button', { name: 'Iniciar partida' }).click();
 }
 
@@ -43,6 +51,7 @@ test('field stays visible before and after capture, with roster, resize and inve
 test('persistence failure stays visible and preserves the football draft', async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await createFootball(page);
+  await page.getByRole('button', { name: 'Azul FC' }).click();
   await page.getByRole('button', { name: 'Recuperação' }).click();
   await page.getByRole('button', { name: 'Observada' }).click();
   const frame = page.getByRole('application');
@@ -83,4 +92,17 @@ test('existing volleyball registration, score, court and reopen remain functiona
   await expect(page.locator('.event-list code')).toContainText('*01S#');
   await expect(page.getByRole('article', { name: 'Quadra de Equipe A' })).toBeVisible();
   await page.screenshot({ path: path.join(artifacts, 'volleyball-regression-1366x768.png') });
+});
+
+test('football substitution is visible in the timeline and remains after reopening', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await createFootball(page, '7 Titular\n12 Reserva');
+  await page.getByRole('button', { name: 'Substituição', exact: true }).click();
+  await page.getByLabel('Atleta que sai').selectOption({ label: '#7 Titular' });
+  await page.getByLabel('Atleta que entra').selectOption({ label: '#12 Reserva' });
+  await page.getByRole('button', { name: 'Confirmar substituição' }).click();
+  await expect(page.locator('.football-minimal-context')).toContainText('Substituição registrada: #7 sai, #12 entra.');
+  await page.reload();
+  await page.getByRole('button', { name: 'Continuar registro' }).click();
+  await expect(page.getByRole('button', { name: 'Desfazer', exact: true })).toBeEnabled();
 });

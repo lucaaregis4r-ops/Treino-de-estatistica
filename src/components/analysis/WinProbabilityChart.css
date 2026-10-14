@@ -1,0 +1,238 @@
+.win-prob-card {
+  background: var(--st-surface, #111827);
+  border: 1px solid var(--st-border, #334155);
+  border-radius: var(--st-radius-panel, 8px);
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.win-prob-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.win-prob-eyebrow {
+  font-family: var(--st-font-mono, monospace);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--st-accent, #3B82F6);
+  letter-spacing: 0.05em;
+  display: block;
+}
+
+.win-prob-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--st-text, #F8FAFC);
+  margin: 0.2rem 0;
+}
+
+.win-prob-subtitle {
+  font-size: 0.8rem;
+  color: var(--st-muted, #94A3B8);
+  margin: 0;
+  max-width: 60ch;
+}
+
+.win-prob-score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--st-surface-raised, #1E293B);
+  border: 1px solid var(--st-border, #334155);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+}
+
+.win-prob-team-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.win-prob-team-stat .team-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.win-prob-team-stat .team-percent {
+  font-family: var(--st-font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #F8FAFC;
+}
+
+.score-vs {
+  color: var(--st-muted, #94A3B8);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.win-prob-set-filter {
+  display: flex;
+  gap: 4px;
+  background: var(--st-surface-raised, #1E293B);
+  padding: 3px;
+  border-radius: 5px;
+  border: 1px solid var(--st-border, #334155);
+}
+
+.win-prob-set-filter button {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--st-muted, #94A3B8);
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.win-prob-set-filter button.active {
+  background: var(--st-accent, #3B82F6);
+  color: #FFFFFF;
+}
+
+.win-prob-chart-wrap {
+  position: relative;
+  width: 100%;
+  background: #0B0F19;
+  border: 1px solid var(--st-border, #334155);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 0.75rem 0;
+}
+
+.win-prob-svg {
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+  display: block;
+}
+
+.win-prob-midline {
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 1.5;
+}
+
+.win-prob-axis-label {
+  font-family: var(--st-font-mono, monospace);
+  font-size: 11px;
+  fill: #64748B;
+  user-select: none;
+}
+
+.win-prob-line {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.win-prob-line-a {
+  stroke: #38BDF8; /* Cobalto / Equipe A */
+}
+
+.win-prob-line-b {
+  stroke: #10B981; /* Menta / Equipe B */
+}
+
+.win-prob-dot {
+  stroke-width: 1.5;
+  transition: r 0.15s ease;
+  cursor: pointer;
+}
+
+.win-prob-dot-a {
+  fill: #38BDF8;
+  stroke: #0B0F19;
+}
+
+.win-prob-dot-b {
+  fill: #10B981;
+  stroke: #0B0F19;
+}
+
+.win-prob-dot.high-impact {
+  stroke: #FFFFFF;
+}
+
+.win-prob-tooltip {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: rgba(17, 24, 39, 0.95);
+  border: 1px solid var(--st-border, #334155);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  color: #F8FAFC;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.win-prob-turning-points {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.turning-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #F59E0B; /* Âmbar */
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.turning-list {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.turning-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--st-surface-raised, #1E293B);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.75rem;
+}
+
+.turning-badge {
+  font-family: var(--st-font-mono, monospace);
+  font-weight: 700;
+  color: #94A3B8;
+}
+
+.turning-desc {
+  color: #F8FAFC;
+}
+
+.text-cobalt { color: #38BDF8 !important; }
+.text-mint { color: #10B981 !important; }
+.text-coral { color: #F43F5E !important; }
+
+.win-prob-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--st-muted, #94A3B8);
+  font-size: 0.85rem;
+}
