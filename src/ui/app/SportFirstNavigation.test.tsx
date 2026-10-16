@@ -46,7 +46,7 @@ describe('sport-first navigation', () => {
 
     render(<App service={service} />);
     expect(await screen.findByRole('heading', { name: 'Escolha a modalidade' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Basquete: em breve' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Basquete: abrir partidas e manual' })).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Futebol: abrir partidas e manual' }));
     const matchList = await screen.findByRole('list', { name: 'Lista de partidas' });
@@ -80,8 +80,10 @@ describe('sport-first navigation', () => {
 
     expect(await screen.findByRole('button', { name: 'Registro' }, { timeout: 20_000 })).toHaveAttribute('aria-current', 'page');
     expect(screen.queryByRole('button', { name: 'Scout Essencial' })).not.toBeInTheDocument();
-    const advanced = screen.getByText('Controles avançados da modalidade').closest('details');
-    expect(advanced).not.toHaveAttribute('open');
+    expect(screen.getByLabelText('Scout Essencial')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes da partida' }));
+    expect(screen.getByRole('heading', { name: 'Ajustes da partida' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '← Voltar à quadra' }));
     expect(screen.getByLabelText('Scout Essencial')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '← Partidas' }));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Partidas' })).toBeInTheDocument());

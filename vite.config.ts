@@ -9,6 +9,7 @@ export default defineConfig({
     setupFiles: './src/tests/setup.ts',
     css: true,
     testTimeout: 15000,
+    maxWorkers: 2,
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
   },
 });

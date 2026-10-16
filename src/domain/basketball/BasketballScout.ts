@@ -1,7 +1,8 @@
 import type { MatchEvent } from '../match/events/MatchEvent';
 export type BasketballTactic = 'pick_roll' | 'pick_pop' | 'low_post' | 'isolation' | 'cut' | 'give_and_go' | 'drive_kick' | 'transition' | 'handoff' | 'spot_up' | 'off_ball_screen' | 'putback' | 'other';
 export type BasketballPressure = 'none' | 'on_ball' | 'half_court' | 'full_court' | 'trap';
-type FactContext = { readonly teamId: string; readonly playerId?: string; readonly position?: Point; readonly gameSeconds?: number; readonly shotSeconds?: number; readonly pressure?: BasketballPressure };
+export type BasketballRhythm = 'transition' | 'set_offense';
+type FactContext = { readonly teamId: string; readonly playerId?: string; readonly position?: Point; readonly originPosition?: Point; readonly rhythm?: BasketballRhythm; readonly gameSeconds?: number; readonly shotSeconds?: number; readonly pressure?: BasketballPressure };
 export type BasketballFactDraft =
   | (FactContext & { readonly kind: 'shot'; readonly value: 1 | 2 | 3; readonly outcome: 'made' | 'missed' | 'blocked'; readonly tactic?: BasketballTactic; readonly assistPlayerId?: string; readonly possessionEnds?: boolean })
   | (FactContext & { readonly kind: 'turnover'; readonly cause: 'bad_pass' | 'lost_ball' | 'violation' | 'offensive_foul' | 'other'; readonly tactic?: BasketballTactic })
@@ -18,6 +19,8 @@ export function validateBasketballFact(fact: BasketballFact, teamIds: ReadonlySe
   if (!teamIds.has(fact.teamId)) return 'Equipe inválida.';
   if (fact.playerId && playerTeams.get(fact.playerId) !== fact.teamId) return 'Atleta não pertence à equipe.';
   if (fact.position && (!Number.isFinite(fact.position.x) || !Number.isFinite(fact.position.y) || fact.position.x < 0 || fact.position.x > 1 || fact.position.y < 0 || fact.position.y > 1)) return 'Posição fora da quadra.';
+  if (fact.originPosition && (!Number.isFinite(fact.originPosition.x) || !Number.isFinite(fact.originPosition.y) || fact.originPosition.x < 0 || fact.originPosition.x > 1 || fact.originPosition.y < 0 || fact.originPosition.y > 1)) return 'Posição de origem fora da quadra.';
+  if (fact.rhythm && !['transition', 'set_offense'].includes(fact.rhythm)) return 'Ritmo da posse inválido.';
   if (fact.gameSeconds !== undefined && (!Number.isInteger(fact.gameSeconds) || fact.gameSeconds < 0 || fact.gameSeconds > (fact.period <= 4 ? 600 : 300))) return 'Tempo do quarto inválido.';
   if (fact.shotSeconds !== undefined && (!Number.isInteger(fact.shotSeconds) || fact.shotSeconds < 0 || fact.shotSeconds > 24)) return 'Relógio de arremesso inválido.';
   if (fact.pressure && !['none', 'on_ball', 'half_court', 'full_court', 'trap'].includes(fact.pressure)) return 'Pressão defensiva inválida.';

@@ -86,7 +86,7 @@ describe('TacticalQuestionService', () => {
     const answer = new TacticalQuestionService().answer(fixture(), 'reception_destination_regions', { teamId: 'a' });
     expect(answer.status).toBe('available');
     expect(answer.findings[0]).toMatchObject({
-      findingId: 'reception-target-1',
+      findingId: 'reception-target-5',
       sample: { n: 10, unit: 'event', completeRallies: 10 },
       numbers: { n: 10, wins: 6, empiricalPointProbability: 0.6, deltaVsBaseline: 0 },
       baseline: { pointProbability: 0.6 },

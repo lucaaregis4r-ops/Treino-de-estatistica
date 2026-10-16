@@ -184,6 +184,26 @@ Canonical events / match state
 A interface recebe `MetricResult`; ela não conhece fórmulas. Mudanças no event store invalidam
 somente caches de métricas afetadas.
 
+## Pipeline observacional do basquete
+
+```text
+gesto na quadra + valor escolhido + contexto opcional
+  → BasketballFactDraft → ScoutTrainerService
+  → validação → evento de registro/correção/undo no log
+  → projectBasketball → fatos efetivos e placar
+  → reconstrução de posses completas
+  → frequências condicionais ritmo → gatilho → zona/desfecho
+  → métricas de posse e mapa de ações observadas
+  → interface
+```
+
+O denominador de PPP contém somente posses com fim observado. Rebote ofensivo
+mantém a posse; rebote defensivo adversário, cesta terminal e perda a encerram.
+Arremessos de um ponto não entram em FG% ou eFG%. Fatos sem posição não recebem
+zona inventada, e vetores exigem origem e destino observados. A árvore resume
+transições entre etapas anotadas da posse; não estima eventos omitidos nem prevê
+o próximo lance.
+
 ## Pipeline de caminhos do rally
 
 ```text

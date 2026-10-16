@@ -219,7 +219,9 @@ export class TacticalQuestionService {
     const spatialQuestion = this.spatialQuestion(questionId);
     const regions = this.spatial.regions(sequences, filters.teamId, spatialQuestion.skill)
       .filter((item) => item.spatialRole === spatialQuestion.role)
-      .sort((left, right) => (right.deltaVsBaseline ?? -Infinity) - (left.deltaVsBaseline ?? -Infinity))
+      .sort((left, right) =>
+        (right.deltaVsBaseline ?? -Infinity) - (left.deltaVsBaseline ?? -Infinity) ||
+        left.findingId.localeCompare(right.findingId))
       .slice(0, 5);
     const findings = regions.map((item) => spatialFinding(item, filters, completeRallies));
     return {

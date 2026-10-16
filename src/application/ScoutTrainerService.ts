@@ -1529,12 +1529,11 @@ export class ScoutTrainerService {
         lineup.slots[lineup.positions[position]]?.playerId === selected) : -1;
       if (!lineup || offset < 0) return failure(new ValidationError('O atleta de P1 precisa estar na escalação atual.', []));
       if (offset === 0) continue;
-      const positions = Object.fromEntries(ROTATION_POSITIONS.map((position, index) =>
-        [position, lineup.positions[ROTATION_POSITIONS[(index + offset) % 6]]])) as SetLineup['positions'];
-      const rotatedLineup = new RotationEngine().rotate(
-        { ...lineup, positions },
-        state.metadata.liberoPlayerIds,
-      );
+      const rotation = new RotationEngine();
+      let rotatedLineup = lineup;
+      for (let step = 0; step < offset; step++) {
+        rotatedLineup = rotation.rotate(rotatedLineup, state.metadata.liberoPlayerIds);
+      }
       changes.push({ ...identity(), type: 'set_lineup_confirmed', lineup: rotatedLineup });
     }
     for (const [index, team] of teams.entries()) {

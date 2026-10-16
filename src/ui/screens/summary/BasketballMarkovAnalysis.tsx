@@ -1,30 +1,170 @@
-import { useState } from 'react';
-import { analyzeBasketballMarkov, type BasketballActionState } from '../../../domain/basketball/BasketballActionAnalytics';
+import { useMemo, useState } from 'react';
 import type { BasketballFact } from '../../../domain/basketball/BasketballScout';
-import { basketballTactics } from '../scout/BasketballLabels';
+import { analyzeBasketballTacticalMarkov } from '../../../domain/basketball/BasketballTacticalMarkov';
+import { MarkovTree } from '../../../components/analysis/MarkovTree';
+import { BasketballCourtPro } from '../../../components/court/BasketballCourtPro';
 
-const labels: Partial<Record<BasketballActionState, string>> = {
-  possession_start: 'Início de posse', pass: 'Passe', shot_missed: 'Arremesso errado', shot_blocked: 'Arremesso bloqueado', shot_made_continue: 'Cesta com continuidade', offensive_rebound: 'Rebote ofensivo', defensive_rebound: 'Rebote defensivo', foul: 'Falta', basket_1: '1 ponto', basket_2: '2 pontos', basket_3: '3 pontos', turnover: 'Perda de posse', opponent_rebound: 'Rebote adversário',
-};
-function stateLabel(state: BasketballActionState): string { return state.startsWith('tactic:') ? basketballTactics[state.slice(7) as keyof typeof basketballTactics] : labels[state] ?? state; }
-function percentage(value: number) { return `${Math.round(value * 100)}%`; }
-
-export function BasketballMarkovAnalysis({ facts, teams }: { readonly facts: readonly BasketballFact[]; readonly teams: readonly { id: string; name: string }[] }) {
+export function BasketballMarkovAnalysis({
+  facts,
+  teams,
+}: {
+  readonly facts: readonly BasketballFact[];
+  readonly teams: readonly { id: string; name: string }[];
+}) {
   const [teamId, setTeamId] = useState(teams[0]?.id ?? '');
-  const [chosenFrom, setChosenFrom] = useState<BasketballActionState | ''>('');
-  const model = analyzeBasketballMarkov(facts, teamId);
-  const origins = [...new Set(model.transitions.map(transition => transition.from))];
-  const from = chosenFrom && origins.includes(chosenFrom) ? chosenFrom : origins.includes('possession_start') ? 'possession_start' : origins[0];
-  const focused = model.transitions.filter(transition => transition.from === from);
-  const recent = model.chains.filter(chain => chain.states.length > 1).slice(-5).reverse();
-  return <section className="basketball-markov" aria-label="Cadeia de Markov das ações do basquete">
-    <div className="basketball-markov-heading"><div><h2>Cadeias de Markov das ações</h2><p>Probabilidade da próxima ação anotada, condicionada ao estado atual. A cadeia usa somente lances consecutivos da mesma posse; etiquetas táticas de um arremesso ou perda entram antes do resultado.</p></div><label>Equipe<select value={teamId} onChange={event => { setTeamId(event.target.value); setChosenFrom(''); }}>{teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label></div>
-    <p className="basketball-markov-coverage">{model.chains.length} cadeias · {model.completeChains} com desfecho observado · {model.transitions.reduce((sum, transition) => sum + transition.count, 0)} transições anotadas.</p>
-    {model.transitions.length ? <>
-      <div className="basketball-markov-focus"><label>Estado atual<select value={from} onChange={event => setChosenFrom(event.target.value as BasketballActionState)}>{origins.map(state => <option key={state} value={state}>{stateLabel(state)}</option>)}</select></label><div className="basketball-markov-bars" aria-label={`Próxima ação após ${stateLabel(from)}`}>{focused.map(transition => <div key={transition.to}><span>{stateLabel(transition.to)}</span><div className="basketball-markov-track"><span style={{ width: `${transition.probability * 100}%` }} /></div><strong>{transition.count}/{transition.denominator} · {percentage(transition.probability)}</strong></div>)}</div></div>
-      <h3>Transições observadas</h3><div className="basketball-table-scroll"><table><thead><tr><th>De</th><th>Para</th><th>Ocorrências</th><th>Saídas do estado</th><th>Probabilidade</th></tr></thead><tbody>{model.transitions.map(transition => <tr key={`${transition.from}-${transition.to}`}><td>{stateLabel(transition.from)}</td><td>{stateLabel(transition.to)}</td><td>{transition.count}</td><td>{transition.denominator}</td><td>{percentage(transition.probability)}{transition.denominator < 5 ? ' · poucos registros' : ''}</td></tr>)}</tbody></table></div>
-      <h3>Últimas cadeias observadas</h3><ol className="basketball-chain-list">{recent.map((chain, index) => <li key={`${chain.factIds.join('-')}-${index}`}><b>{chain.period <= 4 ? `${chain.period}º quarto` : `${chain.period - 4}ª prorrogação`}</b> · {chain.states.map(stateLabel).join(' → ')}{!chain.complete ? ' · sem desfecho anotado' : ''}</li>)}</ol>
-    </> : <p>Registre ao menos duas ações consecutivas da mesma posse para formar uma transição.</p>}
-    <p>Este é um modelo descritivo de primeira ordem: cada percentual usa as saídas observadas do estado como denominador. Passes não anotados, posições ausentes e posses abertas não são completados por inferência. Corrigir ou desfazer um lance recalcula a cadeia.</p>
-  </section>;
+  const [periodFilter, setPeriodFilter] = useState<'all' | number>('all');
+  const [selectedNodeId, setSelectedNodeId] = useState<string>();
+
+  const currentTeam = teams.find((t) => t.id === teamId) ?? teams[0];
+  const opponentTeam = teams.find((t) => t.id !== teamId);
+
+  const model = useMemo(
+    () =>
+      analyzeBasketballTacticalMarkov(facts, teamId, {
+        period: periodFilter === 'all' ? undefined : periodFilter,
+        selectedNodeId,
+      }),
+    [facts, teamId, periodFilter, selectedNodeId]
+  );
+
+  const periods = [...new Set(facts.map((f) => f.period))].sort((a, b) => a - b);
+
+  return (
+    <section className="basketball-markov-pro" aria-label="Análise tática descritiva das posses">
+      {/* Heading & Filters */}
+      <div className="basketball-markov-heading">
+        <div>
+          <h2>Caminhos táticos observados e finalizações</h2>
+          <p>
+            Resumo descritivo de posses completas em 3 estágios: <strong>Ritmo da Posse</strong> →{' '}
+            <strong>Gatilho de Vantagem</strong> → <strong>Zona e Desfecho</strong>.
+            As curvas mostram frequências condicionais observadas. Clique em um nó para filtrar a quadra. Vetores aparecem somente quando a origem foi registrada.
+          </p>
+        </div>
+        <div className="basketball-map-filters">
+          <label>
+            Equipe
+            <select
+              value={teamId}
+              onChange={(e) => {
+                setTeamId(e.target.value);
+                setSelectedNodeId(undefined);
+              }}
+            >
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Período
+            <select
+              value={periodFilter}
+              onChange={(e) =>
+                setPeriodFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))
+              }
+            >
+              <option value="all">Todos os quartos</option>
+              {periods.map((p) => (
+                <option key={p} value={p}>
+                  {p <= 4 ? `${p}º quarto` : `${p - 4}ª prorrogação`}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
+
+      {/* Coach Tactical Briefing Card */}
+      <div className="briefing-card" aria-label="Briefing tático do treinador">
+        <div className="briefing-header">
+          <span className="briefing-tag">📋 Briefing Tático do Treinador</span>
+          <div className="briefing-stat-row">
+            <div className="stat-pill">
+              <span className="label">Amostra:</span>
+              <strong className="value">{model.coachBriefing.sampleCount} posses</strong>
+            </div>
+            <div className="stat-pill">
+              <span className="label">Eficiência:</span>
+              <strong className="value text-cyan">
+                {model.coachBriefing.ppp.toFixed(2)} PPP
+              </strong>
+            </div>
+            <div className="stat-pill">
+              <span className="label">Pontos Feitos:</span>
+              <strong className="value text-mint">{model.coachBriefing.totalPoints} pts</strong>
+            </div>
+            <div className="stat-pill">
+              <span className="label">Perdas (TOs):</span>
+              <strong className="value text-coral">{model.coachBriefing.turnoversCount}</strong>
+            </div>
+          </div>
+        </div>
+        <p className="briefing-narrative">{model.coachBriefing.narrative}</p>
+      </div>
+
+      {/* Markov Pro Workbench: Tree (left) + Tactical Court (right) */}
+      <div className="markov-pro-workbench">
+        <div className="markov-pro-tree-area">
+          <div className="markov-tree-legend-bar">
+            <span>
+              <b>Fase 1:</b> Ritmo da Posse
+            </span>
+            <span>
+              <b>Fase 2:</b> Gatilho Tático
+            </span>
+            <span>
+              <b>Fase 3:</b> Zona & Desfecho
+            </span>
+          </div>
+
+          {model.nodes.length > 0 ? (
+            <MarkovTree
+              nodes={model.nodes}
+              links={model.links}
+              onSelectNode={(node) =>
+                setSelectedNodeId(node.id === selectedNodeId ? undefined : node.id)
+              }
+              selectedNodeId={selectedNodeId}
+            />
+          ) : (
+            <p className="markov-empty-notice">
+              Registre arremessos ou perdas de posse para gerar a árvore preditiva.
+            </p>
+          )}
+
+          {selectedNodeId && (
+            <div className="markov-filter-status">
+              <span>
+                Filtro ativo:{' '}
+                <strong>
+                  {model.nodes.find((n) => n.id === selectedNodeId)?.title ?? selectedNodeId}
+                </strong>
+              </span>
+              <button type="button" onClick={() => setSelectedNodeId(undefined)}>
+                Limpar filtro
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="markov-pro-court-area">
+          <BasketballCourtPro
+            events={model.courtEvents}
+            vectors={model.vectors}
+            teamName={currentTeam?.name ?? 'Equipe'}
+            opponentName={opponentTeam?.name ?? 'Adversário'}
+            zoneSummary={model.zoneSummary}
+            title={
+              selectedNodeId
+                ? `Quadra Filtrada: ${model.nodes.find((n) => n.id === selectedNodeId)?.title}`
+                : 'Mapa Vetorial e Térmico de Finalizações'
+            }
+          />
+        </div>
+      </div>
+    </section>
+  );
 }

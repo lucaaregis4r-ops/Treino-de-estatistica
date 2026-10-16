@@ -11,7 +11,7 @@ function normalized(location: StatsBombLocation | undefined) {
 
 function destinationFor(event: CanonicalFootballEvent) {
   const shotEnd = event.shot?.end_location;
-  return normalized(event.pass?.end_location ?? event.carry?.end_location ?? event.scout_trainer.essential_destination ?? (Array.isArray(shotEnd) && typeof shotEnd[0] === 'number' && typeof shotEnd[1] === 'number' ? shotEnd as unknown as StatsBombLocation : undefined));
+  return normalized(event.pass?.end_location ?? event.carry?.end_location ?? event.scout_trainer?.essential_destination ?? (Array.isArray(shotEnd) && typeof shotEnd[0] === 'number' && typeof shotEnd[1] === 'number' ? shotEnd as unknown as StatsBombLocation : undefined));
 }
 
 function effectiveHistoryIds(history: readonly MatchEvent[]) {

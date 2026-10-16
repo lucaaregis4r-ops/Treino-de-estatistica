@@ -7,7 +7,7 @@ function sourceFiles(directory: string): string[] {
     const path = join(directory, entry);
     return statSync(path).isDirectory()
       ? sourceFiles(path)
-      : path.endsWith('.ts') || path.endsWith('.tsx')
+      : (path.endsWith('.ts') || path.endsWith('.tsx')) && !/\.test\.tsx?$/.test(path)
         ? [path]
         : [];
   });
@@ -18,7 +18,7 @@ describe('architecture boundaries', () => {
     const domainRoot = resolve('src/domain');
     const violations = sourceFiles(domainRoot).flatMap((file) => {
       const contents = readFileSync(file, 'utf8');
-      return /(?:from|import\s*)\s*["'][^"']*(?:^|\/)(?:ui|infrastructure|react)(?:\/|$)[^"']*["']/.test(contents)
+      return /(?:from|import\s*)\s*["'][^"']*(?:^|\/)(?:ui|components|infrastructure|react)(?:\/|$)[^"']*["']/.test(contents)
         ? [relative(domainRoot, file)]
         : [];
     });

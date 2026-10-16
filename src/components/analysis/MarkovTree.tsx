@@ -1,28 +1,12 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import type { MarkovLink, MarkovNode } from '../../domain/analytics/MarkovGraph';
 import './MarkovTree.css';
 
-export interface MarkovNode {
-  id: string;
-  stage: 1 | 2 | 3;
-  title: string;
-  subtitle: string;
-  sampleN: number;
-  rate: number; // Porcentagem de eficácia/conversão (0-100)
-  rateLabel?: string; // Ex: 'Virada', 'Eficácia', 'Break Point', '% do Total'
-  status: 'positive' | 'warning' | 'negative' | 'neutral';
-}
-
-export interface MarkovLink {
-  fromId: string;
-  toId: string;
-  volume: number; // N de ocorrências
-  probability: number; // Ex: 0.68
-  type: 'kill' | 'rally' | 'error';
-}
+export type { MarkovLink, MarkovNode } from '../../domain/analytics/MarkovGraph';
 
 export interface MarkovTreeProps {
-  nodes: MarkovNode[];
-  links: MarkovLink[];
+  nodes: readonly MarkovNode[];
+  links: readonly MarkovLink[];
   onSelectNode?: (node: MarkovNode) => void;
   selectedNodeId?: string;
   onSelectLink?: (link: MarkovLink) => void;
@@ -170,11 +154,11 @@ export const MarkovTree: React.FC<MarkovTreeProps> = ({
                   key={node.id}
                   id={`markov-node-${node.id}`}
                   className={`markov-card ${isSelected ? 'selected' : ''}`}
-                  onClick={() => onSelectNode && onSelectNode(node)}
+                  onClick={() => onSelectNode?.(node)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') onSelectNode && onSelectNode(node);
+                    if (e.key === 'Enter' || e.key === ' ') onSelectNode?.(node);
                   }}
                 >
                   <div className="markov-card-top">
@@ -183,7 +167,7 @@ export const MarkovTree: React.FC<MarkovTreeProps> = ({
                       <p className="markov-card-subtitle">{node.subtitle}</p>
                     </div>
                     <span className="markov-metric-rate text-mint">
-                      {node.rate.toFixed(1)}%
+                      {node.rateLabel === 'PPP' ? node.rate.toFixed(2) : `${node.rate.toFixed(1)}%`}
                     </span>
                   </div>
                   <div className="markov-card-bottom">
@@ -209,11 +193,11 @@ export const MarkovTree: React.FC<MarkovTreeProps> = ({
                   key={node.id}
                   id={`markov-node-${node.id}`}
                   className={`markov-card ${isSelected ? 'selected' : ''}`}
-                  onClick={() => onSelectNode && onSelectNode(node)}
+                  onClick={() => onSelectNode?.(node)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') onSelectNode && onSelectNode(node);
+                    if (e.key === 'Enter' || e.key === ' ') onSelectNode?.(node);
                   }}
                 >
                   <div className="markov-card-top">
@@ -254,11 +238,11 @@ export const MarkovTree: React.FC<MarkovTreeProps> = ({
                   key={node.id}
                   id={`markov-node-${node.id}`}
                   className={`markov-card markov-card-terminal ${statusClass} ${isSelected ? 'selected' : ''}`}
-                  onClick={() => onSelectNode && onSelectNode(node)}
+                  onClick={() => onSelectNode?.(node)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') onSelectNode && onSelectNode(node);
+                    if (e.key === 'Enter' || e.key === ' ') onSelectNode?.(node);
                   }}
                 >
                   <div className="markov-card-top">

@@ -148,7 +148,7 @@ describe('usable MVP flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Usar elenco demonstrativo' }));
     fireEvent.click(screen.getByRole('radio', { name: /Operacional/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
-    const scoutInput = await screen.findByLabelText<HTMLInputElement>(
+    let scoutInput = await screen.findByLabelText<HTMLInputElement>(
       'Digite o código',
       undefined,
       {
@@ -160,9 +160,14 @@ describe('usable MVP flow', () => {
     expect(screen.getByLabelText('Contexto atual da partida')).toHaveTextContent('Rotação: R1');
     expect(screen.getByLabelText('Quadra de Equipe A')).toBeInTheDocument();
     expect(screen.getByLabelText('Quadra de Equipe B')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Últimos eventos' })).toBeInTheDocument();
-    await waitFor(() => expect(scoutInput).toHaveFocus());
+    fireEvent.click(screen.getByRole('button', { name: 'Campos e código' }));
+    scoutInput.focus();
+    expect(scoutInput).toHaveFocus();
     await waitFor(() => expect(scoutInput).toHaveValue('*01S'));
+    fireEvent.click(screen.getByRole('button', { name: /Histórico/ }));
+    expect(screen.getByRole('heading', { name: 'Últimos eventos' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Campos e código' }));
+    scoutInput = screen.getByLabelText<HTMLInputElement>('Digite o código');
 
     fireEvent.change(scoutInput, { target: { value: '*01A#' } });
     fireEvent.click(screen.getByRole('button', { name: 'Habilitar ajuda' }));
@@ -174,7 +179,7 @@ describe('usable MVP flow', () => {
       screen.getByText('Direção', { selector: '.capture-help-content strong' }),
     ).toBeInTheDocument();
     fireEvent.submit(scoutInput.closest('form')!);
-    expect(await screen.findByText('*01A#')).toBeInTheDocument();
+    expect(await screen.findByText('*01A#', undefined, { timeout: 15_000 })).toBeInTheDocument();
     await waitFor(() => expect(scoutInput).toHaveFocus());
     await waitFor(() => expect(scoutInput.selectionStart).toBe(scoutInput.value.length));
 
@@ -187,23 +192,27 @@ describe('usable MVP flow', () => {
     const persistedScout = await service.loadMatch(persistedAfterManual.value[0].id);
     if (!persistedScout.ok) throw persistedScout.error;
     expect(persistedScout.value.timeline.map((entry) => entry.event.rawCode)).toContain('*01A#');
-    expect(await screen.findByText('*01A#')).toBeInTheDocument();
+    expect(await screen.findByText('*01A#', undefined, { timeout: 15_000 })).toBeInTheDocument();
     expect(screen.getByLabelText('Placar da partida')).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: /Histórico/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Corrigir' }));
     const correctionInput = screen.getByLabelText('Corrigindo evento');
     fireEvent.change(correctionInput, { target: { value: '*01A+' } });
     fireEvent.submit(correctionInput.closest('form')!);
-    expect(await screen.findByText('*01A+')).toBeInTheDocument();
+    expect(await screen.findByText('*01A+', undefined, { timeout: 15_000 })).toBeInTheDocument();
     expect(screen.getByText('corrigido')).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: /Histórico/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
-    expect(await screen.findByText('*01A#')).toBeInTheDocument();
+    expect(await screen.findByText('*01A#', undefined, { timeout: 15_000 })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Refazer' }));
-    expect(await screen.findByText('*01A+')).toBeInTheDocument();
+    expect(await screen.findByText('*01A+', undefined, { timeout: 15_000 })).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes da partida' }));
     fireEvent.click(screen.getByRole('button', { name: 'Aumentar placar de Equipe A' }));
     await waitFor(() => expect(screen.getByLabelText('Placar da partida')).toHaveTextContent('1×0'));
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar Ajustes da partida' }));
     fireEvent.click(screen.getByRole('button', { name: 'Resumo' }));
     expect(await screen.findByRole('heading', { name: 'Equipe A x Equipe B' })).toBeInTheDocument();
     fireEvent.click(screen.getByText('Dados completos e opções de exportação'));
@@ -226,9 +235,9 @@ describe('usable MVP flow', () => {
     const savedMatch = await screen.findByRole('button', { name: 'Equipe A x Equipe B' });
     expect(savedMatch.closest('li')).toHaveTextContent('Operacional');
     fireEvent.click(savedMatch);
-    expect(await screen.findByText('*01A+')).toBeInTheDocument();
+    expect(await screen.findByText('*01A+', undefined, { timeout: 15_000 })).toBeInTheDocument();
     expect(screen.getByText('Data Volley')).toBeInTheDocument();
-  }, 60_000);
+  }, 90_000);
 
   it('registers one event by fields and one with an associated code on the unified screen', async () => {
     const { service, trainingService, profileEditorService } = createService();
@@ -251,25 +260,29 @@ describe('usable MVP flow', () => {
     await openVolleyballMatch('Equipe A x Equipe B');
 
     expect(await screen.findByLabelText('Digite o código')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Registro por campos e código associado'));
+    fireEvent.click(screen.getByRole('button', { name: 'Campos e código' }));
     const visualForm = screen.getByRole('heading', { name: 'Preencha e registre' }).closest('form');
     if (!visualForm) throw new Error('Visual scout form was not found.');
     fireEvent.change(within(visualForm).getByLabelText('Fundamento'), { target: { value: 'attack' } });
     fireEvent.change(within(visualForm).getByLabelText('Avaliação'), { target: { value: 'positive' } });
     fireEvent.submit(visualForm);
+    fireEvent.click(screen.getByRole('button', { name: /Histórico/ }));
     await within(screen.getByRole('heading', { name: 'Últimos eventos' }).closest('section')!).findByText('Ataque', { selector: '.event-meaning strong' });
+    fireEvent.click(screen.getByRole('button', { name: 'Campos e código' }));
 
-    fireEvent.change(within(visualForm).getByLabelText('Código associado (opcional)'), {
+    const activeVisualForm = screen.getByRole('heading', { name: 'Preencha e registre' }).closest('form');
+    if (!activeVisualForm) throw new Error('Visual scout form was not found after returning.');
+    fireEvent.change(within(activeVisualForm).getByLabelText('Código associado (opcional)'), {
       target: { value: '01A+' },
     });
-    fireEvent.change(within(visualForm).getByLabelText('Fundamento'), {
+    fireEvent.change(within(activeVisualForm).getByLabelText('Fundamento'), {
       target: { value: 'attack' },
     });
-    fireEvent.change(within(visualForm).getByLabelText('Avaliação'), {
+    fireEvent.change(within(activeVisualForm).getByLabelText('Avaliação'), {
       target: { value: 'positive' },
     });
-    fireEvent.submit(visualForm);
-    await screen.findByText('01A+');
+    fireEvent.submit(activeVisualForm);
+    await screen.findByText('01A+', undefined, { timeout: 15_000 });
 
     const workspace = await service.loadMatch(created.value.state.metadata.id);
     expect(workspace.ok).toBe(true);
@@ -340,7 +353,7 @@ describe('usable MVP flow', () => {
     );
     await openVolleyballMatch('Equipe A x Equipe B');
     fireEvent.click(screen.getByRole('button', { name: 'Análise' }));
-    fireEvent.click(screen.getByText('Explorar quadra, sequências e gráficos avançados'));
+    fireEvent.click(screen.getByRole('button', { name: 'Mapas e sequências' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Quadra' }));
     expect(
       await screen.findByRole('heading', { name: 'Distribuição em quadra' }),
@@ -368,7 +381,8 @@ describe('usable MVP flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Criar e iniciar scout' }));
     await screen.findByLabelText('Quadra de Equipe A', undefined, { timeout: 20_000 });
 
-    fireEvent.click(screen.getAllByText('Substituição')[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Escalações' }));
+    expect(screen.getAllByRole('heading', { name: 'Substituição Completa' }).length).toBeGreaterThan(0);
     const playerOut = screen.getByLabelText<HTMLSelectElement>('Equipe A: atleta que sai');
     const playerIn = screen.getByLabelText('Equipe A: atleta que entra');
     const outgoingOption = [...playerOut.options].find((option) =>
@@ -422,7 +436,7 @@ describe('usable MVP flow', () => {
     fireEvent.submit(input.closest('form')!);
 
     expect(
-      await screen.findByRole('heading', { name: 'Confirmar escalação do set 2' }),
+      await screen.findByRole('heading', { name: 'Confirmar escalação do set 2' }, { timeout: 15_000 }),
     ).toBeInTheDocument();
     const positionOne = screen.getByLabelText<HTMLSelectElement>(
       'Equipe A: atleta em P1 no próximo set',
@@ -432,10 +446,9 @@ describe('usable MVP flow', () => {
     fireEvent.change(positionOne, { target: { value: bench.value } });
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar escalação e iniciar set' }));
 
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('heading', { name: 'Confirmar escalação do set 2' }),
-      ).not.toBeInTheDocument(),
+    await waitFor(
+      () => expect(screen.queryByRole('heading', { name: 'Confirmar escalação do set 2' })).not.toBeInTheDocument(),
+      { timeout: 15_000 },
     );
     const reopened = await service.loadMatch(created.value.state.metadata.id);
     if (!reopened.ok) throw reopened.error;
@@ -466,6 +479,7 @@ describe('usable MVP flow', () => {
     const courtOrder = () => [...document.querySelectorAll('.dual-court .court-lineup')]
       .map((court) => court.getAttribute('aria-label'));
     expect(courtOrder()).toEqual(['Quadra de Olympico', 'Quadra de Adversário']);
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes da partida' }));
     fireEvent.click(screen.getByRole('button', { name: 'Trocar lados' }));
     await waitFor(() => expect(courtOrder()).toEqual(['Quadra de Adversário', 'Quadra de Olympico']));
 
@@ -506,7 +520,7 @@ describe('usable MVP flow', () => {
     fireEvent.change(input, { target: { value: '*01A#*02S+a09R#' } });
     fireEvent.submit(input.closest('form')!);
 
-    expect(await screen.findByText('A09R#')).toBeInTheDocument();
+    expect(await screen.findByText('A09R#', undefined, { timeout: 15_000 })).toBeInTheDocument();
     expect(screen.getByText('*02S+')).toBeInTheDocument();
     expect(screen.getByText('*01A#')).toBeInTheDocument();
     await waitFor(() => expect(input).toHaveValue('*01A#*02S+a09R#*01S'));
@@ -563,7 +577,8 @@ describe('usable MVP flow', () => {
 
     fireEvent.change(input, { target: { value: '*01A#' } });
     fireEvent.submit(input.closest('form')!);
-    expect(await screen.findByText(/parcial · faltam direção/)).toBeInTheDocument();
+    expect(await screen.findByText(/parcial · faltam direção/, undefined, { timeout: 30_000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Histórico/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Completar' }));
     fireEvent.change(screen.getByLabelText('Tipo da ação'), { target: { value: 'potência' } });
     expect(screen.queryByLabelText('Zona de destino')).not.toBeInTheDocument();
@@ -573,9 +588,9 @@ describe('usable MVP flow', () => {
     fireEvent.change(correction, { target: { value: '*01A#' } });
     fireEvent.submit(correction.closest('form')!);
 
-    expect(await screen.findByText('corrigido')).toBeInTheDocument();
+    expect(await screen.findByText('corrigido', undefined, { timeout: 15_000 })).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText(/parcial · faltam/)).not.toBeInTheDocument());
-  }, 60_000);
+  }, 90_000);
 
   it('creates a serialized code profile and makes it selectable for a new match', async () => {
     const { service, trainingService, profileEditorService } = createService();

@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run tests
+        run: npm test
+
       - name: Build portable executable
         run: npm run build:exe
 
@@ -35,4 +38,3 @@ jobs:
           name: Scout-Trainer-Windows-${{ github.sha }}
           path: distribuicao/*.exe
           if-no-files-found: error
-

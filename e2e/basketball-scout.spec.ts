@@ -1,82 +1,82 @@
-import { expect, test } from '@playwright/test';
-test('basquete registra cesta, perda de posse, correção e resumo sem rolagem horizontal', async ({ page }) => {
-  test.setTimeout(120_000);
+import { expect, test, type Page } from '@playwright/test';
+
+async function openBasketballMatch(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Basquete: abrir partidas e manual' }).click({ force: true });
+  await page.getByRole('button', { name: 'Basquete: abrir partidas e manual' }).click();
   await page.getByRole('button', { name: 'Nova partida' }).last().click();
   await page.getByRole('button', { name: 'Iniciar partida' }).click();
-  await expect(page.getByRole('heading', { name: 'Quadra de jogo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Quadra e Posse de Jogo' })).toBeVisible();
+}
+
+test('basquete registra e corrige arremessos sem rolagem horizontal', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openBasketballMatch(page);
+
   for (const width of [1366, 1024, 768, 390]) {
-    await page.setViewportSize({ width, height: width === 1366 ? 768 : 844 });
-    const court = await page.locator('.basketball-court').boundingBox();
-    const form = await page.locator('.basketball-form').boundingBox();
-    if (!court || !form) throw new Error('Quadra ou formulário ausente');
+    await page.setViewportSize({ width, height: 844 });
+    const court = await page.getByRole('region', { name: /Quadra interativa de basquete/ }).boundingBox();
+    if (!court) throw new Error('Quadra interativa ausente.');
     expect(court.width / court.height).toBeCloseTo(28 / 15, 1);
-    if (width > 760) expect(form.x).toBeGreaterThanOrEqual(court.x + court.width - 2);
-    else expect(form.y).toBeGreaterThanOrEqual(court.y + court.height - 2);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    if (width === 1366 || width === 390) await page.screenshot({ path: `/tmp/scout-basquete-${width}.png`, fullPage: true });
+    const overflow = await page.evaluate(() => ({
+      viewport: innerWidth,
+      document: document.documentElement.scrollWidth,
+      elements: [...document.querySelectorAll('*')]
+        .filter((element) => element.getBoundingClientRect().right > innerWidth + 1)
+        .slice(0, 8)
+        .map((element) => `${element.tagName.toLowerCase()}.${element.className}`),
+    }));
+    expect(overflow.document, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.viewport);
   }
+
   await page.setViewportSize({ width: 1366, height: 844 });
-  await page.getByRole('button', { name: 'Marcar posição na quadra de basquete' }).focus();
+  const court = page.getByRole('region', { name: /Quadra interativa de basquete/ });
+  await court.focus();
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.basketball-location')).toBeVisible();
-  await page.getByRole('button', { name: 'Marcar posição na quadra de basquete' }).click({ position: { x: 200, y: 100 } });
-  await page.getByLabel('Ação tática').selectOption('pick_roll');
-  await page.getByRole('button', { name: 'Registrar lance' }).click();
-  await expect(page.getByLabel('Placar da partida')).toContainText('2');
-  await page.getByRole('button', { name: 'Perda de posse' }).click();
-  await page.getByRole('button', { name: 'Registrar lance' }).click();
+  await expect(page.locator('.basketball-location-pin')).toBeVisible();
+  await page.getByRole('group', { name: 'Pontuação do arremesso' }).getByRole('button', { name: '3 pts' }).click();
+  await page.getByRole('button', { name: /CESTA.*\+3 pts/ }).click();
+  await expect(page.getByLabel('Placar da partida')).toContainText('3');
+
+  await page.getByRole('button', { name: /Perda de Posse/ }).click();
   await page.getByRole('button', { name: /Histórico/ }).click();
-  await expect(page.getByText('Perda de posse', { exact: false }).last()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Lances registrados' })).toBeVisible();
   await page.getByRole('button', { name: 'Corrigir' }).last().click();
-  await page.getByLabel('Resultado').selectOption('missed');
-  await page.getByRole('button', { name: 'Salvar correção' }).click();
+  await page.getByRole('button', { name: /ERRO.*Rebote em disputa/ }).click();
   await expect(page.getByLabel('Placar da partida')).toContainText('0');
+
   await page.getByRole('button', { name: 'Resumo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Resumo e análise' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Mapa de ações e calor' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Cadeias de Markov das ações' })).toBeVisible();
-  await page.getByRole('button', { name: 'Calor' }).click();
+  await expect(page.getByRole('heading', { name: 'Caminhos táticos observados e finalizações' })).toBeVisible();
+  await page.getByRole('region', { name: 'Mapas de ações do basquete' }).getByRole('button', { name: 'Calor' }).click();
   await expect(page.getByRole('img', { name: 'Mapa de calor das ações registradas na quadra de basquete' })).toBeVisible();
-  for (const width of [1366, 1024, 768, 390]) { await page.setViewportSize({ width, height: 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); }
+  for (const width of [1366, 1024, 768, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
 });
 
-test('basquete mede posse pelo quarto, permite ajustar relógios e configurar atalhos', async ({ page }) => {
+test('basquete ajusta relógios, registra rebote ofensivo e configura atalho', async ({ page }) => {
   test.setTimeout(120_000);
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Basquete: abrir partidas e manual' }).click({ force: true });
-  await page.getByRole('button', { name: 'Nova partida' }).last().click();
-  await page.getByRole('button', { name: 'Iniciar partida' }).click();
-  await page.getByRole('button', { name: 'Ajustar relógios' }).click();
+  await openBasketballMatch(page);
+  await page.getByRole('button', { name: /Ajustar/ }).click();
   await page.getByLabel('Minutos do quarto').fill('9');
   await page.getByLabel('Segundos do quarto').fill('48');
-  await page.locator('.basketball-clock-adjust').getByLabel('Relógio de arremesso').fill('16');
+  await page.getByRole('region', { name: 'Ajustar relógios' }).getByLabel('Relógio de arremesso').fill('16');
   await page.getByRole('button', { name: 'Concluir' }).click();
   await expect(page.getByLabel('Tempo do período')).toHaveText('09:48');
-  const openingTeam = await page.getByLabel('Equipe').inputValue();
-  await page.getByRole('button', { name: /Iniciar posse/ }).click();
-  await page.getByRole('button', { name: 'Ajustar relógios' }).click();
-  await page.getByLabel('Segundos do quarto').fill('41');
-  await page.getByRole('button', { name: 'Concluir' }).click();
-  await page.getByRole('button', { name: 'Registrar lance' }).click();
-  await expect(page.getByLabel('Relógio de arremesso', { exact: true })).toHaveText('24');
-  expect(await page.getByLabel('Equipe').inputValue()).not.toBe(openingTeam);
-  await page.getByLabel('Resultado').selectOption('missed');
-  await page.getByRole('button', { name: 'Registrar lance' }).click();
-  await page.getByRole('button', { name: 'Rebote' }).click();
-  await page.getByLabel('Bola tocou o aro').check();
-  await page.getByRole('button', { name: 'Registrar lance' }).click();
-  await expect(page.getByLabel('Relógio de arremesso', { exact: true })).toHaveText('14');
+  await expect(page.getByLabel('Relógio de arremesso')).toHaveText('16');
+
+  await page.getByRole('button', { name: /Reb Of/ }).click();
+  await expect(page.getByLabel('Relógio de arremesso')).toHaveText('14');
   await page.getByRole('button', { name: 'Atalhos' }).click();
   await page.getByLabel('Atalho: Perda').fill('K');
-  await page.getByRole('button', { name: 'Quadra', exact: true }).click();
+  await page.getByRole('button', { name: 'Quadra Tática' }).click();
   await page.keyboard.press('K');
-  await expect(page.getByRole('button', { name: 'Perda de posse' })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('R');
+  await page.getByRole('button', { name: /Histórico/ }).click();
+  await expect(page.locator('.basketball-history li')).toHaveCount(2);
   await page.getByRole('button', { name: 'Resumo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Ritmo das posses' })).toBeVisible();
-  await expect(page.getByText('1 · 2 pts')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Cadeias de Markov das ações' })).toBeVisible();
-  await expect(page.getByText('Início de posse → 2 pontos')).toBeVisible();
 });

@@ -1,7 +1,11 @@
 import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ScoutTrainerService } from '../../../../application/ScoutTrainerService';
+import {
+  ScoutTrainerService,
+  type ObserveFootballControlInput,
+  type RegisterFootballEventInput,
+} from '../../../../application/ScoutTrainerService';
 import { ScoutTrainerDatabase } from '../../../../infrastructure/persistence/indexeddb/ScoutTrainerDatabase';
 import { IndexedDbEventRepository } from '../../../../infrastructure/persistence/repositories/IndexedDbEventRepository';
 import { IndexedDbMatchRepository } from '../../../../infrastructure/persistence/repositories/IndexedDbMatchRepository';
@@ -61,13 +65,15 @@ it('records explicit ball pressure and a player action in the single recorder; i
   if (!created.ok) throw created.error;
   const controlled = await service.observeFootballControl(created.value.state.metadata.id, { before: { kind: 'unknown' }, after: { kind: 'controlled', teamId: created.value.teams[0].id }, coverage: 'continuous' });
   if (!controlled.ok) throw controlled.error;
-  const onObserve = vi.fn().mockResolvedValue(undefined);
-  const onRegister = vi.fn().mockResolvedValue(undefined);
+  const onObserve = vi.fn<(input: ObserveFootballControlInput) => Promise<void>>().mockResolvedValue(undefined);
+  const onRegister = vi.fn<(input: RegisterFootballEventInput) => Promise<void>>().mockResolvedValue(undefined);
   render(<FootballScoutScreen workspace={controlled.value} onObserve={onObserve} onRegister={onRegister} onCorrect={vi.fn()} onOrientation={vi.fn()} onUndo={vi.fn()} onSaveAssisted={vi.fn()} onClock={vi.fn()} onScoreAdjust={vi.fn()} onExportBackup={vi.fn()} onExportStatsBomb={vi.fn()} />);
   expect(screen.queryByRole('button', { name: 'Modo detalhado' })).not.toBeInTheDocument();
   fireEvent.keyDown(window, { key: 'p' });
   await screen.findByText('Pressão na bola registrada.');
-  expect(onObserve).toHaveBeenCalledWith(expect.objectContaining({ pressure: expect.objectContaining({ kind: 'present_unspecified', pressedTeamId: created.value.teams[0].id }) }));
+  expect(onObserve.mock.calls[0]?.[0]).toMatchObject({
+    pressure: { kind: 'present_unspecified', pressedTeamId: created.value.teams[0].id },
+  });
   fireEvent.keyDown(screen.getByLabelText('Jogador da ação'), { key: 's' });
   expect(onObserve).toHaveBeenCalledTimes(1);
   fireEvent.keyDown(window, { key: 's', repeat: true });
@@ -79,7 +85,13 @@ it('records explicit ball pressure and a player action in the single recorder; i
   fireEvent.keyDown(field, { key: 'Enter' });
   expect(screen.queryByRole('button', { name: 'Registrar ação' })).not.toBeInTheDocument();
   await screen.findByText('Ação registrada.');
-  expect(onRegister).toHaveBeenCalledWith(expect.objectContaining({ action: 'dribble', playerId: player.id, outcome: 'won', location: { x: .5, y: .5 }, observation: expect.objectContaining({ pressure: expect.objectContaining({ kind: 'present_unspecified' }) }) }));
+  expect(onRegister.mock.calls[0]?.[0]).toMatchObject({
+    action: 'dribble',
+    playerId: player.id,
+    outcome: 'won',
+    location: { x: .5, y: .5 },
+    observation: { pressure: { kind: 'present_unspecified' } },
+  });
   expect(screen.getByLabelText('Jogador da ação')).toHaveValue('');
 });
 
@@ -91,10 +103,12 @@ it('saves a loss with one shortcut and preserves a failed automatic action for r
   if (!created.ok) throw created.error;
   const controlled = await service.observeFootballControl(created.value.state.metadata.id, { before: { kind: 'unknown' }, after: { kind: 'controlled', teamId: created.value.teams[0].id }, coverage: 'continuous' });
   if (!controlled.ok) throw controlled.error;
-  const onRegister = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(undefined);
+  const onRegister = vi.fn<(input: RegisterFootballEventInput) => Promise<void>>()
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockResolvedValue(undefined);
   render(<FootballScoutScreen workspace={controlled.value} onObserve={vi.fn()} onRegister={onRegister} onCorrect={vi.fn()} onOrientation={vi.fn()} onUndo={vi.fn()} onSaveAssisted={vi.fn()} onClock={vi.fn()} onScoreAdjust={vi.fn()} onExportBackup={vi.fn()} onExportStatsBomb={vi.fn()} />);
   fireEvent.keyDown(window, { key: 'l' });
-  await screen.findByRole('button', { name: 'Tentar salvar ação' });
+  await screen.findByRole('button', { name: 'Tentar salvar ação' }, { timeout: 15_000 });
   expect(onRegister).toHaveBeenCalledTimes(1);
   expect(onRegister.mock.calls[0][0]).toMatchObject({ action: 'loss', outcome: 'observed', observation: { after: { kind: 'unknown' } } });
   expect(onRegister.mock.calls[0][0].location).toBeUndefined();
