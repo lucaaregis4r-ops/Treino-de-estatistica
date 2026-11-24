@@ -39,6 +39,18 @@ operacional.
 - Caminhos táticos observados por ritmo, gatilho, zona e desfecho. O painel é
   descritivo: não prevê lances ausentes nem inventa trajetórias sem origem anotada.
 
+## Capturas da interface
+
+Estas capturas reais foram registradas na versão de desenvolvimento em outubro de 2026. O download público continua na versão 0.3.0.
+
+| Voleibol | Futebol |
+| --- | --- |
+| ![Registro de voleibol no Scout Trainer](docs/design/volei-desktop.png) | ![Registro de futebol no Scout Trainer](docs/design/futebol-desktop.png) |
+
+| Futsal no celular | Basquete |
+| --- | --- |
+| ![Registro rápido de futsal no celular](docs/design/futsal-celular.png) | ![Scout de basquete no desktop](docs/design/basquete-desktop.png) |
+
 ## Arquitetura
 
 ```text
