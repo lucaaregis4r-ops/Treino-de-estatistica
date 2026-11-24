@@ -1,6 +1,6 @@
 # Scout Trainer 0.6 — futsal e substituições
 
-**Estado:** M0–M7 implementadas; M8 em validação parcial, com entrega bloqueada pela suíte integral e inspeção/piloto pendentes. O aplicativo continua declarado como versão 0.5.0 até fechar a entrega. **Data:** 01/10/2026. **Responsável previsto pela execução:** Luna.
+**Estado:** M0–M7 implementadas; M8 em validação parcial, com entrega bloqueada pela suíte integral e inspeção/piloto pendentes. O aplicativo continua declarado como versão 0.5.0 até fechar a entrega. **Data:** 01/10/2026. 
 
 Esta pasta é o roteiro da **versão 0.6**. A versão declarada do aplicativo no código continua 0.5.0 até uma etapa de entrega autorizar sua alteração. A linha 0.5.0 permanece documentada em [`v0.5-proposta/implementacao-terra`](../v0.5-proposta/implementacao-terra/README.md), com piloto humano T10 e análises T11 pendentes; a criação deste plano não encerra essas pendências.
 
@@ -25,7 +25,7 @@ Esta pasta é o roteiro da **versão 0.6**. A versão declarada do aplicativo no
 | M7    | [Análises e xG](etapas/M7_ANALISES_E_XG.md)                              | Resumo descritivo, cobertura e barreira ao modelo de futebol |
 | M8    | [Validação e entrega](etapas/M8_VALIDACAO_E_ENTREGA.md)                  | Regressão, piloto real e documentação                        |
 
-Executar uma etapa por solicitação. Cada MD termina com critérios de aceite e prompt para o Luna. Ao concluir uma etapa, relatar arquivos, comportamento, testes realmente executados, riscos e próxima etapa; não iniciar a próxima automaticamente.
+Executar uma etapa por solicitação. Cada arquivo de etapa traz critérios de aceite e um prompt de execução. Ao concluir uma etapa, relatar arquivos, comportamento, testes realmente executados, riscos e próxima etapa; não iniciar a próxima automaticamente.
 
 Resultado da rodada M8: [M8_RESULTADO_VALIDACAO.md](etapas/M8_RESULTADO_VALIDACAO.md). A suíte total não terminou e a versão do aplicativo não foi alterada.
 
