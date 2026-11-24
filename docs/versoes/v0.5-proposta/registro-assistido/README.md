@@ -27,8 +27,8 @@ Esta pasta complementa a [M5](../etapas/M5_REGISTRO_POR_POSSE.md) e detalha a ev
 
 Quando o usuário solicitar implementação: **R1 → R2 → R4 (A1 → A2 → A3 → A4) → R3 → M6**. A1–A4 são recortes da R4 ampliada, não quatro etapas extras a executar após uma segunda implementação da R4. Incorporar também saída, roubada e jogador já definidos na R4. Não refazer M0–M4. M7 continua responsável por revisão extensa; M8, pelos relatórios completos.
 
-## Como retomar com o Luna
+## Retomar este roteiro
 
-Ler [ESTADO](../ESTADO.md), este README e somente o MD solicitado, além das instruções da raiz. Inspecionar os arquivos indicados na etapa; preservar trabalho existente. Os prompts de cada MD são para uso quando houver solicitação de implementação, não autorização automática nesta rodada.
+Leia [ESTADO](../ESTADO.md), este README e o arquivo da etapa solicitada, além das instruções da raiz. Inspecione os arquivos indicados e preserve o trabalho existente. Use os prompts de cada etapa somente após um pedido de implementação.
 
 Critério transversal: se o recurso desvia atenção, exige preencher tudo ou aumenta o trabalho para registrar o básico, ele precisa ser simplificado antes de avançar.
