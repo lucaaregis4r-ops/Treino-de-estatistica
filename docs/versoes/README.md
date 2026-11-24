@@ -13,4 +13,4 @@
 | [0.5.0 — vigente](v0.5-proposta/implementacao-terra/README.md) | Futebol por posse/assistido, menus, atletas e elencos; roteiro e pendências da entrega |
 | [0.6 — em implementação e validação](v0.6/README.md) | Futsal com quadra própria e relógio T; substituições; [aditivo de sequências completas e scout mínimo](v0.6/aditivo-cadeias-e-scout-minimo/README.md) em validação; [plano do Scout Essencial híbrido](v0.6/SCOUT_ESSENCIAL_HIBRIDO.md) |
 
-“Futebol 0.1”, “Evolução V2”, “Evolução V3”, versão do backup e versão do aplicativo são numerações diferentes. Documentos sem correspondência de release comprovada estão em [histórico](../historico/README.md), sem renumeração inventada.
+“Futebol 0.1”, “Evolução V2/V3”, a versão do backup e a versão do aplicativo são linhas distintas. Documentos sem release confirmado ficam em [histórico](../historico/README.md).
