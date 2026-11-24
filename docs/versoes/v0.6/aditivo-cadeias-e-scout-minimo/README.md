@@ -6,11 +6,11 @@
 
 Analisar o **rally inteiro** no vôlei e **cada posse observada inteira** no futebol e no futsal, qualquer que seja a quantidade de ações registradas. Fazer o scout do futsal caber num fluxo de jogo: relógio e placar, quadra, controle da bola e faixa inferior de ações. Nenhum detalhe tático ou atleta será obrigatório para marcar a posição da bola.
 
-## Leitura e execução para o Luna
+## Como executar este plano
 
 1. [Plano mestre](PLANO_IMPLEMENTACAO_LUNA.md): decisões, ordem e contratos.
 2. [Referências e limites](REFERENCIAS_E_DECISOES.md): estudos e o que os dados locais permitem afirmar.
-3. Arquivo da etapa solicitada. Executar **uma etapa por solicitação**; registrar arquivos, comportamento, testes e pendências ao terminá-la.
+3. Abra o arquivo da etapa solicitada e execute **uma etapa por solicitação**. Ao terminar, registre arquivos, comportamento, verificações e pendências.
 
 | Etapa | Entrega |
 |---|---|
