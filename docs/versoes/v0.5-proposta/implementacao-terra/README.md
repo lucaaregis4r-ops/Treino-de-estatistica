@@ -6,7 +6,7 @@
 
 Este é o roteiro vigente para implementar todos os pedidos: futebol minimalista por posse, detalhes opcionais, pressão fixável, sugestões de trechos, revisão voluntária, menus e cadastro fácil nas duas modalidades, análise compatível e validação. Substitui a ordem operacional dispersa M/R/A. Os documentos anteriores ficam como histórico de decisões; não são etapas extras.
 
-O usuário autorizou preparar o plano. **Não iniciar implementação ao receber apenas este pacote.** Quando solicitar implementar, executar a etapa indicada; se pedir iniciar o plano, começar pela T01. Avançar por etapas, respeitando o escopo solicitado pelo usuário. Os prompts estão em [PROMPTS_TERRA.md](PROMPTS_TERRA.md).
+Este README descreve o roteiro; a implementação começa somente após solicitação. Execute a etapa indicada e respeite o escopo do pedido. Se a solicitação for para iniciar o plano, comece pela T01. Os prompts por etapa estão em [PROMPTS_TERRA.md](PROMPTS_TERRA.md).
 
 Leitura por rodada: ` AGENTS.md` da raiz (há um espaço antes do nome), este README, a seção vigente de [ESTADO.md](../ESTADO.md) e **somente o MD da etapa solicitada**. Cada MD contém o necessário e aponta entradas reais do código. Não ler todos os planos antigos para começar.
 
